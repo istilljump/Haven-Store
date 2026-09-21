@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
@@ -22,6 +23,7 @@ import java.io.IOException;
  * <p>
  * 请求前置阶段从请求头解析 Token 并校验，通过后将用户 ID 写入 ThreadLocal（UserHolder），
  * Token 缺失或无效时直接写出 401 业务码的统一 Result 响应；
+ * 跨域预检请求（OPTIONS）不携带 Token，直接放行；
  * 请求结束后在 afterCompletion 中清理 ThreadLocal，防止线程池复用导致内存泄漏
  *
  * @author ZCode
@@ -53,24 +55,29 @@ public class JwtInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws IOException {
-        // 1. 从请求头获取 Token
+        // 1. 跨域预检请求（OPTIONS）不携带 Token，直接放行，由 Spring CORS 处理器返回预检响应
+        //    （预检请求同样会经过拦截器链，若不放行会导致浏览器跨域预检失败）
+        if (CorsUtils.isPreFlightRequest(request)) {
+            return true;
+        }
+        // 2. 从请求头获取 Token
         String token = request.getHeader(header);
         if (!StringUtils.hasText(token)) {
             log.warn("请求未携带 Token，URI：{}", request.getRequestURI());
             writeUnauthorized(response);
             return false;
         }
-        // 2. 去除 Bearer 前缀（兼容直接传裸 Token 的客户端）
+        // 3. 去除 Bearer 前缀（兼容直接传裸 Token 的客户端）
         if (token.startsWith(Constants.TOKEN_PREFIX)) {
             token = token.substring(Constants.TOKEN_PREFIX.length());
         }
-        // 3. 校验 Token 有效性（签名正确且未过期）
+        // 4. 校验 Token 有效性（签名正确且未过期）
         if (!jwtUtil.validateToken(token)) {
             log.warn("请求 Token 校验失败，URI：{}", request.getRequestURI());
             writeUnauthorized(response);
             return false;
         }
-        // 4. 解析用户 ID 并存入线程上下文，供后续业务直接获取
+        // 5. 解析用户 ID 并存入线程上下文，供后续业务直接获取
         Long userId = jwtUtil.getUserIdFromToken(token);
         UserHolder.setUserId(userId);
         return true;

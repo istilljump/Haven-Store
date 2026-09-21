@@ -38,6 +38,7 @@ backend
         │   └── RedisKeyConst.java             # Redis Key 常量
         ├── utils                              # 工具层
         │   ├── JwtUtil.java                   # JWT 生成/解析/校验
+        │   ├── Md5Util.java                   # MD5 摘要（缓存Key/签名，禁用于密码）
         │   ├── PasswordUtil.java              # BCrypt 密码加密与比对
         │   ├── RedisUtil.java                 # Redis 常用操作封装
         │   └── UserHolder.java                # ThreadLocal 用户上下文
@@ -48,7 +49,7 @@ backend
         │   ├── JacksonConfig.java             # 全局时间序列化格式
         │   ├── Knife4jConfig.java             # 接口文档配置
         │   ├── JwtInterceptor.java            # JWT 登录鉴权拦截器
-        │   └── WebMvcConfig.java              # 拦截器注册与白名单
+        │   └── WebMvcConfig.java              # 全局跨域、拦截器注册与白名单
         └── user                               # 用户模块
             ├── controller/UserController.java # 控制器：注册/登录/当前用户
             ├── service/UserService.java       # 业务接口
