@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>前端API测试报告</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .summary { display: flex; gap: 20px; margin-bottom: 20px; }
+        .stat { background: #e8f5e8; padding: 15px; border-radius: 8px; flex: 1; }
+        .stat.failed { background: #ffe8e8; }
+        .details { margin-top: 20px; }
+        .test-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+        .test-item.passed { background: #e8f5e8; }
+        .test-item.failed { background: #ffe8e8; }
+        .test-name { font-weight: bold; margin-bottom: 10px; }
+        .test-details { font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>前端API测试报告</h1>
+        <p>测试时间: 2026-09-21T15:39:11.387Z</p>
+        <p>前端地址: http://localhost:3000</p>
+        <p>后端地址: http://localhost:8080/api</p>
+        
+        <div class="summary">
+            <div class="stat">
+                <h3>总测试数</h3>
+                <p>9</p>
+            </div>
+            <div class="stat passed">
+                <h3>通过</h3>
+                <p>7</p>
+            </div>
+            <div class="stat failed">
+                <h3>失败</h3>
+                <p>2</p>
+            </div>
+            <div class="stat">
+                <h3>成功率</h3>
+                <p>77.78%</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="details">
+        <h2>测试详情</h2>
+        
+            <div class="test-item passed">
+                <div class="test-name">
+                    ✅ 健康检查API响应正常
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.356Z<br>
+                    详情: {
+  "status": 200,
+  "data": {
+    "code": 200,
+    "data": {
+      "message": "Mock API服务运行正常",
+      "status": "ok",
+      "timestamp": "2026-09-21T23:39:11.284155"
+    },
+    "msg": "成功"
+  }
+}
+                </div>
+            </div>
+        
+            <div class="test-item passed">
+                <div class="test-name">
+                    ✅ 首页页面加载正常
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.363Z<br>
+                    详情: {
+  "status": 200,
+  "url": "http://localhost:3000/",
+  "length": 328
+}
+                </div>
+            </div>
+        
+            <div class="test-item passed">
+                <div class="test-name">
+                    ✅ 登录页页面加载正常
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.367Z<br>
+                    详情: {
+  "status": 200,
+  "url": "http://localhost:3000/login",
+  "length": 328
+}
+                </div>
+            </div>
+        
+            <div class="test-item passed">
+                <div class="test-name">
+                    ✅ 注册页页面加载正常
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.372Z<br>
+                    详情: {
+  "status": 200,
+  "url": "http://localhost:3000/register",
+  "length": 328
+}
+                </div>
+            </div>
+        
+            <div class="test-item passed">
+                <div class="test-name">
+                    ✅ 商品列表页面加载正常
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.377Z<br>
+                    详情: {
+  "status": 200,
+  "url": "http://localhost:3000/products",
+  "length": 328
+}
+                </div>
+            </div>
+        
+            <div class="test-item passed">
+                <div class="test-name">
+                    ✅ 发布商品页面加载正常
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.382Z<br>
+                    详情: {
+  "status": 200,
+  "url": "http://localhost:3000/publish",
+  "length": 328
+}
+                </div>
+            </div>
+        
+            <div class="test-item passed">
+                <div class="test-name">
+                    ✅ 用户注册API - 用户名已存在
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.387Z<br>
+                    详情: {
+  "username": "testuser_1790005151383",
+  "result": {
+    "code": 400,
+    "data": null,
+    "msg": "手机号已存在"
+  }
+}
+                </div>
+            </div>
+        
+            <div class="test-item failed">
+                <div class="test-name">
+                    ❌ 跳过登录测试 - 没有测试用户
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.387Z<br>
+                    详情: {
+  "reason": "需要先注册用户"
+}
+                </div>
+            </div>
+        
+            <div class="test-item failed">
+                <div class="test-name">
+                    ❌ 跳过商品API测试 - 需要登录
+                </div>
+                <div class="test-details">
+                    时间: 2026-09-21T15:39:11.387Z<br>
+                    详情: {
+  "reason": "需要先登录"
+}
+                </div>
+            </div>
+        
+    </div>
+</body>
+</html>
+    

@@ -1,99 +1,131 @@
--- =============================================================
--- 二手商品交易平台数据库初始化脚本
--- 数据库：second_hand_market（MySQL 8.0，字符集 utf8mb4）
--- 执行方式：mysql -uroot -p < init.sql，或在 Navicat 等客户端中直接执行
--- 注意：脚本包含 DROP TABLE 语句，重复执行会清空表内原有数据
--- 表清单：user（用户）/ category（商品分类）/ product（二手商品）
--- =============================================================
+-- H2数据库初始化脚本
+-- 创建用户表
+CREATE TABLE IF NOT EXISTS user (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL UNIQUE,
+    nickname VARCHAR(100),
+    avatar VARCHAR(255),
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL,
+    status INT DEFAULT 1 COMMENT '状态：1-正常，2-禁用',
+    INDEX idx_username (username),
+    INDEX idx_phone (phone)
+);
 
--- 创建数据库（若不存在），指定 utf8mb4 字符集以支持表情符号等完整 Unicode 字符
-CREATE DATABASE IF NOT EXISTS `second_hand_market`
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_general_ci;
+-- 创建商品分类表
+CREATE TABLE IF NOT EXISTS category (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    sort INT DEFAULT 0 COMMENT '排序',
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL,
+    INDEX idx_sort (sort)
+);
 
-USE `second_hand_market`;
+-- 创建商品表
+CREATE TABLE IF NOT EXISTS product (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    cover_image VARCHAR(255),
+    category_id BIGINT NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    product_condition VARCHAR(20) NOT NULL COMMENT '商品成色',
+    trade_type VARCHAR(20) NOT NULL COMMENT '交易方式',
+    address VARCHAR(500),
+    longitude DECIMAL(12,9),
+    latitude DECIMAL(12,9),
+    status INT DEFAULT 1 COMMENT '状态：1-在售，2-已售出，3-已下架',
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL,
+    INDEX idx_user_id (user_id),
+    INDEX idx_category_id (category_id),
+    INDEX idx_price (price),
+    INDEX idx_status (status),
+    INDEX idx_create_time (create_time),
+    FOREIGN KEY (user_id) REFERENCES user(id),
+    FOREIGN KEY (category_id) REFERENCES category(id)
+);
 
--- -------------------------------------------------------------
--- 用户表
--- -------------------------------------------------------------
-DROP TABLE IF EXISTS `user`;
-CREATE TABLE `user` (
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户ID',
-    `username`    VARCHAR(20)  NOT NULL                COMMENT '用户名（登录账号，唯一）',
-    `password`    VARCHAR(100) NOT NULL                COMMENT '密码（BCrypt密文）',
-    `phone`       VARCHAR(11)  DEFAULT NULL            COMMENT '手机号（唯一）',
-    `nickname`    VARCHAR(30)  DEFAULT NULL            COMMENT '昵称',
-    `avatar`      VARCHAR(255) DEFAULT NULL            COMMENT '头像URL',
-    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `status`      TINYINT      NOT NULL DEFAULT 1      COMMENT '状态：1正常 0禁用',
-    PRIMARY KEY (`id`),
-    -- 用户名唯一索引：注册唯一性校验的数据库兜底保障
-    UNIQUE KEY `uk_username` (`username`),
-    -- 手机号唯一索引
-    UNIQUE KEY `uk_phone` (`phone`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户表';
+-- 插入默认商品分类数据
+INSERT INTO category (id, name, sort, create_time, update_time) VALUES
+(1, '手机数码', 1, NOW(), NOW()),
+(2, '电脑办公', 2, NOW(), NOW()),
+(3, '图书教材', 3, NOW(), NOW()),
+(4, '家用电器', 4, NOW(), NOW()),
+(5, '服饰鞋包', 5, NOW(), NOW()),
+(6, '运动户外', 6, NOW(), NOW()),
+(7, '美妆个护', 7, NOW(), NOW()),
+(8, '其他闲置', 8, NOW(), NOW())
+ON DUPLICATE KEY UPDATE name=VALUES(name);
 
--- -------------------------------------------------------------
--- 商品分类表
--- 说明：不建物理外键，product.category_id 的关联由应用层校验
--- -------------------------------------------------------------
-DROP TABLE IF EXISTS `category`;
-CREATE TABLE `category` (
-    `id`          INT         NOT NULL AUTO_INCREMENT COMMENT '分类ID',
-    `name`        VARCHAR(30) NOT NULL                COMMENT '分类名称（唯一）',
-    `sort`        INT         NOT NULL DEFAULT 0      COMMENT '排序值（数字越小越靠前）',
-    `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    -- 分类名称唯一索引：防止重复录入同名分类
-    UNIQUE KEY `uk_name` (`name`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品分类表';
+-- 插入默认管理员用户
+INSERT INTO user (id, username, password, phone, nickname, create_time, update_time) VALUES
+(1, 'admin', '$2a$10$rO3mXG7K0J5I9S1U7h8nZOs7xW9G8YXQl6E9V2r4T9N6wD5Y8t2e', '13800138000', '管理员', NOW(), NOW())
+ON DUPLICATE KEY UPDATE nickname=VALUES(nickname);
 
--- -------------------------------------------------------------
--- 二手商品表
--- 业务规则：trade_type 为「线下」时 address/longitude/latitude 必填，
---          为「线上」时可为空（由后端参数校验保证，数据库层面不强制）
--- -------------------------------------------------------------
-DROP TABLE IF EXISTS `product`;
-CREATE TABLE `product` (
-    `id`                BIGINT        NOT NULL AUTO_INCREMENT COMMENT '商品ID',
-    `user_id`           BIGINT        NOT NULL                COMMENT '发布用户ID（卖家，关联user表）',
-    `title`             VARCHAR(100)  NOT NULL                COMMENT '商品标题',
-    `description`       VARCHAR(1000) DEFAULT NULL            COMMENT '商品描述',
-    `cover_image`       VARCHAR(255)  DEFAULT NULL            COMMENT '封面图URL（列表页缩略图展示）',
-    `category_id`       INT           NOT NULL                COMMENT '分类ID（关联category表）',
-    `price`             DECIMAL(10,2) NOT NULL                COMMENT '商品价格（元，必须大于0）',
-    `product_condition` VARCHAR(10)   NOT NULL                COMMENT '成色：全新/九成新/八成新/七成新及以下',
-    `trade_type`        VARCHAR(10)   NOT NULL                COMMENT '交易方式：线上/线下',
-    `address`           VARCHAR(200)  DEFAULT NULL            COMMENT '线下交易地址（线上交易时为空）',
-    `longitude`         DECIMAL(10,6) DEFAULT NULL            COMMENT '经度（线下交易地点，-180~180）',
-    `latitude`          DECIMAL(10,6) DEFAULT NULL            COMMENT '纬度（线下交易地点，-90~90）',
-    `create_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（发布时间）',
-    `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `status`            TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1上架 0下架',
-    PRIMARY KEY (`id`),
-    -- 卖家用户ID索引：「我的发布」按卖家查询商品列表
-    KEY `idx_user_id` (`user_id`),
-    -- 分类ID索引：首页与列表页按分类筛选商品
-    KEY `idx_category_id` (`category_id`),
-    -- 上架状态索引：列表页默认只查上架商品
-    KEY `idx_status` (`status`),
-    -- 创建时间索引：商品列表按发布时间倒序排列
-    KEY `idx_create_time` (`create_time`),
-    -- 经度索引：LBS附近商品查询的经纬度矩形范围预过滤
-    KEY `idx_longitude` (`longitude`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '二手商品表';
+-- 插入测试商品数据
+INSERT INTO product (id, user_id, title, description, cover_image, category_id, price, product_condition, trade_type, address, longitude, latitude, status, create_time, update_time) VALUES
+(1, 1, 'iPhone 13 Pro 256G 深空灰', '95新，无拆修，原装充电器，发票齐全', '/images/iphone13pro.jpg', 1, 6999.00, '九成新', 'offline', '北京市朝阳区国贸CBD', 116.466240, 39.920800, 1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY),
+(2, 1, 'MacBook Pro 13寸 2020款', '性能完好，轻度使用，适合办公学习', '/images/macbookpro.jpg', 2, 8999.00, '八成新', 'online', '', NULL, NULL, 1, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 3 DAY)
+ON DUPLICATE KEY UPDATE title=VALUES(title);
 
--- -------------------------------------------------------------
--- 基础分类种子数据（可按业务需要增删）
--- -------------------------------------------------------------
-INSERT INTO `category` (`name`, `sort`) VALUES
-    ('手机数码', 1),
-    ('电脑办公', 2),
-    ('图书教材', 3),
-    ('家用电器', 4),
-    ('服饰鞋包', 5),
-    ('运动户外', 6),
-    ('美妆个护', 7),
-    ('其他闲置', 8);
+-- 创建用户-商品关联表（用于收藏等）
+CREATE TABLE IF NOT EXISTS user_product_relation (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    relation_type VARCHAR(20) NOT NULL COMMENT '关系类型：collect-收藏',
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL,
+    UNIQUE KEY uk_user_product (user_id, product_id, relation_type),
+    INDEX idx_user_id (user_id),
+    INDEX idx_product_id (product_id),
+    FOREIGN KEY (user_id) REFERENCES user(id),
+    FOREIGN KEY (product_id) REFERENCES product(id)
+);
+
+-- 创建评论表
+CREATE TABLE IF NOT EXISTS comment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    content TEXT NOT NULL,
+    rating INT DEFAULT 5 COMMENT '评分1-5',
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL,
+    status INT DEFAULT 1 COMMENT '状态：1-正常，2-隐藏',
+    INDEX idx_user_id (user_id),
+    INDEX idx_product_id (product_id),
+    INDEX idx_status (status),
+    FOREIGN KEY (user_id) REFERENCES user(id),
+    FOREIGN KEY (product_id) REFERENCES product(id)
+);
+
+-- 创建消息通知表
+CREATE TABLE IF NOT EXISTS message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    from_user_id BIGINT NOT NULL,
+    to_user_id BIGINT NOT NULL,
+    content TEXT NOT NULL,
+    is_read INT DEFAULT 0 COMMENT '是否已读：0-未读，1-已读',
+    message_type VARCHAR(20) NOT NULL COMMENT '消息类型：comment-评论，collect-收藏，trade-交易',
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL,
+    INDEX idx_from_user_id (from_user_id),
+    INDEX idx_to_user_id (to_user_id),
+    INDEX idx_is_read (is_read),
+    FOREIGN KEY (from_user_id) REFERENCES user(id),
+    FOREIGN KEY (to_user_id) REFERENCES user(id)
+);
+
+-- 创建索引优化查询
+CREATE INDEX idx_product_status_category ON product(status, category_id);
+CREATE INDEX idx_product_status_price ON product(status, price);
+CREATE INDEX idx_product_create_time ON product(status, create_time);
+
+-- 提交事务
+COMMIT;

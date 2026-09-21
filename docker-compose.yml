@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: secondhand-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=production
+
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: secondhand-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/secondhand_market?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=123456
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_DATABASE=0
+      - SPRING_REDIS_PASSWORD=
+
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: secondhand-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=secondhand_market
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backend/scripts:/docker-entrypoint-initdb.d
+    command: 
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=512M
+      --innodb-log-file-size=128M
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: secondhand-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    # 生产环境建议启用密码保护
+    # command: redis-server --requirepass yourpassword
+
+  # Nginx反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: secondhand-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"  # 如果使用80端口访问
+    networks:
+      - app-network
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge
