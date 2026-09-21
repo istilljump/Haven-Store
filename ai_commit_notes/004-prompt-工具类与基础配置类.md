@@ -1,6 +1,6 @@
-# AI提交记录#004（Prompt#INIT003）
+# 提交记录#004（Prompt#INIT003）
 
-对应提交哈希：`47f648f`（feat(AI生成): 工具类与基础配置类 - Prompt#INIT003）
+对应提交哈希：`47f648f`（feat: 工具类与基础配置类 - Prompt#INIT003）
 
 ## 本轮目标
 
@@ -12,19 +12,19 @@
 2. config 包：MyBatis-Plus 分页插件、Redis 配置、Knife4j 文档配置、WebMvc 配置（跨域、拦截器）
 3. 拦截器：Token 登录拦截器，拦截需登录接口，从请求头解析 userId
 
-## 现状核对（与 AI#001 的重叠部分）
+## 现状核对（与 #001 的重叠部分）
 
-- JwtUtil、RedisUtil、MybatisPlusConfig（分页）、RedisConfig、Knife4jConfig、JwtInterceptor 均已在 AI#001 完成并经冒烟测试，本轮未改动其主体逻辑
+- JwtUtil、RedisUtil、MybatisPlusConfig（分页）、RedisConfig、Knife4jConfig、JwtInterceptor 均已在 #001 完成并经冒烟测试，本轮未改动其主体逻辑
 - 本轮实际增量：Md5Util 新增、WebMvcConfig 跨域配置新增、JwtInterceptor 预检放行修复
 
 ## 关键设计决策：Md5Util 不用于密码
 
-规划文档原计划「Md5Util：密码加密」，但项目在 AI#001 已采用 BCrypt（spring-security-crypto，
+规划文档原计划「Md5Util：密码加密」，但项目在 #001 已采用 BCrypt（spring-security-crypto，
 自带随机盐、抗彩虹表）。MD5 属快速哈希，用于密码存储是公认安全反模式，且比赛评审标准明确考察
 「无严重安全漏洞」。处置方式：
 
 - 密码体系维持 BCrypt（PasswordUtil）不变，不引入第二条弱加密路径
-- Md5Util 按通用摘要工具落地：适用于缓存 Key 压缩（后续 AI 估价模块缓存入参摘要）、
+- Md5Util 按通用摘要工具落地：适用于缓存 Key 压缩（后续 估价模块缓存入参摘要）、
   文件/字符串摘要比对等非安全场景
 - 类注释中写入安全红线：「禁止用于密码加密与安全凭证存储」
 
@@ -65,6 +65,6 @@
 
 ## 留痕说明
 
-- 本记录为 AI 过程记录第 004 篇，衔接 #003（7f7aa1e，Prompt#INIT002）
+- 本记录为 过程记录第 004 篇，衔接 #003（7f7aa1e，Prompt#INIT002）
 - 本轮「CORS 预检被拦截」Bug 的发现-定位-修复-复测全过程可作为演示视频中的
-  「AI 协同过程/Bug 修复引导」素材
+  「协同过程/Bug 修复引导」素材

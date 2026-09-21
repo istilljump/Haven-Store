@@ -1,6 +1,6 @@
-# AI提交记录#003（Prompt#INIT002）
+# 提交记录#003（Prompt#INIT002）
 
-对应提交哈希：`7f7aa1e`（feat(AI生成): 基础分层架构与通用核心组件 - Prompt#INIT002）
+对应提交哈希：`7f7aa1e`（feat: 基础分层架构与通用核心组件 - Prompt#INIT002）
 
 ## 本轮目标
 
@@ -13,9 +13,9 @@
 3. entity 包：三张表对应实体类，使用 MyBatis-Plus 注解
 4. mapper 包：对应 Mapper 接口，继承 BaseMapper
 
-## 现状核对（与 AI#001 的重叠部分）
+## 现状核对（与 #001 的重叠部分）
 
-- 包结构与 common 组件（Result、ResultCodeEnum、BusinessException、GlobalExceptionHandler、Constants、RedisKeyConst）、utils 四件套（JwtUtil、PasswordUtil、RedisUtil、UserHolder）在 AI#001 已全部完成并经冒烟测试验证，本轮**未重复生成、未改动**
+- 包结构与 common 组件（Result、ResultCodeEnum、BusinessException、GlobalExceptionHandler、Constants、RedisKeyConst）、utils 四件套（JwtUtil、PasswordUtil、RedisUtil、UserHolder）在 #001 已全部完成并经冒烟测试验证，本轮**未重复生成、未改动**
 - User 实体与 UserMapper 已存在，本轮实际新增的是 product、category 两个模块的实体与数据访问层
 
 ## 变更文件（4 个，均为新增）
@@ -44,4 +44,4 @@
 
 ## 留痕说明
 
-- 本记录为 AI 过程记录第 003 篇，衔接 #002（451ac0c，Prompt#INIT001）
+- 本记录为 过程记录第 003 篇，衔接 #002（451ac0c，Prompt#INIT001）
