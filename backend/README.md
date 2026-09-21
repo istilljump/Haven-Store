@@ -60,6 +60,15 @@ backend
             ├── vo/LoginUserVO.java            # 出参：登录返回信息
             ├── enums/UserStatusEnum.java      # 账号状态枚举
             └── constant/UserConstant.java     # 模块常量
+        └── product                            # 商品模块
+            ├── controller/ProductController.java # 控制器：发布商品
+            ├── service/ProductService.java    # 业务接口
+            ├── serviceImpl/ProductServiceImpl.java # 业务实现
+            ├── mapper/ProductMapper.java      # 数据访问层
+            ├── entity/Product.java            # 商品实体
+            ├── dto/ProductAddDTO.java         # 入参：商品发布入参
+            ├── vo/ProductAddVO.java           # 出参：发布成功返回商品ID
+            └── enums/ProductStatusEnum.java   # 商品状态枚举（上架/下架）
 ```
 
 ## 鉴权说明
