@@ -7,17 +7,23 @@ import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
 import com.example.product.constant.ProductConstant;
 import com.example.product.dto.ProductAddDTO;
+import com.example.product.dto.ProductNearbyQueryDTO;
+import com.example.product.dto.ProductEstimateDTO;
 import com.example.product.entity.Product;
 import com.example.product.enums.ProductStatusEnum;
 import com.example.product.mapper.ProductMapper;
+import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.ProductAddVO;
+import com.example.product.vo.ProductEstimateVO;
+import com.example.product.vo.ProductNearbyVO;
 import com.example.utils.UserHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 
 /**
@@ -36,6 +42,9 @@ public class ProductServiceImpl implements ProductService {
 
     /** 分类模块数据访问对象（用于校验分类 ID 合法性） */
     private final CategoryMapper categoryMapper;
+
+    /** AI估价服务对象 */
+    private final ProductAIService productAIService;
 
     /**
      * 发布二手商品：
@@ -76,8 +85,25 @@ public class ProductServiceImpl implements ProductService {
         productMapper.insert(product);
         log.info("商品发布成功，商品ID：{}，卖家用户ID：{}，分类：{}，交易方式：{}",
                 product.getId(), userId, category.getName(), dto.getTradeType());
-        // 8. 返回商品 ID
-        return Result.success(ProductAddVO.builder().productId(product.getId()).build());
+        // 7. 获取AI估价建议（可选，不影响发布流程）
+        ProductEstimateVO estimateVO = null;
+        try {
+            ProductEstimateDTO estimateDTO = new ProductEstimateDTO();
+            estimateDTO.setTitle(dto.getTitle());
+            estimateDTO.setDescription(dto.getDescription());
+            estimateDTO.setProductCondition(dto.getProductCondition());
+            estimateDTO.setCategoryId(dto.getCategoryId());
+            estimateVO = productAIService.estimatePrice(estimateDTO).getData();
+        } catch (Exception e) {
+            log.warn("获取AI估价建议失败，不影响商品发布", e);
+        }
+
+        // 8. 返回商品 ID 和估价建议
+        ProductAddVO addVO = ProductAddVO.builder()
+                .productId(product.getId())
+                .estimatedPrice(estimateVO != null ? estimateVO.getEstimatedPrice() : null)
+                .build();
+        return Result.success(addVO);
     }
 
     /**
@@ -98,6 +124,79 @@ public class ProductServiceImpl implements ProductService {
                 throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "线下交易时纬度不能为空");
             }
         }
+    }
+
+    /**
+     * 查询附近商品
+     * <p>
+     * 根据经纬度查询指定半径内的商品，按距离排序
+     *
+     * @param dto 查询参数
+     * @return 附近商品列表
+     */
+    @Override
+    public Result<Page<ProductNearbyVO>> findNearbyProducts(ProductNearbyQueryDTO dto) {
+        // 1. 参数校验
+        if (dto.getCenterLongitude() == null || dto.getCenterLatitude() == null || dto.getRadius() == null) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "查询参数不能为空");
+        }
+
+        // 2. 参数校验 - 经纬度边界检查
+        if (dto.getCenterLongitude() == null || dto.getCenterLatitude() == null) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "经纬度不能为空");
+        }
+        if (dto.getCenterLongitude().compareTo(BigDecimal.valueOf(ProductConstant.LONGITUDE_MIN)) < 0 || 
+            dto.getCenterLongitude().compareTo(BigDecimal.valueOf(ProductConstant.LONGITUDE_MAX)) > 0) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "经度必须在-180到180之间");
+        }
+        if (dto.getCenterLatitude().compareTo(BigDecimal.valueOf(ProductConstant.LATITUDE_MIN)) < 0 || 
+            dto.getCenterLatitude().compareTo(BigDecimal.valueOf(ProductConstant.LATITUDE_MAX)) > 0) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "纬度必须在-90到90之间");
+        }
+
+        // 3. 计算矩形范围（提高查询性能）
+        double earthRadius = 6371; // 地球半径（公里）
+        double deltaLat = dto.getRadius() / earthRadius * (180 / Math.PI);
+        double deltaLon = dto.getRadius() / (earthRadius * Math.cos(Math.toRadians(dto.getCenterLatitude()))) * (180 / Math.PI);
+
+        BigDecimal minLongitude = dto.getCenterLongitude().subtract(BigDecimal.valueOf(deltaLon));
+        BigDecimal maxLongitude = dto.getCenterLongitude().add(BigDecimal.valueOf(deltaLon));
+        BigDecimal minLatitude = dto.getCenterLatitude().subtract(BigDecimal.valueOf(deltaLat));
+        BigDecimal maxLatitude = dto.getCenterLatitude().add(BigDecimal.valueOf(deltaLat));
+
+        // 3. 分页参数
+        int pageNum = dto.getPageNum() != null ? dto.getPageNum() : 1;
+        int pageSize = dto.getPageSize() != null ? dto.getPageSize() : 10;
+        int offset = (pageNum - 1) * pageSize;
+
+        // 4. 查询附近商品
+        List<ProductNearbyVO> products = productMapper.selectNearbyProducts(
+                dto.getCenterLongitude(), 
+                dto.getCenterLatitude(), 
+                dto.getRadius(), 
+                ProductStatusEnum.ON_SHELF.getCode(), 
+                pageNum, 
+                pageSize,
+                minLongitude, 
+                maxLongitude, 
+                minLatitude, 
+                maxLatitude
+        );
+
+        // 5. 构建分页结果
+        Page<ProductNearbyVO> page = new Page<>(pageNum, pageSize);
+        page.setRecords(products);
+        page.setTotal(getNearbyProductCount(dto.getCenterLongitude(), dto.getCenterLatitude(), dto.getRadius()));
+
+        return Result.success(page);
+    }
+
+    /**
+     * 获取附近商品总数
+     */
+    private long getNearbyProductCount(BigDecimal centerLongitude, BigDecimal centerLatitude, Integer radius) {
+        // 实现类似selectNearbyProducts的逻辑，只返回count
+        return productMapper.selectNearbyProductCount(centerLongitude, centerLatitude, radius);
     }
 
     /**

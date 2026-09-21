@@ -1,8 +1,11 @@
 package com.example.product.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.common.Result;
 import com.example.product.dto.ProductAddDTO;
+import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.vo.ProductAddVO;
+import com.example.product.vo.ProductNearbyVO;
 
 /**
  * 二手商品模块业务逻辑接口
@@ -21,4 +24,14 @@ public interface ProductService {
      * @return 新发布商品的 ID
      */
     Result<ProductAddVO> addProduct(ProductAddDTO dto);
+
+    /**
+     * 查询附近商品
+     * <p>
+     * 根据经纬度查询指定半径内的商品，按距离排序
+     *
+     * @param dto 查询参数（中心点经纬度、查询半径、分页参数）
+     * @return 附近商品列表
+     */
+    Result<Page<ProductNearbyVO>> findNearbyProducts(ProductNearbyQueryDTO dto);
 }

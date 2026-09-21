@@ -27,4 +27,8 @@ public class ProductAddVO implements Serializable {
     /** 新发布商品的 ID */
     @ApiModelProperty("商品ID")
     private Long productId;
+
+    /** AI估价建议价格（可选） */
+    @ApiModelProperty("AI估价建议价格")
+    private BigDecimal estimatedPrice;
 }

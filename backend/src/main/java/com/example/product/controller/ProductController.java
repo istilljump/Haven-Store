@@ -2,8 +2,13 @@ package com.example.product.controller;
 
 import com.example.common.Result;
 import com.example.product.dto.ProductAddDTO;
+import com.example.product.dto.ProductEstimateDTO;
+import com.example.product.dto.ProductNearbyQueryDTO;
+import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.ProductAddVO;
+import com.example.product.vo.ProductEstimateVO;
+import com.example.product.vo.ProductNearbyVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -41,5 +46,29 @@ public class ProductController {
     @PostMapping("/add")
     public Result<ProductAddVO> add(@RequestBody @Validated ProductAddDTO dto) {
         return productService.addProduct(dto);
+    }
+
+    /**
+     * 查询附近商品
+     *
+     * @param dto 查询参数（中心点经纬度、查询半径、分页参数）
+     * @return 附近商品列表
+     */
+    @ApiOperation(value = "查询附近商品", notes = "需要登录态；根据经纬度查询指定半径内的商品，按距离排序")
+    @PostMapping("/nearby")
+    public Result<Page<ProductNearbyVO>> findNearbyProducts(@RequestBody @Validated ProductNearbyQueryDTO dto) {
+        return productService.findNearbyProducts(dto);
+    }
+
+    /**
+     * 获取AI估价建议
+     *
+     * @param dto 估价参数（标题、描述、成色、分类）
+     * @return 估价结果
+     */
+    @ApiOperation(value = "获取AI估价建议", notes = "基于商品特征进行智能估价，返回建议价格和置信度")
+    @PostMapping("/estimate")
+    public Result<ProductEstimateVO> getAIPriceSuggestion(@RequestBody @Validated ProductEstimateDTO dto) {
+        return productAIService.estimatePrice(dto);
     }
 }
