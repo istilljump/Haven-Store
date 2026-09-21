@@ -38,4 +38,17 @@ public class BusinessException extends RuntimeException {
         super(message);
         this.code = ResultCodeEnum.BUSINESS_ERROR.getCode();
     }
+
+    /**
+     * 使用自定义状态码与提示信息构造业务异常
+     * <p>
+     * 参数校验失败场景应传入 {@link ResultCodeEnum#PARAM_ERROR}，使前端收到 400 而非 500
+     *
+     * @param code    错误状态码
+     * @param message 错误提示信息
+     */
+    public BusinessException(Integer code, String message) {
+        super(message);
+        this.code = code;
+    }
 }

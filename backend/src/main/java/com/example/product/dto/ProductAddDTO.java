@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
+import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Digits;
 import javax.validation.constraints.NotBlank;
@@ -55,22 +56,26 @@ public class ProductAddDTO implements Serializable {
     @Size(max = 10, message = "成色长度不能超过10个字符")
     private String productCondition;
 
-    /** 交易方式：线上 / 线下 */
-    @ApiModelProperty(value = "交易方式：线上/线下", required = true, example = "线下")
+    /** 交易方式：线上 / 线下（线下时地址与经纬度在业务层强制必填） */
+    @ApiModelProperty(value = "交易方式：线上/线下", required = true, example = "线下", notes = "线下交易时地址、经度、纬度必填")
     @NotBlank(message = "交易方式不能为空")
     @Size(max = 10, message = "交易方式长度不能超过10个字符")
     private String tradeType;
 
-    /** 线下交易地址 */
-    @ApiModelProperty(value = "线下交易地址", example = "北京市海淀区中关村大街1号")
+    /** 线下交易地址（交易方式为线下时必填，线上时允许为空） */
+    @ApiModelProperty(value = "线下交易地址（线下交易时必填）", example = "北京市海淀区中关村大街1号")
     @Size(max = 200, message = "交易地址长度不能超过200个字符")
     private String address;
 
-    /** 经度（线下交易地点坐标） */
-    @ApiModelProperty(value = "经度", example = "116.316833")
+    /** 经度（线下交易地点坐标，范围 -180 ~ 180；交易方式为线下时必填） */
+    @ApiModelProperty(value = "经度（线下交易时必填，范围-180~180）", example = "116.316833")
+    @DecimalMin(value = "-180", message = "经度不能小于-180")
+    @DecimalMax(value = "180", message = "经度不能大于180")
     private BigDecimal longitude;
 
-    /** 纬度（线下交易地点坐标） */
-    @ApiModelProperty(value = "纬度", example = "39.981013")
+    /** 纬度（线下交易地点坐标，范围 -90 ~ 90；交易方式为线下时必填） */
+    @ApiModelProperty(value = "纬度（线下交易时必填，范围-90~90）", example = "39.981013")
+    @DecimalMin(value = "-90", message = "纬度不能小于-90")
+    @DecimalMax(value = "90", message = "纬度不能大于90")
     private BigDecimal latitude;
 }

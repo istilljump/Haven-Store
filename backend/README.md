@@ -68,7 +68,8 @@ backend
             ├── entity/Product.java            # 商品实体
             ├── dto/ProductAddDTO.java         # 入参：商品发布入参
             ├── vo/ProductAddVO.java           # 出参：发布成功返回商品ID
-            └── enums/ProductStatusEnum.java   # 商品状态枚举（上架/下架）
+            ├── enums/ProductStatusEnum.java   # 商品状态枚举（上架/下架）
+            └── constant/ProductConstant.java  # 模块常量（交易方式、成色、经纬度范围）
 ```
 
 ## 鉴权说明
