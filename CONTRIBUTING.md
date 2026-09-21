@@ -300,8 +300,8 @@ git push origin feature/your-feature-name
 如有问题，请通过以下方式联系：
 
 - GitHub Issues: [项目Issues页面](../../issues)
-- Email: liuqianwei@example.com
-- 微信: your-wechat-id
+- Email: 1593504559@qq.com
+- 微信: istilljump
 
 ## 📄 许可证
 
