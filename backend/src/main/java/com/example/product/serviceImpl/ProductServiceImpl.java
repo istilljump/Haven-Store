@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+
 
 /**
  * 二手商品模块业务逻辑实现类
@@ -50,27 +52,31 @@ public class ProductServiceImpl implements ProductService {
         if (userId == null) {
             throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
         }
-        // 2. 交易方式合法性校验（仅允许「线上」与「线下」，拒绝任意字符串）
+        // 2. 价格 Service 层兜底校验（DTO 层 @DecimalMin 已做第一道防线，此处防范绕过 DTO 校验的边界场景）
+        if (dto.getPrice() == null || dto.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品价格必须大于0");
+        }
+        // 3. 交易方式合法性校验（仅允许「线上」与「线下」，拒绝任意字符串）
         if (!ProductConstant.VALID_TRADE_TYPES.contains(dto.getTradeType())) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "交易方式不合法，仅支持：线上、线下");
         }
-        // 3. 成色合法性校验
+        // 4. 成色合法性校验
         if (!ProductConstant.VALID_CONDITIONS.contains(dto.getProductCondition())) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "成色不合法，仅支持：全新、九成新、八成新、七成新及以下");
         }
-        // 4. 分类存在性校验（防止前端传入不存在的 categoryId 导致数据完整性问题）
+        // 5. 分类存在性校验（防止前端传入不存在的 categoryId 导致数据完整性问题）
         Category category = categoryMapper.selectById(dto.getCategoryId());
         if (category == null) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品分类不存在");
         }
-        // 5. 线下交易联动校验：交易方式为线下时，地址、经度、纬度必须填写
+        // 6. 线下交易联动校验：交易方式为线下时，地址、经度、纬度必须填写
         validateOfflineTrade(dto);
-        // 6. 组装商品实体并写入数据库（创建时间、更新时间由 MyBatis-Plus 自动填充）
+        // 7. 组装商品实体并写入数据库（创建时间、更新时间由 MyBatis-Plus 自动填充）
         Product product = buildProduct(dto, userId);
         productMapper.insert(product);
         log.info("商品发布成功，商品ID：{}，卖家用户ID：{}，分类：{}，交易方式：{}",
                 product.getId(), userId, category.getName(), dto.getTradeType());
-        // 7. 返回商品 ID
+        // 8. 返回商品 ID
         return Result.success(ProductAddVO.builder().productId(product.getId()).build());
     }
 
@@ -97,7 +103,8 @@ public class ProductServiceImpl implements ProductService {
     /**
      * 将发布入参 DTO 转换为商品实体
      * <p>
-     * 卖家 ID 取登录态，商品状态默认上架，其余字段从 DTO 映射
+     * 卖家 ID 取登录态，商品状态默认上架，其余字段从 DTO 映射；
+     * 线上交易时强制清空地址与经纬度（防止前端误传脏坐标导致 LBS 查询污染）
      *
      * @param dto    发布入参
      * @param userId 当前登录用户 ID（卖家）
@@ -112,9 +119,16 @@ public class ProductServiceImpl implements ProductService {
         product.setPrice(dto.getPrice());
         product.setProductCondition(dto.getProductCondition());
         product.setTradeType(dto.getTradeType());
-        product.setAddress(dto.getAddress());
-        product.setLongitude(dto.getLongitude());
-        product.setLatitude(dto.getLatitude());
+        // 线上交易：地址与经纬度强制置空，杜绝脏坐标入库（前端可能传 0 值或空字符串）
+        if (ProductConstant.TRADE_TYPE_ONLINE.equals(dto.getTradeType())) {
+            product.setAddress(null);
+            product.setLongitude(null);
+            product.setLatitude(null);
+        } else {
+            product.setAddress(dto.getAddress());
+            product.setLongitude(dto.getLongitude());
+            product.setLatitude(dto.getLatitude());
+        }
         product.setStatus(ProductStatusEnum.ON_SHELF.getCode());
         return product;
     }
