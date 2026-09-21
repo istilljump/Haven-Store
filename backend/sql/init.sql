@@ -2,6 +2,8 @@
 -- 二手商品交易平台数据库初始化脚本
 -- 数据库：second_hand_market（MySQL 8.0，字符集 utf8mb4）
 -- 执行方式：mysql -uroot -p < init.sql，或在 Navicat 等客户端中直接执行
+-- 注意：脚本包含 DROP TABLE 语句，重复执行会清空表内原有数据
+-- 表清单：user（用户）/ category（商品分类）/ product（二手商品）
 -- =============================================================
 
 -- 创建数据库（若不存在），指定 utf8mb4 字符集以支持表情符号等完整 Unicode 字符
@@ -31,3 +33,67 @@ CREATE TABLE `user` (
     -- 手机号唯一索引
     UNIQUE KEY `uk_phone` (`phone`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户表';
+
+-- -------------------------------------------------------------
+-- 商品分类表
+-- 说明：不建物理外键，product.category_id 的关联由应用层校验
+-- -------------------------------------------------------------
+DROP TABLE IF EXISTS `category`;
+CREATE TABLE `category` (
+    `id`          INT         NOT NULL AUTO_INCREMENT COMMENT '分类ID',
+    `name`        VARCHAR(30) NOT NULL                COMMENT '分类名称（唯一）',
+    `sort`        INT         NOT NULL DEFAULT 0      COMMENT '排序值（数字越小越靠前）',
+    `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    -- 分类名称唯一索引：防止重复录入同名分类
+    UNIQUE KEY `uk_name` (`name`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品分类表';
+
+-- -------------------------------------------------------------
+-- 二手商品表
+-- 业务规则：trade_type 为「线下」时 address/longitude/latitude 必填，
+--          为「线上」时可为空（由后端参数校验保证，数据库层面不强制）
+-- -------------------------------------------------------------
+DROP TABLE IF EXISTS `product`;
+CREATE TABLE `product` (
+    `id`                BIGINT        NOT NULL AUTO_INCREMENT COMMENT '商品ID',
+    `user_id`           BIGINT        NOT NULL                COMMENT '发布用户ID（卖家，关联user表）',
+    `title`             VARCHAR(100)  NOT NULL                COMMENT '商品标题',
+    `description`       VARCHAR(1000) DEFAULT NULL            COMMENT '商品描述',
+    `cover_image`       VARCHAR(255)  DEFAULT NULL            COMMENT '封面图URL（列表页缩略图展示）',
+    `category_id`       INT           NOT NULL                COMMENT '分类ID（关联category表）',
+    `price`             DECIMAL(10,2) NOT NULL                COMMENT '商品价格（元，必须大于0）',
+    `product_condition` VARCHAR(10)   NOT NULL                COMMENT '成色：全新/九成新/八成新/七成新及以下',
+    `trade_type`        VARCHAR(10)   NOT NULL                COMMENT '交易方式：线上/线下',
+    `address`           VARCHAR(200)  DEFAULT NULL            COMMENT '线下交易地址（线上交易时为空）',
+    `longitude`         DECIMAL(10,6) DEFAULT NULL            COMMENT '经度（线下交易地点，-180~180）',
+    `latitude`          DECIMAL(10,6) DEFAULT NULL            COMMENT '纬度（线下交易地点，-90~90）',
+    `create_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（发布时间）',
+    `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `status`            TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1上架 0下架',
+    PRIMARY KEY (`id`),
+    -- 卖家用户ID索引：「我的发布」按卖家查询商品列表
+    KEY `idx_user_id` (`user_id`),
+    -- 分类ID索引：首页与列表页按分类筛选商品
+    KEY `idx_category_id` (`category_id`),
+    -- 上架状态索引：列表页默认只查上架商品
+    KEY `idx_status` (`status`),
+    -- 创建时间索引：商品列表按发布时间倒序排列
+    KEY `idx_create_time` (`create_time`),
+    -- 经度索引：LBS附近商品查询的经纬度矩形范围预过滤
+    KEY `idx_longitude` (`longitude`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '二手商品表';
+
+-- -------------------------------------------------------------
+-- 基础分类种子数据（可按业务需要增删）
+-- -------------------------------------------------------------
+INSERT INTO `category` (`name`, `sort`) VALUES
+    ('手机数码', 1),
+    ('电脑办公', 2),
+    ('图书教材', 3),
+    ('家用电器', 4),
+    ('服饰鞋包', 5),
+    ('运动户外', 6),
+    ('美妆个护', 7),
+    ('其他闲置', 8);

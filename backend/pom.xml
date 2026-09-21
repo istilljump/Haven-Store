@@ -71,6 +71,12 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- Apache Commons Lang3：通用工具库（StringUtils、ObjectUtils、RandomStringUtils 等，版本由父工程统一管理） -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+
         <!-- JWT：API 定义 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
