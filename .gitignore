@@ -1,0 +1,180 @@
+# ZCode 会话日志快照（本地存档，不入库，见提交规范第 6 条）
+.zcode/export-log/
+
+# 本地开发工具链（Maven / Redis / MinGit / 测试脚本，与项目代码无关）
+.tools/
+
+# 比赛原始材料（本地留存，不进入公开仓库）
+项目初步规划.pdf
+项目要求.png
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# WorkBuddy 工作区数据（会话记忆等，不入库）
+.workbuddy/
+
+# 项目体检报告（本地留存，不作为项目内容）
+GitHub可运行性*报告.md
+修复清单.md
+可运行性修复报告*.md
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mavenrc
+
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Frontend build
+dist/
+build/
+coverage/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock
+
+# Docker
+# 注意：Dockerfile 与 .dockerignore 必须入库。
+# .dockerignore 决定镜像构建上下文，缺失会把宿主机的 node_modules / target
+# 一起拷进 Linux 镜像，导致前端构建失败、镜像臃肿。
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary
+*.tmp
+*.temp
+~$
+
+# Backup files
+*.bak
+*.backup
+
+# Compressed files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Office files
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+*.pdf
+
+# Image files (large)
+*.psd
+*.ai
+*.eps
+*.ps
+*.tiff
+*.tif
+*.bmp
+*.heic
+*.heif
+*.raw
+*.cr2
+*.nef
+*.arw
+*.dng
+*.orf
+*.sr2
+
+# Video files
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.wmv
+*.flv
+*.webm
+*.m4v
+
+# Audio files
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+*.m4a
+
+# Large directories
+node_modules/
+dist/
+build/
+coverage/
+*.log
+logs/
+
+# Development files
+.nyc_output
+.cache/
+.parcel-cache/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 个人开发过程记录（AI 提示词/提交说明），不进入公开仓库
+commit_notes/
+ai_commit_notes/

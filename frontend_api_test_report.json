@@ -1,0 +1,111 @@
+{
+  "testDate": "2026-09-21T15:39:11.387Z",
+  "environment": {
+    "frontend": "http://localhost:3000",
+    "backend": "http://localhost:8080/api"
+  },
+  "summary": {
+    "total": 9,
+    "passed": 7,
+    "failed": 2,
+    "successRate": "77.78%"
+  },
+  "details": [
+    {
+      "name": "健康检查API响应正常",
+      "passed": true,
+      "timestamp": "2026-09-21T15:39:11.356Z",
+      "details": {
+        "status": 200,
+        "data": {
+          "code": 200,
+          "data": {
+            "message": "Mock API服务运行正常",
+            "status": "ok",
+            "timestamp": "2026-09-21T23:39:11.284155"
+          },
+          "msg": "成功"
+        }
+      }
+    },
+    {
+      "name": "首页页面加载正常",
+      "passed": true,
+      "timestamp": "2026-09-21T15:39:11.363Z",
+      "details": {
+        "status": 200,
+        "url": "http://localhost:3000/",
+        "length": 328
+      }
+    },
+    {
+      "name": "登录页页面加载正常",
+      "passed": true,
+      "timestamp": "2026-09-21T15:39:11.367Z",
+      "details": {
+        "status": 200,
+        "url": "http://localhost:3000/login",
+        "length": 328
+      }
+    },
+    {
+      "name": "注册页页面加载正常",
+      "passed": true,
+      "timestamp": "2026-09-21T15:39:11.372Z",
+      "details": {
+        "status": 200,
+        "url": "http://localhost:3000/register",
+        "length": 328
+      }
+    },
+    {
+      "name": "商品列表页面加载正常",
+      "passed": true,
+      "timestamp": "2026-09-21T15:39:11.377Z",
+      "details": {
+        "status": 200,
+        "url": "http://localhost:3000/products",
+        "length": 328
+      }
+    },
+    {
+      "name": "发布商品页面加载正常",
+      "passed": true,
+      "timestamp": "2026-09-21T15:39:11.382Z",
+      "details": {
+        "status": 200,
+        "url": "http://localhost:3000/publish",
+        "length": 328
+      }
+    },
+    {
+      "name": "用户注册API - 用户名已存在",
+      "passed": true,
+      "timestamp": "2026-09-21T15:39:11.387Z",
+      "details": {
+        "username": "testuser_1790005151383",
+        "result": {
+          "code": 400,
+          "data": null,
+          "msg": "手机号已存在"
+        }
+      }
+    },
+    {
+      "name": "跳过登录测试 - 没有测试用户",
+      "passed": false,
+      "timestamp": "2026-09-21T15:39:11.387Z",
+      "details": {
+        "reason": "需要先注册用户"
+      }
+    },
+    {
+      "name": "跳过商品API测试 - 需要登录",
+      "passed": false,
+      "timestamp": "2026-09-21T15:39:11.387Z",
+      "details": {
+        "reason": "需要先登录"
+      }
+    }
+  ]
+}

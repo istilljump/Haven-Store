@@ -1,0 +1,9 @@
+# 构建上下文排除项：jar 由镜像内部 mvn package 生成，无需从宿主机带入
+target
+.idea
+*.iml
+.git
+.gitignore
+*.log
+Dockerfile
+.dockerignore

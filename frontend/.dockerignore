@@ -1,0 +1,12 @@
+# 构建上下文排除项：避免把宿主机 node_modules / 构建产物拷进 Linux 镜像
+node_modules
+dist
+.git
+.gitignore
+.vscode
+.idea
+*.log
+npm-debug.log*
+.DS_Store
+Dockerfile
+.dockerignore
