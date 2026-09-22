@@ -1,5 +1,5 @@
-# ZCode 会话日志快照（本地存档，不入库，见提交规范第 6 条）
-.zcode/export-log/
+# ZCode 会话日志与 AI 会话规划快照（本地存档，不入库）
+.zcode/
 
 # 本地开发工具链（Maven / Redis / MinGit / 测试脚本，与项目代码无关）
 .tools/

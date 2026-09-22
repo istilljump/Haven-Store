@@ -23,11 +23,11 @@ cd Haven-Store
 2. **构建并启动服务**
 ```bash
 # Linux/Mac
-chmod +x deploy.sh
-./deploy.sh start
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh start
 
 # Windows
-.\deploy.ps1 start
+.\scripts\deploy.ps1 start
 ```
 
 3. **访问应用**
@@ -53,13 +53,19 @@ chmod +x deploy.sh
 mysql -uroot -p < backend/scripts/01-schema.sql
 ```
 
+> 脚本会创建数据库 `secondhand_market`（6 张表 + 种子数据），并写入默认账号：
+> `admin/admin123`（管理员）、`testuser1/123456`、`testuser2/123456`。
+> 库名必须与 `application.yml` 中的 JDBC URL 一致。
+
 #### 1. 后端部署
 
 ```bash
 cd backend
-mvn clean package
-java -jar target/secondhand-market-*.jar
+mvn clean package -DskipTests
+java -jar target/second-hand-market-*.jar
 ```
+> 产物名以 `pom.xml` 的 `artifactId` 为准（当前为 `second-hand-market-1.0.0.jar`，注意带连字符）。
+> 单元测试需要本机已启动 MySQL 与 Redis 并完成建表，否则请加 `-DskipTests` 跳过测试。
 > 后端默认连接 `localhost:3306/secondhand_market` 与 `localhost:6379`，
 > 账号密码在 `backend/src/main/resources/application.yml` 中按本地环境修改。
 > 启动后接口地址带 `/api` 前缀，例如 `http://localhost:8080/api/user/login`。
@@ -114,17 +120,17 @@ curl http://localhost:8080/api/health
 
 ## 📊 压力测试
 
-使用内置的压力测试脚本：
+使用内置的压力测试脚本（位于 `tests/`）：
 
 ```bash
 # 基本测试（默认10线程，100请求）
-node stress_test.js
+node tests/stress_test.js
 
 # 自定义参数测试
-node stress_test.js -t 20 -r 100 -u http://localhost:8080/api/health
+node tests/stress_test.js -t 20 -r 100 -u http://localhost:8080/api/health
 
 # 测试登录接口
-node stress_test.js -t 5 -r 50 -u http://localhost:8080/api/user/login -m POST -p '{"username":"testuser1","password":"123456"}'
+node tests/stress_test.js -t 5 -r 50 -u http://localhost:8080/api/user/login -m POST -p '{"username":"testuser1","password":"123456"}'
 ```
 
 ## 🔧 部署脚本使用
@@ -132,7 +138,7 @@ node stress_test.js -t 5 -r 50 -u http://localhost:8080/api/user/login -m POST -
 ### Linux/Mac
 
 ```bash
-./deploy.sh [command]
+./scripts/deploy.sh [command]
 ```
 
 命令说明：
@@ -150,7 +156,7 @@ node stress_test.js -t 5 -r 50 -u http://localhost:8080/api/user/login -m POST -
 ### Windows
 
 ```powershell
-.\deploy.ps1 [command]
+.\scripts\deploy.ps1 [command]
 ```
 
 命令说明同上。
@@ -170,25 +176,29 @@ Haven-Store/
 │   └── Dockerfile
 ├── frontend/                # Vue.js前端
 │   ├── src/
-│   │   ├── api/
-│   │   ├── layouts/
-│   │   ├── views/
-│   │   ├── router/
-│   │   ├── store/
-│   │   └── utils/
 │   ├── package.json
 │   ├── nginx.conf
 │   └── Dockerfile
-├── docs/                   # 项目文档
-├── reports/                # 报告和说明文档
-├── scripts/               # 脚本文件
-│   ├── *.sh               # Shell脚本
-│   ├── *.bat              # 批处理脚本
-│   ├── *.ps1              # PowerShell脚本
-│   └── *.py               # Python脚本
-├── tests/                 # 测试相关文件
+├── docs/                    # 开发过程记录
+├── reports/                 # 测试报告与项目文档
+├── scripts/                 # 部署与运维脚本
+│   ├── deploy.sh            # Linux/Mac 部署脚本
+│   ├── deploy.ps1           # Windows 部署脚本
+│   ├── demo.sh
+│   ├── check_git_status.bat
+│   └── verify_github_upload.bat
+├── tests/                   # 接口测试与压测脚本
+│   ├── api_test.py
+│   ├── frontend_api_test.js
+│   ├── frontend_tester.js
+│   ├── stress_test.js
+│   ├── test_db_connection.py
+│   └── mock_server.py
 ├── docker-compose.yml       # Docker Compose配置
-└── nginx.conf             # Nginx配置
+├── nginx.conf               # 反向代理配置（可选）
+├── README.md
+├── CONTRIBUTING.md
+└── LICENSE
 ```
 
 ## 🛠️ 配置说明

@@ -12,8 +12,8 @@ $GREEN = [ConsoleColor]::Green
 $YELLOW = [ConsoleColor]::Yellow
 $NC = [ConsoleColor]::White
 
-# 项目根目录
-$PROJECT_DIR = $PSScriptRoot
+# 项目根目录（脚本位于 scripts/ 下，因此取上一级目录）
+$PROJECT_DIR = Split-Path -Parent $PSScriptRoot
 Write-Host "${GREEN}项目目录: $PROJECT_DIR${NC}" -ForegroundColor $GREEN
 
 # 函数：打印提示信息
