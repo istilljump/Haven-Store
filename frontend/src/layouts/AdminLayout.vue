@@ -10,7 +10,7 @@
         <div class="header-left">
           <div class="logo" @click="goToDashboard">
             <el-icon><Monitor /></el-icon>
-            <span>二手商品交易市场</span>
+            <span>Haven-Store</span>
           </div>
           <el-breadcrumb separator="/">
             <el-breadcrumb-item>
@@ -65,56 +65,30 @@
                 <el-icon><Odometer /></el-icon>
                 <span>数据概览</span>
               </el-menu-item>
-              
-              <el-sub-menu index="/admin/user">
-                <template #title>
-                  <el-icon><User /></el-icon>
-                  <span>用户管理</span>
-                </template>
-                <el-menu-item index="/admin/users">用户列表</el-menu-item>
-                <el-menu-item index="/admin/user-stats">用户统计</el-menu-item>
-              </el-sub-menu>
-              
-              <el-sub-menu index="/admin/product">
-                <template #title>
-                  <el-icon><Goods /></el-icon>
-                  <span>商品管理</span>
-                </template>
-                <el-menu-item index="/admin/products">商品列表</el-menu-item>
-                <el-menu-item index="/admin/product-stats">商品统计</el-menu-item>
-                <el-menu-item index="/admin/trade-stats">交易统计</el-menu-item>
-              </el-sub-menu>
-              
+
+              <el-menu-item index="/admin/users">
+                <el-icon><User /></el-icon>
+                <span>用户管理</span>
+              </el-menu-item>
+
+              <el-menu-item index="/admin/products">
+                <el-icon><Goods /></el-icon>
+                <span>商品管理</span>
+              </el-menu-item>
+
               <el-menu-item index="/admin/categories">
                 <el-icon><Collection /></el-icon>
                 <span>分类管理</span>
               </el-menu-item>
-              
+
               <el-menu-item index="/admin/messages">
                 <el-icon><Bell /></el-icon>
                 <span>系统消息</span>
-                <el-badge 
-                  v-if="messageCount > 0" 
-                  :value="messageCount" 
-                  class="message-badge"
-                />
               </el-menu-item>
-              
+
               <el-menu-item index="/admin/settings">
                 <el-icon><Setting /></el-icon>
                 <span>系统设置</span>
-              </el-menu-item>
-              
-              <el-divider style="margin: 12px 0" />
-              
-              <el-menu-item index="/admin/logs">
-                <el-icon><Document /></el-icon>
-                <span>系统日志</span>
-              </el-menu-item>
-              
-              <el-menu-item index="/admin/backup">
-                <el-icon><Download /></el-icon>
-                <span>数据备份</span>
               </el-menu-item>
             </el-menu>
           </el-scrollbar>
@@ -130,9 +104,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Monitor,
   HomeFilled,
@@ -143,15 +117,17 @@ import {
   Odometer,
   Goods,
   Collection,
-  Bell,
-  Document,
-  Download
+  Bell
 } from '@element-plus/icons-vue'
-import { getToken, removeToken, removeUserInfo } from '@/utils/auth'
+import { getUserInfo, removeToken, removeUserInfo } from '@/utils/auth'
 
 const router = useRouter()
 const route = useRoute()
-const userInfo = ref({})
+
+// 当前登录用户信息
+// 唯一数据源是 utils/auth 的 getUserInfo（即登录时写入 localStorage 的 LoginUserVO），
+// 与路由守卫读取的是同一份数据，避免出现「守卫认为已登录、页面认为未登录」的错位
+const userInfo = ref(getUserInfo() || {})
 
 // 当前路由标题
 const currentRouteTitle = computed(() => {
@@ -161,9 +137,7 @@ const currentRouteTitle = computed(() => {
     '/admin/products': '商品管理',
     '/admin/categories': '分类管理',
     '/admin/messages': '系统消息',
-    '/admin/settings': '系统设置',
-    '/admin/logs': '系统日志',
-    '/admin/backup': '数据备份'
+    '/admin/settings': '系统设置'
   }
   return routeMap[route.path] || '管理后台'
 })
@@ -172,21 +146,6 @@ const currentRouteTitle = computed(() => {
 const activeMenu = computed(() => {
   return route.path
 })
-
-// 消息数量（模拟）
-const messageCount = ref(3)
-
-// 用户信息加载
-const loadUserInfo = () => {
-  const userInfoStr = localStorage.getItem('userInfo')
-  if (userInfoStr) {
-    try {
-      userInfo.value = JSON.parse(userInfoStr)
-    } catch (error) {
-      console.error('解析用户信息失败:', error)
-    }
-  }
-}
 
 // 路由跳转
 const goToDashboard = () => {
@@ -222,82 +181,12 @@ const handleLogout = () => {
   }).catch(() => {})
 }
 
-// 检查管理员权限
-const checkAdminPermission = () => {
-  const token = getToken()
-  const userInfoStr = localStorage.getItem('userInfo')
-  
-  if (!token || !userInfoStr) {
-    router.push('/admin/login')
-    return
-  }
-  
-  try {
-    const userInfo = JSON.parse(userInfoStr)
-    if (!userInfo.isAdmin) {
-      ElMessage.error('您没有管理员权限')
-      router.push('/')
-      return
-    }
-  } catch (error) {
-    console.error('解析用户信息失败:', error)
-    router.push('/admin/login')
-  }
-}
+// 说明：/admin/** 的登录态与管理员角色校验已统一收敛到 router/index.js 的全局守卫，
+// 组件内不再重复注册守卫（此前每次挂载都注册一遍，且用的是错误的 localStorage key）
 
-// 权限检查
-const checkAuth = () => {
-  if (route.path !== '/admin/login' && !getToken()) {
-    router.push('/admin/login')
-    return
-  }
-  
-  if (route.meta.requiresAuth && !getToken()) {
-    router.push('/admin/login')
-    return
-  }
-  
-  if (route.meta.requiresAdmin) {
-    checkAdminPermission()
-  }
-}
-
-// 路由守卫
-const setupRouteGuard = () => {
-  const unwatch = router.beforeEach((to, from, next) => {
-    if (to.path.startsWith('/admin') && to.path !== '/admin/login') {
-      const token = getToken()
-      const userInfoStr = localStorage.getItem('userInfo')
-      
-      if (!token || !userInfoStr) {
-        next('/admin/login')
-        return
-      }
-      
-      try {
-        const userInfo = JSON.parse(userInfoStr)
-        if (!userInfo.isAdmin && to.path !== '/admin/login') {
-          ElMessage.error('您没有管理员权限')
-          next('/')
-          return
-        }
-      } catch (error) {
-        console.error('解析用户信息失败:', error)
-        next('/admin/login')
-        return
-      }
-    }
-    next()
-  })
-  
-  return unwatch
-}
-
-// 初始化
+// 初始化：以 localStorage 中的最新数据校准一次，避免 store 与本地存储不同步
 onMounted(() => {
-  loadUserInfo()
-  const unwatch = setupRouteGuard()
-  onBeforeUnmount(unwatch)
+  userInfo.value = getUserInfo() || {}
 })
 </script>
 

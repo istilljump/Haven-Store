@@ -4,7 +4,7 @@
     <div class="dashboard-header">
       <div class="header-title">
         <h1>管理后台</h1>
-        <p>欢迎使用二手商品交易市场管理系统</p>
+        <p>欢迎使用 Haven-Store 管理系统</p>
       </div>
       <div class="header-actions">
         <el-button type="primary" @click="refreshData">
@@ -28,20 +28,13 @@
                 <el-icon color="#409eff"><User /></el-icon>
               </div>
               <div class="stats-info">
-                <div class="stats-number">{{ dashboardData.statistics?.totalUsers || 0 }}</div>
+                <div class="stats-number">{{ dashboardData.statistics.totalUsers }}</div>
                 <div class="stats-label">总用户数</div>
-                <div class="stats-trend">
-                  <span class="trend-up">
-                    <el-icon><ArrowUp /></el-icon>
-                    12.5%
-                  </span>
-                  较上月
-                </div>
               </div>
             </div>
           </el-card>
         </el-col>
-        
+
         <el-col :span="6">
           <el-card class="stats-card" shadow="hover">
             <div class="stats-content">
@@ -49,20 +42,13 @@
                 <el-icon color="#67c23a"><Goods /></el-icon>
               </div>
               <div class="stats-info">
-                <div class="stats-number">{{ dashboardData.statistics?.totalProducts || 0 }}</div>
+                <div class="stats-number">{{ dashboardData.statistics.totalProducts }}</div>
                 <div class="stats-label">总商品数</div>
-                <div class="stats-trend">
-                  <span class="trend-up">
-                    <el-icon><ArrowUp /></el-icon>
-                    8.3%
-                  </span>
-                  较上月
-                </div>
               </div>
             </div>
           </el-card>
         </el-col>
-        
+
         <el-col :span="6">
           <el-card class="stats-card" shadow="hover">
             <div class="stats-content">
@@ -70,20 +56,13 @@
                 <el-icon color="#e6a23c"><Calendar /></el-icon>
               </div>
               <div class="stats-info">
-                <div class="stats-number">{{ dashboardData.statistics?.todayProducts || 0 }}</div>
+                <div class="stats-number">{{ dashboardData.statistics.todayProducts }}</div>
                 <div class="stats-label">今日新增</div>
-                <div class="stats-trend">
-                  <span class="trend-down">
-                    <el-icon><ArrowDown /></el-icon>
-                    5.2%
-                  </span>
-                  较昨日
-                </div>
               </div>
             </div>
           </el-card>
         </el-col>
-        
+
         <el-col :span="6">
           <el-card class="stats-card" shadow="hover">
             <div class="stats-content">
@@ -91,15 +70,8 @@
                 <el-icon color="#f56c6c"><ChatDotRound /></el-icon>
               </div>
               <div class="stats-info">
-                <div class="stats-number">{{ dashboardData.statistics?.activeUsers || 0 }}</div>
-                <div class="stats-label">活跃用户</div>
-                <div class="stats-trend">
-                  <span class="trend-up">
-                    <el-icon><ArrowUp /></el-icon>
-                    15.8%
-                  </span>
-                  较上月
-                </div>
+                <div class="stats-number">{{ dashboardData.statistics.activeUsers }}</div>
+                <div class="stats-label">正常状态用户</div>
               </div>
             </div>
           </el-card>
@@ -135,7 +107,7 @@
                     <span class="product-time">{{ formatTime(product.createTime) }}</span>
                   </div>
                 </div>
-                <div class="product-price">¥{{ product.price.toFixed(2) }}</div>
+                <div class="product-price">¥{{ Number(product.price || 0).toFixed(2) }}</div>
               </div>
               <div v-if="!dashboardData.recentProducts?.length" class="empty-data">
                 暂无最近发布的商品
@@ -223,7 +195,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Refresh, 
   SwitchButton, 
@@ -231,8 +203,6 @@ import {
   Goods, 
   Calendar, 
   ChatDotRound, 
-  ArrowUp, 
-  ArrowDown,
   ArrowRight,
   Bell,
   Collection,
@@ -240,6 +210,7 @@ import {
   TrendCharts
 } from '@element-plus/icons-vue'
 import adminApi from '@/api/admin'
+import { removeToken, removeUserInfo } from '@/utils/auth'
 import { formatRelativeTime } from '@/utils/format'
 
 const router = useRouter()
@@ -321,11 +292,23 @@ const goToSettings = () => {
 }
 
 const goToDataStats = () => {
-  router.push('/admin/stats')
+  // 平台数据统计即本页的概览卡片，无需单独的 /admin/stats 页面
+  router.push('/admin/dashboard')
 }
 
+// 退出登录：清空登录态后回到管理登录页
+// 此前跳的是 /admin/logout，该路由并不存在，点击必然 404
 const goToLogout = () => {
-  router.push('/admin/logout')
+  ElMessageBox.confirm('确定要退出管理员账号吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    removeToken()
+    removeUserInfo()
+    ElMessage.success('退出成功')
+    router.push('/admin/login')
+  }).catch(() => {})
 }
 
 // 组件挂载时加载数据

@@ -16,29 +16,26 @@
           >
             <el-menu-item index="/home">首页</el-menu-item>
             <el-menu-item index="/products">商品</el-menu-item>
-            <el-menu-item index="/users">用户</el-menu-item>
           </el-menu>
         </div>
 
         <div class="user-menu">
           <template v-if="isLoggedIn">
-            <el-dropdown>
+            <el-dropdown @command="handleCommand">
               <span class="user-info">
                 <el-avatar :src="user?.avatar" size="small" />
                 <span class="username">{{ user?.username }}</span>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item v-if="isAdmin" index="/admin">
+                  <!-- 说明：el-dropdown-item 的 index 属性不会触发导航，必须用 command + @command 处理 -->
+                  <el-dropdown-item v-if="isAdmin" command="admin">
                     管理后台
                   </el-dropdown-item>
-                  <el-dropdown-item index="/profile">
+                  <el-dropdown-item command="profile">
                     个人资料
                   </el-dropdown-item>
-                  <el-dropdown-item index="/settings">
-                    设置
-                  </el-dropdown-item>
-                  <el-dropdown-item divided @click="handleLogout">
+                  <el-dropdown-item divided command="logout">
                     退出登录
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -98,12 +95,28 @@ export default {
       router.push('/auth/login')
     }
 
+    // 下拉菜单命令处理（index 属性不触发导航，统一走 command）
+    const handleCommand = (command) => {
+      switch (command) {
+        case 'admin':
+          router.push('/admin/dashboard')
+          break
+        case 'profile':
+          router.push('/profile')
+          break
+        case 'logout':
+          handleLogout()
+          break
+      }
+    }
+
     return {
       config,
       isLoggedIn,
       user,
       isAdmin,
-      handleLogout
+      handleLogout,
+      handleCommand
     }
   }
 }

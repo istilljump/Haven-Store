@@ -62,6 +62,12 @@ service.interceptors.response.use(
     // 处理响应数据
     const res = response.data
 
+    // 二进制响应（文件下载）没有 {code,msg,data} 统一结构，
+    // 若继续按业务码判断会被误判为失败，这里直接返回 Blob 交给调用方处理
+    if (response.config.responseType === 'blob') {
+      return response.data
+    }
+
     // 检查响应状态码
     if (res.code === 200) {
       return res.data
@@ -287,9 +293,13 @@ export function upload(url, formData, onProgress = null, config = {}) {
 
 /**
  * 下载文件方法
+ * <p>
+ * 注意签名：第二个参数是文件名（字符串），不是配置对象。
+ * 响应拦截器对 responseType=blob 的请求直接返回 Blob，这里拿到的就是二进制内容。
+ *
  * @param {string} url - 下载URL
- * @param {string} filename - 文件名
- * @param {Object} config - 请求配置
+ * @param {string} filename - 保存的文件名
+ * @param {Object} config - 请求配置（查询参数放在 config.params）
  * @returns {Promise} 返回Promise
  */
 export function download(url, filename = 'download', config = {}) {
@@ -298,16 +308,16 @@ export function download(url, filename = 'download', config = {}) {
     url,
     responseType: 'blob',
     ...config
-  }).then(response => {
+  }).then(blob => {
     // 创建下载链接
-    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const objectUrl = window.URL.createObjectURL(new Blob([blob]))
     const link = document.createElement('a')
-    link.href = url
+    link.href = objectUrl
     link.setAttribute('download', filename)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+    window.URL.revokeObjectURL(objectUrl)
   })
 }
 

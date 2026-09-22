@@ -1,5 +1,6 @@
 package com.example.product.serviceImpl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.category.entity.Category;
 import com.example.category.mapper.CategoryMapper;
@@ -46,6 +47,9 @@ public class ProductServiceImpl implements ProductService {
 
     /** AI估价服务对象 */
     private final ProductAIService productAIService;
+
+    /** 分类启用状态标识（与 category.status 字段对应：1 启用，0 禁用） */
+    private static final int CATEGORY_STATUS_ENABLE = 1;
 
     /**
      * 发布二手商品：
@@ -237,5 +241,19 @@ public class ProductServiceImpl implements ProductService {
         }
         product.setStatus(ProductStatusEnum.ON_SHELF.getCode());
         return product;
+    }
+
+    /**
+     * 查询可用的商品分类
+     * <p>
+     * 只返回启用状态的分类：管理后台把分类禁用后，发布页就不再展示它
+     */
+    @Override
+    public List<Category> listEnabledCategories() {
+        return categoryMapper.selectList(
+                new LambdaQueryWrapper<Category>()
+                        .eq(Category::getStatus, CATEGORY_STATUS_ENABLE)
+                        .orderByAsc(Category::getSort)
+                        .orderByAsc(Category::getId));
     }
 }

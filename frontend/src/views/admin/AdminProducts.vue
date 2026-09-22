@@ -471,7 +471,8 @@ const getStatusClass = (status) => {
     2: 'warning',
     3: 'info'
   }
-  return statusMap[status] || 'default'
+  // ElTag 的 type 只接受 primary/success/info/warning/danger，'default' 会触发 prop 校验警告
+  return statusMap[status] || 'info'
 }
 
 // 获取状态文本

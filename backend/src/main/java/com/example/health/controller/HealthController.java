@@ -46,7 +46,7 @@ public class HealthController {
         HealthDetail detail = new HealthDetail();
         detail.setStatus("UP");
         detail.setTimestamp(System.currentTimeMillis());
-        detail.setApp("second-hand-market-backend");
+        detail.setApp("haven-store-backend");
         detail.setVersion("1.0.0");
         
         // TODO: 实现数据库连接检查、Redis连接检查等

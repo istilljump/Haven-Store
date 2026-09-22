@@ -105,11 +105,11 @@
                 </el-form-item>
                 <el-form-item label="允许的文件类型">
                   <el-checkbox-group v-model="settings.upload.allowedTypes">
-                    <el-checkbox label="jpg">JPG</el-checkbox>
-                    <el-checkbox label="jpeg">JPEG</el-checkbox>
-                    <el-checkbox label="png">PNG</el-checkbox>
-                    <el-checkbox label="gif">GIF</el-checkbox>
-                    <el-checkbox label="webp">WEBP</el-checkbox>
+                    <el-checkbox value="jpg">JPG</el-checkbox>
+                    <el-checkbox value="jpeg">JPEG</el-checkbox>
+                    <el-checkbox value="png">PNG</el-checkbox>
+                    <el-checkbox value="gif">GIF</el-checkbox>
+                    <el-checkbox value="webp">WEBP</el-checkbox>
                   </el-checkbox-group>
                 </el-form-item>
                 <el-form-item label="最大图片数量">
@@ -264,34 +264,23 @@
         </el-tabs>
       </el-card>
     </div>
-
-    <!-- 保存成功提示 -->
-    <el-notification
-      v-model="showSuccess"
-      title="保存成功"
-      message="系统设置已成功保存"
-      type="success"
-      duration="3000"
-      @close="showSuccess = false"
-    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Check, UploadFilled } from '@element-plus/icons-vue'
 import adminApi from '@/api/admin'
 import { validateEmail, validatePhone } from '@/utils/validate'
 
 const activeTab = ref('site')
-const showSuccess = ref(false)
 const loading = ref(false)
 
 // 默认设置
 const defaultSettings = {
   site: {
-    name: '二手商品交易市场',
+    name: 'Haven-Store',
     description: '专业的二手商品交易平台',
     logo: '/logo.png',
     icp: '京ICP备123456789号'
@@ -397,7 +386,6 @@ const saveSettings = async () => {
     // 保存到后端
     await adminApi.updateAdminSettings(settings)
     
-    showSuccess.value = true
     ElMessage.success('系统设置保存成功')
   } catch (error) {
     console.error('保存系统设置失败:', error)

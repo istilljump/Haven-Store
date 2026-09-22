@@ -21,16 +21,19 @@
               <el-input v-model="form.title" placeholder="请输入商品标题" maxlength="100" show-word-limit />
             </el-form-item>
 
-            <el-form-item label="商品分类" prop="category">
-              <el-select v-model="form.category" placeholder="请选择商品分类" style="width: 100%">
-                <el-option label="数码产品" value="digital" />
-                <el-option label="手机通讯" value="phone" />
-                <el-option label="电脑办公" value="computer" />
-                <el-option label="家用电器" value="home" />
-                <el-option label="图书教材" value="book" />
-                <el-option label="生活用品" value="daily" />
-                <el-option label="学习用品" value="study" />
-                <el-option label="其他" value="other" />
+            <el-form-item label="商品分类" prop="categoryId">
+              <el-select
+                v-model="form.categoryId"
+                placeholder="请选择商品分类"
+                style="width: 100%"
+                :loading="categoryLoading"
+              >
+                <el-option
+                  v-for="item in categoryOptions"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
               </el-select>
             </el-form-item>
 
@@ -46,22 +49,40 @@
             </el-form-item>
 
             <el-form-item label="新旧程度" prop="condition">
+              <!-- 取值与后端 ProductConstant.VALID_CONDITIONS 保持一致，否则会被业务层拒绝 -->
               <el-select v-model="form.condition" placeholder="请选择新旧程度" style="width: 200px">
-                <el-option label="全新" value="new" />
-                <el-option label="95新" value="95_new" />
-                <el-option label="9成新" value="9_new" />
-                <el-option label="8成新" value="8_new" />
-                <el-option label="7成新及以下" value="7_new" />
+                <el-option label="全新" value="全新" />
+                <el-option label="九成新" value="九成新" />
+                <el-option label="八成新" value="八成新" />
+                <el-option label="七成新及以下" value="七成新及以下" />
               </el-select>
             </el-form-item>
 
-            <el-form-item label="交易方式" prop="tradeMethod">
-              <el-select v-model="form.tradeMethod" placeholder="请选择交易方式" style="width: 200px">
-                <el-option label="当面交易" value="face_to_face" />
-                <el-option label="快递邮寄" value="express" />
-                <el-option label="两者都支持" value="both" />
+            <el-form-item label="交易方式" prop="tradeType">
+              <!-- 取值与后端 ProductConstant.VALID_TRADE_TYPES 保持一致 -->
+              <el-select v-model="form.tradeType" placeholder="请选择交易方式" style="width: 200px">
+                <el-option label="线上交易" value="线上" />
+                <el-option label="线下交易" value="线下" />
               </el-select>
             </el-form-item>
+
+            <!-- 线下交易必须提供地址与坐标，后端会强校验；线上交易不需要 -->
+            <template v-if="form.tradeType === '线下'">
+              <el-form-item label="交易地址" prop="address">
+                <el-input v-model="form.address" placeholder="请输入线下交易地址" />
+              </el-form-item>
+              <el-form-item label="地理位置">
+                <el-button :loading="locating" @click="locateCurrentPosition">
+                  <el-icon><Location /></el-icon>
+                  使用当前位置
+                </el-button>
+                <span class="coordinate-hint">
+                  {{ form.longitude && form.latitude
+                    ? `已获取：${form.longitude}, ${form.latitude}`
+                    : '未获取（线下交易需要经纬度，用于「附近商品」查询）' }}
+                </span>
+              </el-form-item>
+            </template>
 
             <el-form-item label="联系人" prop="contactName">
               <el-input v-model="form.contactName" placeholder="请输入联系人姓名" />
@@ -178,7 +199,7 @@
               </div>
               <div class="info-item">
                 <span class="label">商品分类：</span>
-                <span class="value">{{ getCategoryText(form.category) }}</span>
+                <span class="value">{{ getCategoryText(form.categoryId) }}</span>
               </div>
               <div class="info-item">
                 <span class="label">商品价格：</span>
@@ -190,7 +211,11 @@
               </div>
               <div class="info-item">
                 <span class="label">交易方式：</span>
-                <span class="value">{{ getTradeMethodText(form.tradeMethod) }}</span>
+                <span class="value">{{ getTradeMethodText(form.tradeType) }}</span>
+              </div>
+              <div v-if="form.tradeType === '线下'" class="info-item">
+                <span class="label">交易地址：</span>
+                <span class="value">{{ form.address || '-' }}</span>
               </div>
               <div class="info-item">
                 <span class="label">联系人：</span>
@@ -222,17 +247,18 @@
 </template>
 
 <script>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Location } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import productApi from '@/api/product'
 
 export default {
   name: 'ProductCreate',
   components: {
-    Plus
+    Plus,
+    Location
   },
   setup() {
     const router = useRouter()
@@ -243,13 +269,19 @@ export default {
     const currentStep = ref(0)
     const imageList = ref([])
     const uploading = ref(false)
+    const locating = ref(false)
+    const categoryOptions = ref([])
+    const categoryLoading = ref(false)
     
     const form = reactive({
       title: '',
-      category: '',
+      categoryId: null,
       price: 0,
       condition: '',
-      tradeMethod: '',
+      tradeType: '',
+      address: '',
+      longitude: null,
+      latitude: null,
       contactName: '',
       contactPhone: '',
       description: '',
@@ -265,18 +297,31 @@ export default {
         { required: true, message: '请输入商品标题', trigger: 'blur' },
         { min: 2, max: 100, message: '标题长度在 2 到 100 个字符', trigger: 'blur' }
       ],
-      category: [
+      categoryId: [
         { required: true, message: '请选择商品分类', trigger: 'change' }
       ],
       price: [
         { required: true, message: '请输入商品价格', trigger: 'blur' },
-        { type: 'number', min: 0, message: '价格必须大于等于0', trigger: 'blur' }
+        { type: 'number', min: 0.01, message: '价格必须大于0', trigger: 'blur' }
       ],
       condition: [
         { required: true, message: '请选择新旧程度', trigger: 'change' }
       ],
-      tradeMethod: [
+      tradeType: [
         { required: true, message: '请选择交易方式', trigger: 'change' }
+      ],
+      address: [
+        // 仅线下交易需要地址，线上时该字段不展示也不校验
+        {
+          validator: (rule, value, callback) => {
+            if (form.tradeType === '线下' && !value) {
+              callback(new Error('线下交易需要填写交易地址'))
+              return
+            }
+            callback()
+          },
+          trigger: 'blur'
+        }
       ],
       contactName: [
         { required: true, message: '请输入联系人姓名', trigger: 'blur' },
@@ -301,10 +346,10 @@ export default {
           console.error('表单验证失败:', error)
         }
       } else if (currentStep.value === 1) {
-        // 验证图片
+        // 说明：后端尚未提供图片上传接口（商品表 cover_image 也暂未开放写入），
+        // 因此这里只做提示，不阻塞流程，避免用户卡在图片步骤无法发布
         if (imageList.value.length === 0) {
-          ElMessage.warning('请至少上传一张商品图片')
-          return
+          ElMessage.warning('未选择商品图片，发布后商品将没有封面图')
         }
         currentStep.value = 2
       } else if (currentStep.value === 2) {
@@ -353,82 +398,118 @@ export default {
       ElMessage.error('图片上传失败')
     }
     
-    const getCategoryText = (category) => {
-      const categoryMap = {
-        'digital': '数码产品',
-        'phone': '手机通讯',
-        'computer': '电脑办公',
-        'home': '家用电器',
-        'book': '图书教材',
-        'daily': '生活用品',
-        'study': '学习用品',
-        'other': '其他'
-      }
-      return categoryMap[category] || category
+    const getCategoryText = (categoryId) => {
+      const matched = categoryOptions.value.find(item => item.id === categoryId)
+      return matched ? matched.name : '-'
     }
     
-    const getConditionText = (condition) => {
-      const conditionMap = {
-        'new': '全新',
-        '95_new': '95新',
-        '9_new': '9成新',
-        '8_new': '8成新',
-        '7_new': '7成新及以下'
-      }
-      return conditionMap[condition] || condition
+    // 取值已与后端对齐（成色直接用中文值），这里保留映射函数以便展示时统一兜底
+    const CONDITION_TEXT = {
+      '全新': '全新',
+      '九成新': '九成新',
+      '八成新': '八成新',
+      '七成新及以下': '七成新及以下'
     }
     
-    const getTradeMethodText = (method) => {
-      const methodMap = {
-        'face_to_face': '当面交易',
-        'express': '快递邮寄',
-        'both': '两者都支持'
+    const TRADE_TYPE_TEXT = {
+      '线上': '线上交易',
+      '线下': '线下交易'
+    }
+    
+    const getConditionText = (condition) => CONDITION_TEXT[condition] || condition || '-'
+    
+    const getTradeMethodText = (method) => TRADE_TYPE_TEXT[method] || method || '-'
+    
+    // 加载可用的商品分类（后端只返回启用状态的分类）
+    const loadCategories = async () => {
+      try {
+        categoryLoading.value = true
+        categoryOptions.value = await productApi.getProductCategories()
+      } catch (error) {
+        console.error('加载商品分类失败:', error)
+      } finally {
+        categoryLoading.value = false
       }
-      return methodMap[method] || method
+    }
+    
+    // 获取当前定位（线下交易需要经纬度，用于「附近商品」检索）
+    const locateCurrentPosition = () => {
+      if (!navigator.geolocation) {
+        ElMessage.error('当前浏览器不支持定位，请手动填写地址')
+        return
+      }
+      locating.value = true
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // 后端精度要求 6 位小数（DECIMAL(10,6)）
+          form.longitude = Number(position.coords.longitude.toFixed(6))
+          form.latitude = Number(position.coords.latitude.toFixed(6))
+          ElMessage.success('已获取当前位置')
+          locating.value = false
+        },
+        (error) => {
+          console.error('定位失败:', error)
+          ElMessage.error('定位失败，请检查浏览器定位权限')
+          locating.value = false
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
     }
     
     const submitProduct = async () => {
+      // 线下交易必须拿到坐标，否则后端会拒绝（这里提前拦截，给出更明确的提示）
+      if (form.tradeType === '线下' && (!form.longitude || !form.latitude)) {
+        ElMessage.warning('线下交易请先获取地理位置')
+        return
+      }
+
       try {
         await ElMessageBox.confirm('确认发布该商品吗？发布后将无法修改', '确认发布', {
           type: 'warning'
         })
-        
+
         uploading.value = true
-        
-        // 构建商品数据
+
+        // 组装后端入参（字段名与 ProductAddDTO 一一对应）
+        // 说明：联系人/品牌/型号/购入时间等前端收集的信息，后端暂无对应字段，
+        // 统一并入商品描述，避免用户填写的内容被静默丢弃
+        const extraInfo = [
+          form.contactName ? `联系人：${form.contactName}` : '',
+          form.contactPhone ? `联系电话：${form.contactPhone}` : '',
+          form.brand ? `品牌：${form.brand}` : '',
+          form.model ? `型号：${form.model}` : '',
+          form.purchaseTime ? `购入时间：${form.purchaseTime}` : '',
+          form.remarks ? `备注：${form.remarks}` : ''
+        ].filter(Boolean)
+
+        const description = [form.description, ...extraInfo].filter(Boolean).join('\n')
+
         const productData = {
           title: form.title,
-          category: form.category,
+          categoryId: form.categoryId,
           price: form.price,
-          condition: form.condition,
-          tradeMethod: form.tradeMethod,
-          contactName: form.contactName,
-          contactPhone: form.contactPhone,
-          description: form.description,
-          brand: form.brand,
-          model: form.model,
-          purchaseTime: form.purchaseTime,
-          features: form.features,
-          remarks: form.remarks,
-          images: imageList.value.filter(item => item.url).map(item => item.url)
+          productCondition: form.condition,
+          tradeType: form.tradeType,
+          address: form.tradeType === '线下' ? form.address : null,
+          longitude: form.tradeType === '线下' ? form.longitude : null,
+          latitude: form.tradeType === '线下' ? form.latitude : null,
+          description
         }
-        
-        // TODO: 调用API发布商品
-        // const response = await productApi.createProduct(productData)
-        
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        
+
+        const result = await productApi.addProduct(productData)
+
         ElMessage.success('商品发布成功')
-        
-        // 跳转到商品详情页
-        // router.push(`/products/${response.data.id}`)
-        router.push('/products')
-        
+
+        // 后端返回 {productId, estimatedPrice}，有 ID 时直接跳到详情页
+        if (result && result.productId) {
+          router.push(`/products/${result.productId}`)
+        } else {
+          router.push('/products')
+        }
+
       } catch (error) {
         if (error !== 'cancel') {
           console.error('发布商品失败:', error)
-          ElMessage.error('发布商品失败')
         }
       } finally {
         uploading.value = false
@@ -439,12 +520,15 @@ export default {
       router.go(-1)
     }
     
-    // 检查用户登录状态
+    // 检查用户登录状态（未登录直接引导到登录页，不再渲染表单）
     if (!authStore.isLoggedIn) {
       ElMessage.warning('请先登录')
       router.push('/auth/login')
       return
     }
+
+    // 分类下拉的数据来自后端「启用状态的分类」，不再硬编码
+    onMounted(loadCategories)
     
     return {
       currentStep,
@@ -454,6 +538,9 @@ export default {
       rules,
       imageList,
       uploading,
+      locating,
+      categoryOptions,
+      categoryLoading,
       nextStep,
       prevStep,
       handleImageChange,
@@ -463,6 +550,7 @@ export default {
       getCategoryText,
       getConditionText,
       getTradeMethodText,
+      locateCurrentPosition,
       submitProduct,
       goBack
     }

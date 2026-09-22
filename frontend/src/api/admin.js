@@ -1,6 +1,10 @@
 /**
  * 管理员相关API接口
- * 包含用户管理、商品管理、分类管理、系统消息等功能
+ * 包含用户管理、商品管理、分类管理、系统消息、系统设置等功能
+ *
+ * 说明：本文件只保留后端已实现的接口。此前这里还定义过 export/backup/cache/serverInfo
+ * 等一批后端并不存在的接口，属于「画饼」式定义，已随本次联调一并清理，
+ * 避免后续误调用后拿到 404 却不知道原因。
  */
 
 import request from '@/utils/request'
@@ -18,7 +22,7 @@ export function adminLogin(loginData) {
 
 /**
  * 获取管理员后台首页数据
- * @returns {Promise} 返回统计数据和最近活动
+ * @returns {Promise} 返回统计数据、最近商品与最近系统消息
  */
 export function getAdminDashboard() {
   return request.get('/admin/dashboard')
@@ -29,9 +33,9 @@ export function getAdminDashboard() {
  * @param {Object} queryParams - 查询参数
  * @param {number} queryParams.page - 页码
  * @param {number} queryParams.pageSize - 每页条数
- * @param {string} queryParams.status - 用户状态
- * @param {string} queryParams.keyword - 搜索关键词
- * @returns {Promise} 返回用户列表
+ * @param {number|string} queryParams.status - 用户状态（1正常 0禁用）
+ * @param {string} queryParams.keyword - 搜索关键词（用户名/昵称/手机号）
+ * @returns {Promise} 返回分页用户列表（{records, total}）
  */
 export function getAdminUsers(queryParams) {
   return request.get('/admin/users', {
@@ -40,10 +44,24 @@ export function getAdminUsers(queryParams) {
 }
 
 /**
- * 更新用户状态
+ * 新增用户
+ * @param {Object} userData - 用户信息
+ * @param {string} userData.username - 用户名
+ * @param {string} userData.password - 密码
+ * @param {string} [userData.phone] - 手机号（可选）
+ * @param {string} [userData.nickname] - 昵称（可选）
+ * @param {boolean} [userData.isAdmin] - 是否创建为管理员
+ * @returns {Promise} 返回新增结果
+ */
+export function createUser(userData) {
+  return request.post('/admin/users', userData)
+}
+
+/**
+ * 更新用户状态（启用/禁用）
  * @param {number} userId - 用户ID
  * @param {Object} statusData - 状态信息
- * @param {number} statusData.status - 用户状态 (1-正常, 2-禁用)
+ * @param {number} statusData.status - 用户状态（1正常 0禁用）
  * @returns {Promise} 返回更新结果
  */
 export function updateUserStatus(userId, statusData) {
@@ -55,10 +73,10 @@ export function updateUserStatus(userId, statusData) {
  * @param {Object} queryParams - 查询参数
  * @param {number} queryParams.page - 页码
  * @param {number} queryParams.pageSize - 每页条数
- * @param {string} queryParams.status - 商品状态
- * @param {number} queryParams.categoryId - 分类ID
- * @param {string} queryParams.keyword - 搜索关键词
- * @returns {Promise} 返回商品列表
+ * @param {number|string} queryParams.status - 商品状态（1在售 2已售出 3已下架）
+ * @param {number|string} queryParams.categoryId - 分类ID
+ * @param {string} queryParams.keyword - 搜索关键词（商品标题）
+ * @returns {Promise} 返回分页商品列表（{records, total}）
  */
 export function getAdminProducts(queryParams) {
   return request.get('/admin/products', {
@@ -70,7 +88,7 @@ export function getAdminProducts(queryParams) {
  * 更新商品状态
  * @param {number} productId - 商品ID
  * @param {Object} statusData - 状态信息
- * @param {number} statusData.status - 商品状态 (1-在售, 2-已售出, 3-已下架)
+ * @param {number} statusData.status - 商品状态（1在售 2已售出 3已下架）
  * @returns {Promise} 返回更新结果
  */
 export function updateProductStatus(productId, statusData) {
@@ -79,7 +97,7 @@ export function updateProductStatus(productId, statusData) {
 
 /**
  * 获取分类列表
- * @returns {Promise} 返回分类列表
+ * @returns {Promise} 返回分类数组
  */
 export function getAdminCategories() {
   return request.get('/admin/categories')
@@ -90,6 +108,7 @@ export function getAdminCategories() {
  * @param {Object} categoryData - 分类信息
  * @param {string} categoryData.name - 分类名称
  * @param {number} categoryData.sort - 排序
+ * @param {number} categoryData.status - 状态（1启用 0禁用）
  * @returns {Promise} 返回添加结果
  */
 export function addCategory(categoryData) {
@@ -100,9 +119,6 @@ export function addCategory(categoryData) {
  * 更新分类
  * @param {number} categoryId - 分类ID
  * @param {Object} categoryData - 分类信息
- * @param {string} categoryData.name - 分类名称
- * @param {number} categoryData.sort - 排序
- * @param {number} categoryData.status - 状态
  * @returns {Promise} 返回更新结果
  */
 export function updateCategory(categoryId, categoryData) {
@@ -112,18 +128,18 @@ export function updateCategory(categoryId, categoryData) {
 /**
  * 删除分类
  * @param {number} categoryId - 分类ID
- * @returns {Promise} 返回删除结果
+ * @returns {Promise} 返回删除结果；分类下存在商品时会被后端拒绝
  */
 export function deleteCategory(categoryId) {
   return request.delete(`/admin/categories/${categoryId}`)
 }
 
 /**
- * 发送系统消息
+ * 发送系统消息（按接收群体群发）
  * @param {Object} messageData - 消息数据
  * @param {string} messageData.title - 消息标题
  * @param {string} messageData.content - 消息内容
- * @param {string} messageData.userType - 接收用户类型 ('all'-'所有', 'admin'-'管理员', 'user'-'普通用户')
+ * @param {string} messageData.userType - 接收群体（'all' 所有用户 / 'admin' 仅管理员 / 'user' 仅普通用户）
  * @returns {Promise} 返回发送结果
  */
 export function sendSystemMessage(messageData) {
@@ -135,9 +151,9 @@ export function sendSystemMessage(messageData) {
  * @param {Object} queryParams - 查询参数
  * @param {number} queryParams.page - 页码
  * @param {number} queryParams.pageSize - 每页条数
- * @param {string} queryParams.status - 消息状态
- * @param {string} queryParams.userType - 用户类型
- * @returns {Promise} 返回消息列表
+ * @param {number|string} queryParams.status - 消息状态（1发送中 2已送达）
+ * @param {string} queryParams.userType - 接收群体
+ * @returns {Promise} 返回分页消息列表（{records, total}）
  */
 export function getAdminMessages(queryParams) {
   return request.get('/admin/messages', {
@@ -163,97 +179,25 @@ export function updateAdminSettings(settings) {
 }
 
 /**
- * 获取用户统计图表数据
- * @returns {Promise} 返回统计数据
- */
-export function getUserStats() {
-  return request.get('/admin/stats/users')
-}
-
-/**
- * 获取商品统计图表数据
- * @returns {Promise} 返回统计数据
- */
-export function getProductStats() {
-  return request.get('/admin/stats/products')
-}
-
-/**
- * 获取交易统计图表数据
- * @returns {Promise} 返回统计数据
- */
-export function getTradeStats() {
-  return request.get('/admin/stats/trades')
-}
-
-/**
- * 导出用户数据
- * @param {Object} queryParams - 查询参数
- * @returns {Promise} 返回导出结果
+ * 导出用户数据（CSV）
+ * @param {Object} queryParams - 查询参数（与列表页筛选项一致）
+ * @returns {Promise} 触发浏览器下载
  */
 export function exportUsers(queryParams) {
-  return request.download('/admin/export/users', {
-    params: queryParams,
-    filename: '用户数据.xlsx'
-  })
-}
-
-/**
- * 导出商品数据
- * @param {Object} queryParams - 查询参数
- * @returns {Promise} 返回导出结果
- */
-export function exportProducts(queryParams) {
-  return request.download('/admin/export/products', {
-    params: queryParams,
-    filename: '商品数据.xlsx'
-  })
-}
-
-/**
- * 获取系统日志
- * @param {Object} queryParams - 查询参数
- * @param {string} queryParams.level - 日志级别
- * @param {string} queryParams.startTime - 开始时间
- * @param {string} queryParams.endTime - 结束时间
- * @returns {Promise} 返回日志数据
- */
-export function getSystemLogs(queryParams) {
-  return request.get('/admin/logs', {
+  return request.download('/admin/export/users', '用户数据.csv', {
     params: queryParams
   })
 }
 
 /**
- * 清理缓存
- * @returns {Promise} 返回清理结果
+ * 导出商品数据（CSV）
+ * @param {Object} queryParams - 查询参数（与列表页筛选项一致）
+ * @returns {Promise} 触发浏览器下载
  */
-export function clearCache() {
-  return request.post('/admin/cache/clear')
-}
-
-/**
- * 获取服务器信息
- * @returns {Promise} 返回服务器信息
- */
-export function getServerInfo() {
-  return request.get('/admin/server/info')
-}
-
-/**
- * 执行数据库备份
- * @returns {Promise} 返回备份结果
- */
-export function backupDatabase() {
-  return request.post('/admin/backup/database')
-}
-
-/**
- * 获取备份列表
- * @returns {Promise} 返回备份列表
- */
-export function getBackupList() {
-  return request.get('/admin/backup/list')
+export function exportProducts(queryParams) {
+  return request.download('/admin/export/products', '商品数据.csv', {
+    params: queryParams
+  })
 }
 
 /**
@@ -263,6 +207,7 @@ export default {
   adminLogin,
   getAdminDashboard,
   getAdminUsers,
+  createUser,
   updateUserStatus,
   getAdminProducts,
   updateProductStatus,
@@ -274,14 +219,6 @@ export default {
   getAdminMessages,
   getAdminSettings,
   updateAdminSettings,
-  getUserStats,
-  getProductStats,
-  getTradeStats,
   exportUsers,
-  exportProducts,
-  getSystemLogs,
-  clearCache,
-  getServerInfo,
-  backupDatabase,
-  getBackupList
+  exportProducts
 }

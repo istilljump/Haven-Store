@@ -26,6 +26,9 @@ public class Message {
     
     /** 消息类型（1: 系统通知，2: 公告，3: 交易消息，4: 其他） */
     private Integer messageType;
+
+    /** 接收群体（all 所有用户 / admin 仅管理员 / user 仅普通用户；管理后台群发时标记） */
+    private String receiverType;
     
     /** 消息标题 */
     private String title;

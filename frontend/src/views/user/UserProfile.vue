@@ -91,7 +91,6 @@
                       <span class="time">{{ product.time }}</span>
                     </div>
                     <div class="actions">
-                      <el-button size="small" @click="editProduct(product.id)">编辑</el-button>
                       <el-button size="small" type="danger" @click="deleteProduct(product.id)">删除</el-button>
                     </div>
                   </div>
@@ -291,10 +290,6 @@ export default {
       router.push('/products/create')
     }
     
-    const editProduct = (id) => {
-      router.push(`/products/${id}/edit`)
-    }
-    
     const deleteProduct = async (id) => {
       try {
         await ElMessageBox.confirm('确定要删除这个商品吗？此操作不可恢复', '确认删除', {
@@ -332,7 +327,6 @@ export default {
       loadUserProducts,
       getProductStatusText,
       goToCreateProduct,
-      editProduct,
       deleteProduct
     }
   }

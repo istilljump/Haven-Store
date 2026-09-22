@@ -1,11 +1,14 @@
 package com.example.product.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.category.entity.Category;
 import com.example.common.Result;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.vo.ProductAddVO;
 import com.example.product.vo.ProductNearbyVO;
+
+import java.util.List;
 
 /**
  * 二手商品模块业务逻辑接口
@@ -34,4 +37,13 @@ public interface ProductService {
      * @return 附近商品列表
      */
     Result<Page<ProductNearbyVO>> findNearbyProducts(ProductNearbyQueryDTO dto);
+
+    /**
+     * 查询可用的商品分类
+     * <p>
+     * 只返回启用状态的分类（管理后台禁用后的分类不再出现在选择列表中），按排序值升序
+     *
+     * @return 可用分类列表
+     */
+    List<Category> listEnabledCategories();
 }

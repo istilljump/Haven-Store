@@ -42,6 +42,7 @@ CREATE TABLE `category` (
     `id`          INT         NOT NULL AUTO_INCREMENT COMMENT '分类ID',
     `name`        VARCHAR(30) NOT NULL                COMMENT '分类名称（唯一）',
     `sort`        INT         NOT NULL DEFAULT 0      COMMENT '排序值（越小越靠前）',
+    `status`      TINYINT     NOT NULL DEFAULT 1      COMMENT '状态：1启用 0禁用',
     `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -67,7 +68,7 @@ CREATE TABLE `product` (
     `latitude`          DECIMAL(10,6) DEFAULT NULL            COMMENT '纬度（-90~90）',
     `create_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `status`            TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1上架 0下架',
+    `status`            TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1在售 2已售出 3已下架',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
     KEY `idx_category_id` (`category_id`),
@@ -86,6 +87,7 @@ CREATE TABLE `system_message` (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '消息ID',
     `receiver_id`  BIGINT       NOT NULL                COMMENT '接收者ID（关联 user 表）',
     `message_type` TINYINT      NOT NULL                COMMENT '消息类型：1系统通知 2公告 3交易消息 4其他',
+    `receiver_type` VARCHAR(10) NOT NULL DEFAULT 'user' COMMENT '接收群体：all所有用户 admin仅管理员 user仅普通用户（管理后台群发时标记）',
     `title`        VARCHAR(100) NOT NULL                COMMENT '消息标题',
     `content`      TEXT         NOT NULL                COMMENT '消息内容',
     `is_read`      TINYINT      NOT NULL DEFAULT 0      COMMENT '是否已读：0未读 1已读',
@@ -136,15 +138,15 @@ CREATE TABLE `comment` (
 -- ============================================================
 
 -- 基础商品分类
-INSERT INTO `category` (`name`, `sort`) VALUES
-    ('手机数码', 1),
-    ('电脑办公', 2),
-    ('图书教材', 3),
-    ('家用电器', 4),
-    ('服饰鞋包', 5),
-    ('运动户外', 6),
-    ('美妆个护', 7),
-    ('其他闲置', 8);
+INSERT INTO `category` (`name`, `sort`, `status`) VALUES
+    ('手机数码', 1, 1),
+    ('电脑办公', 2, 1),
+    ('图书教材', 3, 1),
+    ('家用电器', 4, 1),
+    ('服饰鞋包', 5, 1),
+    ('运动户外', 6, 1),
+    ('美妆个护', 7, 1),
+    ('其他闲置', 8, 1);
 
 -- 默认账号
 -- admin   / admin123   （管理员，role=1，可登录管理后台）

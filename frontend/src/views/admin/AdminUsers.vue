@@ -7,7 +7,11 @@
         <p>管理系统用户账号和权限</p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="exportUsers">
+        <el-button type="primary" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon>
+          新增用户
+        </el-button>
+        <el-button @click="exportUsers">
           <el-icon><Download /></el-icon>
           导出数据
         </el-button>
@@ -29,8 +33,9 @@
           <el-form-item label="用户状态">
             <el-select v-model="searchForm.status" placeholder="全部状态" clearable>
               <el-option label="全部" value="" />
+              <!-- 状态取值与后端 UserStatusEnum 一致：1 正常，0 禁用 -->
               <el-option label="正常" value="1" />
-              <el-option label="禁用" value="2" />
+              <el-option label="禁用" value="0" />
             </el-select>
           </el-form-item>
           <el-form-item>
@@ -116,7 +121,7 @@
                 禁用
               </el-button>
               <el-button 
-                v-else-if="row.status === 2 && !row.isAdmin"
+                v-else-if="row.status === 0 && !row.isAdmin"
                 type="success" 
                 size="small" 
                 @click="handleEnableUser(row)"
@@ -197,6 +202,57 @@
       </div>
     </el-dialog>
 
+    <!-- 新增用户对话框 -->
+    <el-dialog
+      v-model="createDialog"
+      title="新增用户"
+      width="520px"
+      @close="resetCreateForm"
+    >
+      <el-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        label-width="90px"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            v-model="createForm.username"
+            placeholder="3-20 个字符，登录时使用"
+            clearable
+          />
+        </el-form-item>
+        <el-form-item label="密码" prop="password">
+          <el-input
+            v-model="createForm.password"
+            type="password"
+            placeholder="6-20 个字符"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="createForm.nickname" placeholder="留空时默认与用户名相同" clearable />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="createForm.phone" placeholder="可留空" clearable />
+        </el-form-item>
+        <el-form-item label="角色" prop="isAdmin">
+          <el-radio-group v-model="createForm.isAdmin">
+            <el-radio :label="false">普通用户</el-radio>
+            <el-radio :label="true">管理员</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="createDialog = false">取消</el-button>
+          <el-button type="primary" :loading="createLoading" @click="submitCreateUser">
+            确定
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <!-- 确认对话框 -->
     <el-dialog
       v-model="confirmDialog"
@@ -220,8 +276,8 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Search, Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Download, Search, Refresh, Plus } from '@element-plus/icons-vue'
 import adminApi from '@/api/admin'
 import { formatDate } from '@/utils/format'
 
@@ -232,6 +288,34 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const userDetailDialog = ref(false)
 const confirmDialog = ref(false)
+
+// 新增用户对话框
+const createDialog = ref(false)
+const createLoading = ref(false)
+const createFormRef = ref()
+
+const createForm = reactive({
+  username: '',
+  password: '',
+  nickname: '',
+  phone: '',
+  isAdmin: false
+})
+
+const createRules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 20, message: '用户名长度须为 3-20 个字符', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度须为 6-20 个字符', trigger: 'blur' }
+  ],
+  // 手机号可留空，填了才校验格式（与后端 AdminUserCreateDTO 的校验规则保持一致）
+  phone: [
+    { pattern: /^$|^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }
+  ]
+}
 
 // 选中的用户
 const selectedUser = ref(null)
@@ -319,7 +403,8 @@ const handleEnableUser = (user) => {
 // 执行禁用用户操作
 const doDisableUser = async (user) => {
   try {
-    await adminApi.updateUserStatus(user.id, { status: 2 })
+    // 禁用状态值为 0（后端 UserStatusEnum.DISABLE）
+    await adminApi.updateUserStatus(user.id, { status: 0 })
     ElMessage.success(`用户 "${user.username}" 已被禁用`)
     loadUsers()
   } catch (error) {
@@ -364,15 +449,51 @@ const closeUserDetail = () => {
 // 导出用户数据
 const exportUsers = async () => {
   try {
-    const params = {
-      ...searchForm,
-      export: true
-    }
-    
-    await adminApi.exportUsers(params)
+    await adminApi.exportUsers({ ...searchForm })
     ElMessage.success('用户数据导出成功')
   } catch (error) {
+    console.error('导出用户数据失败:', error)
     ElMessage.error('导出用户数据失败')
+  }
+}
+
+// 打开新增用户对话框
+const openCreateDialog = () => {
+  resetCreateForm()
+  createDialog.value = true
+}
+
+// 重置新增表单
+const resetCreateForm = () => {
+  createForm.username = ''
+  createForm.password = ''
+  createForm.nickname = ''
+  createForm.phone = ''
+  createForm.isAdmin = false
+  createFormRef.value?.clearValidate()
+}
+
+// 提交新增用户
+const submitCreateUser = async () => {
+  if (!createFormRef.value) return
+  try {
+    await createFormRef.value.validate()
+  } catch (error) {
+    // 表单校验未通过，错误提示由 Element Plus 就地展示
+    return
+  }
+  try {
+    createLoading.value = true
+    await adminApi.createUser({ ...createForm })
+    ElMessage.success(`用户 "${createForm.username}" 创建成功`)
+    createDialog.value = false
+    // 回到第一页，保证新建的用户能被看到（列表按注册时间倒序）
+    currentPage.value = 1
+    loadUsers()
+  } catch (error) {
+    console.error('新增用户失败:', error)
+  } finally {
+    createLoading.value = false
   }
 }
 

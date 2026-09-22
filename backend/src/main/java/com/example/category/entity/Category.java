@@ -38,6 +38,10 @@ public class Category implements Serializable {
     @ApiModelProperty("排序值（越小越靠前）")
     private Integer sort;
 
+    /** 分类状态：1 启用，0 禁用（管理后台可切换，禁用后不在分类选择中展示） */
+    @ApiModelProperty("分类状态：1启用 0禁用")
+    private Integer status;
+
     /** 创建时间（插入时由 MetaObjectHandler 自动填充） */
     @ApiModelProperty("创建时间")
     @TableField(fill = FieldFill.INSERT)

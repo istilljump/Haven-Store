@@ -1,7 +1,7 @@
 {
   "name": "second-hand-market-frontend",
   "version": "1.0.0",
-  "description": "二手商品交易市场前端",
+  "description": "Haven-Store 前端",
   "main": "index.js",
   "scripts": {
     "dev": "vite",

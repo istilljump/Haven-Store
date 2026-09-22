@@ -1,6 +1,7 @@
 package com.example.product.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.category.entity.Category;
 import com.example.common.Result;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductEstimateDTO;
@@ -14,10 +15,13 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 二手商品模块控制器
@@ -74,5 +78,16 @@ public class ProductController {
     @PostMapping("/estimate")
     public Result<ProductEstimateVO> getAIPriceSuggestion(@RequestBody @Validated ProductEstimateDTO dto) {
         return productAIService.estimatePrice(dto);
+    }
+
+    /**
+     * 获取可用的商品分类
+     *
+     * @return 启用状态的分类列表（按排序值升序）
+     */
+    @ApiOperation(value = "获取商品分类", notes = "返回启用状态的分类列表，供发布商品页与筛选条件使用")
+    @GetMapping("/categories")
+    public Result<List<Category>> getCategories() {
+        return Result.success(productService.listEnabledCategories());
     }
 }

@@ -1,7 +1,7 @@
 <template>
   <div class="home">
     <div class="home-container">
-      <h1 class="home-title">二手商品交易市场</h1>
+      <h1 class="home-title">Haven-Store</h1>
       <p class="home-description">安全便捷的二手商品交易平台</p>
       
       <div class="action-buttons">
@@ -18,8 +18,10 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+// 发布商品页的真实路由是 /products/create（router/modules/product.js），
+// 此前写的是 /publish，该路径不存在，会落到 404 兜底路由
 const goToPublish = () => {
-  router.push('/publish')
+  router.push('/products/create')
 }
 </script>
 

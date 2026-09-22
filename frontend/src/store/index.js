@@ -18,9 +18,32 @@ import {
 } from '@/utils/auth'
 import userApi from '@/api/user'
 
+/**
+ * 归一化用户信息
+ * <p>
+ * 说明：登录接口（/user/login、/admin/login）返回的是扁平结构 LoginUserVO，
+ * 含 isAdmin 布尔值；而 /user/info 返回的是 User 实体，只有 role 数字。
+ * 两种来源统一收敛成本结构，业务代码只认 isAdmin / userId，不再各自判断。
+ *
+ * @param {Object|null} raw - 接口原始返回
+ * @returns {Object|null} 归一化后的用户信息，入参为空时返回 null
+ */
+function normalizeUserInfo(raw) {
+  if (!raw) return null
+  return {
+    ...raw,
+    // User 实体用 id，LoginUserVO 用 userId，这里统一补齐
+    userId: raw.userId ?? raw.id ?? null,
+    // User 实体的 role：1 管理员 / 0 普通用户（见 UserConstant.ROLE_ADMIN）
+    isAdmin: raw.isAdmin !== undefined ? raw.isAdmin : raw.role === 1
+  }
+}
+
 export const useUserStore = defineStore('user', () => {
   // 状态
-  const userInfo = ref(null)
+  // 说明：登录成功后用户信息已写入 localStorage，这里在 store 初始化时回填。
+  // 若不回填，刷新页面后 userInfo 会变回 null，表现为「已登录却被当成未登录」。
+  const userInfo = ref(normalizeUserInfo(loadUserInfo()))
   const token = ref(getToken())
   const loading = ref(false)
   const error = ref(null)
@@ -76,10 +99,12 @@ export const useUserStore = defineStore('user', () => {
       clearError()
 
       const response = await userApi.login(loginData)
-      
+
       // 保存Token和用户信息
+      // 注意：/user/login 返回的是扁平结构（LoginUserVO），没有嵌套的 userInfo 字段，
+      // 此前写成 response.userInfo 会存进 undefined，导致登录后导航栏仍显示未登录
       setToken(response.token)
-      setUserInfo(response.userInfo)
+      setUserInfo(normalizeUserInfo(response))
 
       return response
     } catch (err) {
@@ -116,9 +141,12 @@ export const useUserStore = defineStore('user', () => {
       clearError()
 
       const response = await userApi.getCurrentUserInfo()
-      setUserInfo(response.data)
-      
-      return response.data
+      // 注意：request.js 的响应拦截器已返回 res.data，这里不能再取一层 .data，
+      // 否则存进去的是 undefined，用户信息会被静默丢弃
+      const info = normalizeUserInfo(response)
+      setUserInfo(info)
+
+      return info
     } catch (err) {
       setError(err.message)
       // 如果Token过期，清除用户信息
@@ -138,8 +166,8 @@ export const useUserStore = defineStore('user', () => {
       clearError()
 
       const response = await userApi.updateUserInfo(userInfoData)
-      // 更新本地状态
-      updateUserInfo(response.data)
+      // 更新本地状态（拦截器已解包，直接用返回值）
+      updateUserInfo(normalizeUserInfo(response))
       
       return response
     } catch (err) {
@@ -176,10 +204,10 @@ export const useUserStore = defineStore('user', () => {
       clearError()
 
       const response = await userApi.uploadAvatar(formData)
-      
-      // 更新用户信息中的头像
-      if (response.data && response.data.avatar) {
-        updateUserInfo({ avatar: response.data.avatar })
+
+      // 更新用户信息中的头像（拦截器已解包）
+      if (response && response.avatar) {
+        updateUserInfo({ avatar: response.avatar })
       }
       
       return response
@@ -234,7 +262,7 @@ export const useUserStore = defineStore('user', () => {
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref({
-    siteName: '二手商品交易市场',
+    siteName: 'Haven-Store',
     version: '1.0.0',
     apiBaseUrl: '/api'
   })

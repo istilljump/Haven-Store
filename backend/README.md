@@ -14,17 +14,23 @@
 
 ## 快速启动
 
-1. 初始化数据库：执行 `sql/init.sql` 创建 `second_hand_market` 数据库与 `user`、`category`、`product` 三张表（含基础分类种子数据，脚本可重复执行，但会清空表内数据）；
+1. 初始化数据库：执行 `scripts/01-schema.sql`，它会建库 `secondhand_market`、建 6 张表（`user`、`category`、`product`、`system_message`、`user_product_relation`、`comment`）并写入种子数据；
 2. 修改 `src/main/resources/application.yml` 中的 MySQL 账号密码、Redis 地址为本机环境；
 3. 启动应用：运行 `SecondHandMarketApplication` 主类，或执行 `mvn spring-boot:run`；
 4. 打开接口文档：<http://localhost:8080/api/doc.html>。
+
+> 前置依赖：**MySQL 与 Redis 都必须先启动**——登录会把用户信息写入 Redis 缓存，Redis 不可用会导致登录失败。
+> 数据库初始化与增量升级细节见 [database_setup.md](database_setup.md)。
+>
+> ⚠️ `legacy/` 目录下的两个 SQL 脚本已废弃，请勿使用，原因见 [legacy/README.md](legacy/README.md)。
 
 ## 工程结构
 
 ```text
 backend
 ├── pom.xml                                    # Maven 依赖与构建配置
-├── sql/init.sql                               # 数据库初始化脚本
+├── scripts/01-schema.sql                      # 数据库初始化脚本（唯一有效的一份）
+├── legacy/                                    # 已废弃的脚本与配置（原因见其 README）
 └── src/main
     ├── resources/application.yml              # 核心配置文件
     └── java/com/example
@@ -50,26 +56,18 @@ backend
         │   ├── Knife4jConfig.java             # 接口文档配置
         │   ├── JwtInterceptor.java            # JWT 登录鉴权拦截器
         │   └── WebMvcConfig.java              # 全局跨域、拦截器注册与白名单
-        └── user                               # 用户模块
-            ├── controller/UserController.java # 控制器：注册/登录/当前用户
-            ├── service/UserService.java       # 业务接口
-            ├── serviceImpl/UserServiceImpl.java # 业务实现
-            ├── mapper/UserMapper.java         # 数据访问层
-            ├── entity/User.java               # 用户实体
-            ├── dto                            # 入参：RegisterDTO / LoginDTO
-            ├── vo/LoginUserVO.java            # 出参：登录返回信息
-            ├── enums/UserStatusEnum.java      # 账号状态枚举
-            └── constant/UserConstant.java     # 模块常量
-        └── product                            # 商品模块
-            ├── controller/ProductController.java # 控制器：发布商品
-            ├── service/ProductService.java    # 业务接口
-            ├── serviceImpl/ProductServiceImpl.java # 业务实现
-            ├── mapper/ProductMapper.java      # 数据访问层
-            ├── entity/Product.java            # 商品实体
-            ├── dto/ProductAddDTO.java         # 入参：商品发布入参
-            ├── vo/ProductAddVO.java           # 出参：发布成功返回商品ID
-            ├── enums/ProductStatusEnum.java   # 商品状态枚举（上架/下架）
-            └── constant/ProductConstant.java  # 模块常量（交易方式、成色、经纬度范围）
+        ├── user                               # 用户模块（注册/登录/当前用户）
+        ├── product                            # 商品模块（发布/附近查询/AI估价/分类）
+        ├── category                           # 分类模块（实体与数据访问，供管理端与商品模块复用）
+        ├── message                            # 系统消息模块（收发/已读/未读数）
+        ├── health                             # 健康检查模块（供部署探针使用）
+        └── admin                              # 管理后台模块
+            ├── controller/AdminController.java   # 数据概览/用户/商品/分类/消息/设置/导出
+            ├── service/AdminService.java         # 业务接口
+            ├── serviceImpl/AdminServiceImpl.java # 业务实现
+            ├── interceptor/AdminAuthInterceptor.java # /admin/** 管理员角色校验
+            ├── dto                            # 新增用户、状态、分类表单、群发消息、系统设置
+            └── vo                             # 用户/商品/消息列表项、首页数据
 ```
 
 ## 鉴权说明

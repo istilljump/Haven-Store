@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# 二手商品交易市场项目演示脚本
+# Haven-Store 项目演示脚本
 # 使用说明：bash demo.sh 或 ./demo.sh
 
-echo "🚀 二手商品交易市场项目演示"
+echo "🚀 Haven-Store 项目演示"
 echo "================================"
 
 # 检查后端服务是否运行
@@ -12,7 +12,8 @@ if curl -s http://localhost:8080/api/health > /dev/null; then
     echo "✅ 后端服务运行正常 (http://localhost:8080)"
 else
     echo "❌ 后端服务未启动"
-    echo "请先运行: cd backend && python run_server.py"
+    echo "请先启动后端: cd backend && mvn spring-boot:run"
+    echo "（需要 MySQL 与 Redis 已启动）"
     exit 1
 fi
 
@@ -22,7 +23,7 @@ if curl -s http://localhost:3000 > /dev/null; then
     echo "✅ 前端服务运行正常 (http://localhost:3000)"
 else
     echo "❌ 前端服务未启动"
-    echo "请先运行: cd frontend && npm run serve"
+    echo "请先启动前端: cd frontend && npm run dev"
     exit 1
 fi
 
