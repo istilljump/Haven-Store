@@ -217,7 +217,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
@@ -269,6 +269,94 @@ export default {
     
     const productId = computed(() => route.params.id)
     
+    /**
+     * 演示数据：按商品 id 索引
+     * <p>
+     * 说明：此前这里无论访问哪个 id 都返回同一条写死的商品，
+     * 于是 /products/2 会显示成 /products/1 的标题、价格与图片。
+     * 现改为按 id 取，两条数据与商品列表（ProductList.vue）保持一致；
+     * 成色与交易方式也改用后端 ProductConstant 认可的取值（全新/九成新/八成新/七成新及以下、线上/线下），
+     * 避免演示数据与真实校验规则打架。
+     */
+    const PRODUCT_FIXTURES = {
+      1: {
+        title: '二手iPhone 12',
+        description: '95新，功能完好，无拆修，原装配件齐全，电池健康度90%以上。支持当面验机。',
+        price: 3500,
+        originalPrice: 4599,
+        category: '手机数码',
+        status: 'active',
+        publishTime: '2024-01-15 14:30:00',
+        viewCount: 156,
+        favoriteCount: 23,
+        inquiryCount: 8,
+        images: ['/images/products/iphone-12.png'],
+        seller: {
+          id: 1,
+          username: '张三',
+          avatar: '',
+          credit: 4.8,
+          productCount: 15
+        },
+        brand: 'Apple',
+        model: 'iPhone 12 128G',
+        condition: '九成新',
+        purchaseTime: '2023年6月',
+        tradeMethod: '线下',
+        remarks: '无磕碰无划痕，功能完好，支持验机',
+        reviews: [
+          {
+            id: 1,
+            user: {
+              username: '买家A',
+              avatar: ''
+            },
+            rating: 5,
+            content: '手机成色很好，功能正常，卖家很诚信。',
+            createTime: '2024-01-14 10:30:00'
+          }
+        ]
+      },
+      2: {
+        title: '编程书籍套装',
+        description: '包含算法、数据结构、计算机网络等经典教材共 6 本，无笔记无划线，书页保存完好。',
+        price: 150,
+        originalPrice: 420,
+        category: '图书教材',
+        status: 'active',
+        publishTime: '2024-01-15 11:05:00',
+        viewCount: 88,
+        favoriteCount: 14,
+        inquiryCount: 5,
+        images: ['/images/products/programming-books.png'],
+        seller: {
+          id: 2,
+          username: '李四',
+          avatar: '',
+          credit: 4.6,
+          productCount: 8
+        },
+        brand: '机械工业出版社',
+        model: '套装 6 册',
+        condition: '八成新',
+        purchaseTime: '2022年9月',
+        tradeMethod: '线上',
+        remarks: '整套出不单卖，可小刀，包邮',
+        reviews: [
+          {
+            id: 1,
+            user: {
+              username: '买家B',
+              avatar: ''
+            },
+            rating: 5,
+            content: '书很新，包装仔细，发货也快。',
+            createTime: '2024-01-14 16:20:00'
+          }
+        ]
+      }
+    }
+    
     const fetchProductDetail = async () => {
       loading.value = true
       try {
@@ -276,47 +364,15 @@ export default {
         // const response = await api.getProductDetail(productId.value)
         // Object.assign(product, response.data)
         
-        // 模拟数据
+        // 模拟数据：按 id 取演示数据，取不到则视为商品不存在
         await new Promise(resolve => setTimeout(resolve, 1000))
-        Object.assign(product, {
-          id: productId.value,
-          title: '二手iPhone 12 Pro Max',
-          description: '95新，官方拆机无维修记录，原装配件齐全，电池健康度90%以上。支持当面验机。',
-          price: 6500,
-          originalPrice: 8999,
-          category: '数码产品',
-          status: 'active',
-          publishTime: '2024-01-15 14:30:00',
-          viewCount: 156,
-          favoriteCount: 23,
-          inquiryCount: 8,
-          images: ['/images/products/iphone-12.png'],
-          seller: {
-            id: 1,
-            username: '数码达人',
-            avatar: '',
-            credit: 4.8,
-            productCount: 15
-          },
-          brand: 'Apple',
-          model: 'iPhone 12 Pro Max',
-          condition: '95新',
-          purchaseTime: '2023年6月',
-          tradeMethod: '当面交易',
-          remarks: '无磕碰无划痕，功能完好，支持验机',
-          reviews: [
-            {
-              id: 1,
-              user: {
-                username: '买家A',
-                avatar: ''
-              },
-              rating: 5,
-              content: '手机成色很好，功能正常，卖家很诚信。',
-              createTime: '2024-01-14 10:30:00'
-            }
-          ]
-        })
+        const fixture = PRODUCT_FIXTURES[productId.value]
+        if (!fixture) {
+          productNotFound.value = true
+          return
+        }
+        productNotFound.value = false
+        Object.assign(product, { ...fixture, id: productId.value })
       } catch (error) {
         console.error('获取商品详情失败:', error)
         productNotFound.value = true
@@ -324,6 +380,14 @@ export default {
         loading.value = false
       }
     }
+    
+    // 同一路由下切换商品 id（如从商品 1 跳到商品 2）不会重新挂载组件，
+    // 需要监听参数变化重新拉取，否则会一直显示上一个商品
+    watch(productId, (id) => {
+      if (id) {
+        fetchProductDetail()
+      }
+    })
     
     const getStatusType = (status) => {
       const statusMap = {
