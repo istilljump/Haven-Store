@@ -1,0 +1,83 @@
+# ==================== 服务配置 ====================
+server:
+  # 服务端口
+  port: 8080
+  servlet:
+    # 统一上下文路径，所有接口以 /api 开头
+    context-path: /api
+    # 强制请求与响应使用 UTF-8 编码（响应头携带 charset=UTF-8，中文不乱码）
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+# ==================== Spring 相关配置 ====================
+spring:
+  # 应用名称
+  application:
+    name: second-hand-market
+  # MySQL 8.0 数据源配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 连接串说明：utf8mb4 字符集（Connector/J 8 自动协商为 utf8mb4）、关闭 SSL、时区 Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/secondhand_market?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    # 数据库账号（请按本地环境修改）
+    username: root
+    # 数据库密码（请按本地环境修改）
+    password: 1234
+  # Redis 单机配置
+  redis:
+    host: localhost
+    port: 6379
+    # 使用 0 号数据库
+    database: 0
+    # 连接超时时间：5 秒
+    timeout: 5000ms
+  mvc:
+    pathmatch:
+      # SpringBoot 2.6 起默认使用 PathPatternParser，与 springfox 不兼容，必须切回 Ant 路径匹配
+      matching-strategy: ant_path_matcher
+  # Jackson 全局日期序列化格式（Date 类型）
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+# ==================== MyBatis-Plus 配置 ====================
+mybatis-plus:
+  # Mapper XML 文件路径（当前全部使用 MyBatis-Plus API，预留 XML 扩展位置）
+  mapper-locations: classpath*:mapper/*.xml
+  # 实体类别名扫描包（通配符匹配所有业务模块的 entity 包，后续新增模块无需修改）
+  type-aliases-package: com.example.*.entity
+  configuration:
+    # 数据库下划线列名自动映射为 Java 驼峰属性
+    map-underscore-to-camel-case: true
+    # 开发阶段打印 SQL 日志，生产环境请注释掉该行
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    # 关闭 MyBatis-Plus 启动 banner
+    banner: false
+    db-config:
+      # 全局主键策略：数据库自增
+      id-type: auto
+
+# ==================== JWT 配置 ====================
+jwt:
+  # 存放 Token 的请求头名称
+  header: Authorization
+  # 签名密钥（HS256 算法要求不少于 32 字节；生产环境请通过环境变量注入并定期更换）
+  secret: SecondHandMarket@Jwt$Secret$Key$2026$Competition
+  # Token 有效期：7 天（单位毫秒）
+  expiration: 604800000
+
+# ==================== Knife4j 接口文档配置 ====================
+knife4j:
+  # 开启 Knife4j 增强模式
+  enable: true
+  setting:
+    # 文档界面语言：简体中文
+    language: zh_cn
+
+# ==================== 跨域配置 ====================
+cors:
+  # 允许的前端来源：开发阶段放通所有来源，生产环境改为具体域名（多个逗号分隔）
+  origin-patterns: "*"
