@@ -45,6 +45,18 @@ chmod +x scripts/deploy.sh
 
 ### 方式二：本地部署
 
+#### Windows 一键启动（推荐给不熟悉命令行的同学）
+
+`scripts/` 目录下提供了三个双击即可运行的脚本（已按 GBK 编码，中文显示正常）：
+
+| 脚本 | 用途 |
+|---|---|
+| `scripts/start-project.bat` | 一键启动：检查 MySQL/Redis → 起后端 → 起前端。之后浏览器打开 http://localhost:3000 |
+| `scripts/rebuild-backend.bat` | 改过 Java 代码后重新编译打包（本机专用路径） |
+| `scripts/init-database.bat` | 初始化/重置数据库（会清空数据，慎用） |
+
+> 关掉项目：把弹出的两个黑窗口都关掉即可。窗口在运行期间**不要关闭**。
+
 #### 前置：初始化数据库
 
 先启动 MySQL，然后执行建表脚本：
@@ -53,6 +65,10 @@ chmod +x scripts/deploy.sh
 mysql -uroot -p < backend/scripts/01-schema.sql
 ```
 
+> Windows 若提示 `'mysql' 不是内部或外部命令`，说明 MySQL 的 bin 目录没加入 PATH，
+> 改用完整路径即可（或直接双击 `scripts/init-database.bat`）：
+> `"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p < backend\scripts\01-schema.sql`
+>
 > 脚本会创建数据库 `secondhand_market`（6 张表 + 种子数据），并写入默认账号：
 > `admin/admin123`（管理员）、`testuser1/123456`、`testuser2/123456`。
 > 库名必须与 `application.yml` 中的 JDBC URL 一致。
