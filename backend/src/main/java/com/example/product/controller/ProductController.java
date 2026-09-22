@@ -17,9 +17,11 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -131,5 +133,90 @@ public class ProductController {
     @GetMapping("/detail/{productId}")
     public Result<ProductDetailVO> getDetail(@PathVariable Long productId) {
         return Result.success(productService.getProductDetail(productId));
+    }
+
+    /**
+     * 修改自己发布的商品
+     *
+     * @param productId 商品 ID
+     * @param dto       修改入参
+     * @return 操作结果
+     */
+    @ApiOperation(value = "修改商品", notes = "需要登录；仅商品发布者本人可修改")
+    @PutMapping("/{productId}")
+    public Result<Void> update(@PathVariable Long productId, @RequestBody @Validated ProductAddDTO dto) {
+        productService.updateProduct(productId, dto);
+        return Result.success();
+    }
+
+    /**
+     * 下架自己发布的商品
+     *
+     * @param productId 商品 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "下架商品", notes = "需要登录；仅商品发布者本人可下架，属于软下架不删数据")
+    @DeleteMapping("/{productId}")
+    public Result<Void> offline(@PathVariable Long productId) {
+        productService.offlineProduct(productId);
+        return Result.success();
+    }
+
+    /**
+     * 收藏商品
+     *
+     * @param productId 商品 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "收藏商品", notes = "需要登录；重复收藏视为成功")
+    @PostMapping("/{productId}/favorite")
+    public Result<Void> favorite(@PathVariable Long productId) {
+        productService.addFavorite(productId);
+        return Result.success();
+    }
+
+    /**
+     * 取消收藏商品
+     *
+     * @param productId 商品 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "取消收藏商品", notes = "需要登录")
+    @DeleteMapping("/{productId}/favorite")
+    public Result<Void> unfavorite(@PathVariable Long productId) {
+        productService.removeFavorite(productId);
+        return Result.success();
+    }
+
+    /**
+     * 获取收藏的商品列表
+     *
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @return 商品分页数据
+     */
+    @ApiOperation(value = "获取收藏列表", notes = "需要登录；按收藏时间倒序")
+    @GetMapping("/favorites")
+    public Result<Page<ProductListVO>> favorites(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "12") Integer pageSize) {
+        return Result.success(productService.listMyFavorites(page, pageSize));
+    }
+
+    /**
+     * 获取我发布的商品
+     *
+     * @param status   商品状态（1 在售，2 已售出，3 已下架；为空表示全部）
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @return 商品分页数据
+     */
+    @ApiOperation(value = "我的发布", notes = "需要登录；返回当前用户发布的商品")
+    @GetMapping("/mine")
+    public Result<Page<ProductListVO>> mine(
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "12") Integer pageSize) {
+        return Result.success(productService.listMyProducts(status, page, pageSize));
     }
 }

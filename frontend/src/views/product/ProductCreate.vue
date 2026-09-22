@@ -1,7 +1,7 @@
 <template>
   <div class="product-create-container">
     <div class="header">
-      <h1>发布商品</h1>
+      <h1>{{ isEdit ? '编辑商品' : '发布商品' }}</h1>
       <el-button @click="goBack">返回列表</el-button>
     </div>
 
@@ -46,6 +46,17 @@
                 style="width: 200px"
               />
               <span class="currency">元</span>
+            </el-form-item>
+
+            <el-form-item label="原价" prop="originalPrice">
+              <el-input-number
+                v-model="form.originalPrice"
+                :min="0"
+                :max="999999"
+                :precision="2"
+                style="width: 200px"
+              />
+              <span class="currency">元（选填，用于展示折扣）</span>
             </el-form-item>
 
             <el-form-item label="新旧程度" prop="condition">
@@ -105,9 +116,12 @@
               <el-upload
                 ref="uploadRef"
                 class="image-uploader"
-                action="/api/upload"
+                action="/api/product/upload"
+                :headers="uploadHeaders"
                 list-type="picture-card"
-                :auto-upload="false"
+                accept="image/*"
+                :limit="9"
+                :auto-upload="true"
                 :on-change="handleImageChange"
                 :on-remove="handleImageRemove"
                 :on-success="handleUploadSuccess"
@@ -152,21 +166,23 @@
             </el-form-item>
 
             <el-form-item label="购买时间">
+              <!-- 指定 value-format，保证 v-model 拿到的是字符串而不是 Date 对象 -->
               <el-date-picker
                 v-model="form.purchaseTime"
                 type="date"
                 placeholder="请选择购买时间"
+                value-format="YYYY-MM-DD"
                 style="width: 200px"
               />
             </el-form-item>
 
             <el-form-item label="商品特色">
               <el-checkbox-group v-model="form.features">
-                <el-checkbox label="支持验机">支持验机</el-checkbox>
-                <el-checkbox label="发票齐全">发票齐全</el-checkbox>
-                <el-checkbox label="包装齐全">包装齐全</el-checkbox>
-                <el-checkbox label="官方保修">官方保修</el-checkbox>
-                <el-checkbox label="无拆修记录">无拆修记录</el-checkbox>
+                <el-checkbox value="支持验机">支持验机</el-checkbox>
+                <el-checkbox value="发票齐全">发票齐全</el-checkbox>
+                <el-checkbox value="包装齐全">包装齐全</el-checkbox>
+                <el-checkbox value="官方保修">官方保修</el-checkbox>
+                <el-checkbox value="无拆修记录">无拆修记录</el-checkbox>
               </el-checkbox-group>
             </el-form-item>
 
@@ -248,10 +264,11 @@
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Location } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
+import { getToken } from '@/utils/auth'
 import productApi from '@/api/product'
 
 export default {
@@ -262,9 +279,17 @@ export default {
   },
   setup() {
     const router = useRouter()
+    const route = useRoute()
     const authStore = useAuthStore()
     const formRef = ref(null)
     const uploadRef = ref(null)
+
+    // 路由带 id 时为编辑模式（/products/:id/edit），否则为新建
+    const editId = computed(() => route.params.id || null)
+    const isEdit = computed(() => !!editId.value)
+
+    // el-upload 走的是自己的 XHR，不会经过 axios 拦截器，需要手动带上 Token
+    const uploadHeaders = computed(() => ({ Authorization: 'Bearer ' + (getToken() || '') }))
     
     const currentStep = ref(0)
     const imageList = ref([])
@@ -277,6 +302,7 @@ export default {
       title: '',
       categoryId: null,
       price: 0,
+      originalPrice: null,
       condition: '',
       tradeType: '',
       address: '',
@@ -289,7 +315,9 @@ export default {
       model: '',
       purchaseTime: '',
       features: [],
-      remarks: ''
+      remarks: '',
+      // 已上传成功的封面图地址（取第一张图片）
+      coverImage: ''
     })
     
     const rules = {
@@ -348,8 +376,8 @@ export default {
       } else if (currentStep.value === 1) {
         // 说明：后端尚未提供图片上传接口（商品表 cover_image 也暂未开放写入），
         // 因此这里只做提示，不阻塞流程，避免用户卡在图片步骤无法发布
-        if (imageList.value.length === 0) {
-          ElMessage.warning('未选择商品图片，发布后商品将没有封面图')
+        if (imageList.value.length === 0 && !form.coverImage) {
+          ElMessage.warning('未选择商品图片，商品将没有封面图')
         }
         currentStep.value = 2
       } else if (currentStep.value === 2) {
@@ -382,15 +410,33 @@ export default {
     
     const handleImageRemove = (file) => {
       const index = imageList.value.findIndex(item => item.uid === file.uid)
+      if (index !== -1 && form.coverImage === imageList.value[index].url) {
+        form.coverImage = ''
+      }
       if (index !== -1) {
         imageList.value.splice(index, 1)
+      }
+      // 删掉封面图后，用剩下的第一张顶上
+      if (!form.coverImage) {
+        const next = imageList.value.find(item => item.url)
+        form.coverImage = next ? next.url : ''
       }
     }
     
     const handleUploadSuccess = (response, file) => {
+      // 后端统一返回 {code, msg, data}，图片可访问地址在 data 中
+      const url = response && response.data
+      if (!url) {
+        ElMessage.error('图片上传失败')
+        return
+      }
       const index = imageList.value.findIndex(item => item.uid === file.uid)
       if (index !== -1) {
-        imageList.value[index].url = response.url
+        imageList.value[index].url = url
+      }
+      // 第一张作为封面图
+      if (!form.coverImage) {
+        form.coverImage = url
       }
     }
     
@@ -464,58 +510,59 @@ export default {
       }
 
       try {
-        await ElMessageBox.confirm('确认发布该商品吗？发布后将无法修改', '确认发布', {
+        await ElMessageBox.confirm(isEdit.value ? '确认保存修改吗？' : '确认发布该商品吗？', '确认', {
           type: 'warning'
         })
 
         uploading.value = true
 
         // 组装后端入参（字段名与 ProductAddDTO 一一对应）
-        // 说明：联系人/品牌/型号/购入时间等前端收集的信息，后端暂无对应字段，
-        // 统一并入商品描述，避免用户填写的内容被静默丢弃
-        const extraInfo = [
-          form.contactName ? `联系人：${form.contactName}` : '',
-          form.contactPhone ? `联系电话：${form.contactPhone}` : '',
-          form.brand ? `品牌：${form.brand}` : '',
-          form.model ? `型号：${form.model}` : '',
-          form.purchaseTime ? `购入时间：${form.purchaseTime}` : '',
-          form.remarks ? `备注：${form.remarks}` : ''
-        ].filter(Boolean)
-
-        const description = [form.description, ...extraInfo].filter(Boolean).join('\n')
-
+        // 特色是多选框，后端按逗号分隔的字符串存储
         const productData = {
           title: form.title,
           categoryId: form.categoryId,
           price: form.price,
+          originalPrice: form.originalPrice || null,
           productCondition: form.condition,
           tradeType: form.tradeType,
           address: form.tradeType === '线下' ? form.address : null,
           longitude: form.tradeType === '线下' ? form.longitude : null,
           latitude: form.tradeType === '线下' ? form.latitude : null,
-          description
+          brand: form.brand || null,
+          model: form.model || null,
+          purchaseTime: form.purchaseTime || null,
+          features: form.features && form.features.length ? form.features.join(',') : null,
+          remark: form.remarks || null,
+          contactName: form.contactName || null,
+          contactPhone: form.contactPhone || null,
+          coverImage: form.coverImage || null,
+          description: form.description
         }
 
-        const result = await productApi.addProduct(productData)
-
-        ElMessage.success('商品发布成功')
-
-        // 后端返回 {productId, estimatedPrice}，有 ID 时直接跳到详情页
-        if (result && result.productId) {
-          router.push(`/products/${result.productId}`)
+        if (isEdit.value) {
+          await productApi.updateProduct(editId.value, productData)
+          ElMessage.success('商品修改成功')
+          router.push(`/products/${editId.value}`)
         } else {
-          router.push('/products')
+          const result = await productApi.addProduct(productData)
+          ElMessage.success('商品发布成功')
+          // 后端返回 {productId, estimatedPrice}，有 ID 时直接跳到详情页
+          if (result && result.productId) {
+            router.push(`/products/${result.productId}`)
+          } else {
+            router.push('/products')
+          }
         }
 
       } catch (error) {
         if (error !== 'cancel') {
-          console.error('发布商品失败:', error)
+          console.error(isEdit.value ? '保存商品失败:' : '发布商品失败:', error)
         }
       } finally {
         uploading.value = false
       }
     }
-    
+
     const goBack = () => {
       router.go(-1)
     }
@@ -527,10 +574,55 @@ export default {
       return
     }
 
+    // 编辑模式：拉取商品详情回填表单
+    const loadProductForEdit = async () => {
+      try {
+        const data = await productApi.getProductDetail(editId.value)
+        form.title = data.title || ''
+        form.categoryId = data.categoryId
+        form.price = data.price === null || data.price === undefined ? 0 : Number(data.price)
+        form.originalPrice = data.originalPrice === null || data.originalPrice === undefined
+          ? null : Number(data.originalPrice)
+        form.condition = data.productCondition || ''
+        form.tradeType = data.tradeType || ''
+        form.address = data.address || ''
+        form.longitude = data.longitude === null || data.longitude === undefined ? null : Number(data.longitude)
+        form.latitude = data.latitude === null || data.latitude === undefined ? null : Number(data.latitude)
+        form.brand = data.brand || ''
+        form.model = data.model || ''
+        form.purchaseTime = data.purchaseTime || ''
+        form.features = data.features ? data.features.split(',') : []
+        form.remarks = data.remark || ''
+        form.contactName = data.contactName || ''
+        form.contactPhone = data.contactPhone || ''
+        form.description = data.description || ''
+        // 已有封面图直接挂到上传列表，用户不重新上传即可保留
+        if (data.images && data.images.length) {
+          form.coverImage = data.images[0]
+          imageList.value = data.images.map((url, index) => ({
+            name: '已上传图片' + (index + 1),
+            url,
+            uid: 'existing-' + index,
+            status: 'success'
+          }))
+        }
+      } catch (error) {
+        console.error('加载商品信息失败:', error)
+        ElMessage.error('加载商品信息失败')
+      }
+    }
+
     // 分类下拉的数据来自后端「启用状态的分类」，不再硬编码
-    onMounted(loadCategories)
+    onMounted(async () => {
+      await loadCategories()
+      if (isEdit.value) {
+        await loadProductForEdit()
+      }
+    })
     
     return {
+      isEdit,
+      uploadHeaders,
       currentStep,
       formRef,
       uploadRef,

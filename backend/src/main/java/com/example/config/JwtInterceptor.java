@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -45,6 +46,19 @@ public class JwtInterceptor implements HandlerInterceptor {
     private String header;
 
     /**
+     * 公开路径：允许游客访问，但携带了有效 Token 时仍会解析登录态
+     * <p>
+     * 说明：这些路径不能简单地从拦截器中排除——一旦排除，登录用户访问时
+     * UserHolder 为空，"我是否已收藏"、"联系电话" 这类依赖登录态的信息就取不到。
+     * 因此改为「公开但可选鉴权」：无 Token 或 Token 无效时按游客放行。
+     */
+    @Value("${jwt.public-paths:}")
+    private String[] publicPaths;
+
+    /** Ant 风格路径匹配器 */
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    /**
      * 请求前置处理：校验 Token，校验通过后将用户 ID 写入当前线程上下文
      *
      * @param request  当前请求
@@ -62,7 +76,12 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
         // 2. 从请求头获取 Token
         String token = request.getHeader(header);
+        boolean publicPath = isPublicPath(request);
         if (!StringUtils.hasText(token)) {
+            if (publicPath) {
+                // 游客访问公开资源：放行，但不写入登录态
+                return true;
+            }
             log.warn("请求未携带 Token，URI：{}", request.getRequestURI());
             writeUnauthorized(response);
             return false;
@@ -73,6 +92,10 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
         // 4. 校验 Token 有效性（签名正确且未过期）
         if (!jwtUtil.validateToken(token)) {
+            if (publicPath) {
+                log.warn("公开路径携带了无效 Token，按游客处理，URI：{}", request.getRequestURI());
+                return true;
+            }
             log.warn("请求 Token 校验失败，URI：{}", request.getRequestURI());
             writeUnauthorized(response);
             return false;
@@ -81,6 +104,30 @@ public class JwtInterceptor implements HandlerInterceptor {
         Long userId = jwtUtil.getUserIdFromToken(token);
         UserHolder.setUserId(userId);
         return true;
+    }
+
+    /**
+     * 判断当前请求是否为公开路径
+     *
+     * @param request 当前请求
+     * @return true 表示允许游客访问
+     */
+    private boolean isPublicPath(HttpServletRequest request) {
+        if (publicPaths == null || publicPaths.length == 0) {
+            return false;
+        }
+        // 去掉上下文路径（/api）后再匹配，与 addPathPatterns 的语义保持一致
+        String path = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (StringUtils.hasText(contextPath) && path.startsWith(contextPath)) {
+            path = path.substring(contextPath.length());
+        }
+        for (String pattern : publicPaths) {
+            if (StringUtils.hasText(pattern) && pathMatcher.match(pattern.trim(), path)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

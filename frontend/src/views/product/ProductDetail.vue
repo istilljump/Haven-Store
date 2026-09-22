@@ -75,6 +75,8 @@
                   <div class="seller-name">{{ product.seller.username }}</div>
                   <div class="seller-meta">
                     <span>发布在售: {{ product.seller.productCount }} 件</span>
+                    <span v-if="product.contactPhone">|</span>
+                    <span v-if="product.contactPhone">联系电话: {{ product.contactPhone }}</span>
                   </div>
                 </div>
               </div>
@@ -116,6 +118,9 @@
               >
                 我要购买
               </el-button>
+              <el-button v-if="isOwner" @click="goToEdit">
+                编辑商品
+              </el-button>
             </div>
           </div>
 
@@ -128,12 +133,12 @@
                 <span class="value">{{ product.viewCount }}</span>
               </div>
               <div class="stat-item">
-                <span class="label">成色:</span>
-                <span class="value">{{ orDash(product.condition) }}</span>
+                <span class="label">收藏次数:</span>
+                <span class="value">{{ product.favoriteCount }}</span>
               </div>
               <div class="stat-item">
-                <span class="label">交易方式:</span>
-                <span class="value">{{ orDash(product.tradeMethod) }}</span>
+                <span class="label">成色:</span>
+                <span class="value">{{ orDash(product.condition) }}</span>
               </div>
             </div>
           </div>
@@ -150,10 +155,15 @@
                 <el-descriptions title="商品描述" border>
                   <el-descriptions-item label="分类">{{ orDash(product.category) }}</el-descriptions-item>
                   <el-descriptions-item label="新旧程度">{{ orDash(product.condition) }}</el-descriptions-item>
+                  <el-descriptions-item label="品牌">{{ orDash(product.brand) }}</el-descriptions-item>
+                  <el-descriptions-item label="型号">{{ orDash(product.model) }}</el-descriptions-item>
+                  <el-descriptions-item label="购买时间">{{ orDash(product.purchaseTime) }}</el-descriptions-item>
+                  <el-descriptions-item label="商品特色">{{ orDash(product.features) }}</el-descriptions-item>
                   <el-descriptions-item label="交易方式">{{ orDash(product.tradeMethod) }}</el-descriptions-item>
+                  <el-descriptions-item label="备注说明">{{ orDash(product.remarks) }}</el-descriptions-item>
                   <el-descriptions-item label="发布时间">{{ product.publishTime || '暂无' }}</el-descriptions-item>
                   <el-descriptions-item label="卖家">{{ orDash(product.seller.username) }}</el-descriptions-item>
-                  <el-descriptions-item label="商品描述">{{ orDash(product.description) }}</el-descriptions-item>
+                  <el-descriptions-item label="商品描述" :span="2">{{ orDash(product.description) }}</el-descriptions-item>
                 </el-descriptions>
               </div>
             </div>
@@ -220,6 +230,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import productApi from '@/api/product'
+import { useAuthStore } from '@/store/auth'
 
 export default {
   name: 'ProductDetail',
@@ -230,6 +241,14 @@ export default {
   setup() {
     const router = useRouter()
     const route = useRoute()
+    const authStore = useAuthStore()
+
+    // 当前登录用户是否为该商品的发布者（决定是否展示「编辑」入口）
+    const isOwner = computed(() => {
+      const myId = authStore.user && authStore.user.userId
+      const sellerId = product.seller && product.seller.id
+      return myId != null && sellerId != null && Number(myId) === Number(sellerId)
+    })
     
     const loading = ref(true)
     const productNotFound = ref(false)
@@ -261,6 +280,9 @@ export default {
       model: '',
       condition: '',
       purchaseTime: '',
+      features: '',
+      contactName: '',
+      contactPhone: '',
       tradeMethod: '',
       remarks: '',
       reviews: []
@@ -283,32 +305,36 @@ export default {
           title: data.title,
           description: data.description,
           price: data.price,
-          // 原价、品牌、型号、购买时间、评价等字段数据库中没有对应列，
-          // 这里保持为空，由模板按「暂无」渲染，不编造内容
-          originalPrice: null,
+          originalPrice: data.originalPrice,
           category: data.categoryName || '未分类',
           status: data.status,
           publishTime: data.createTime,
           viewCount: data.viewCount || 0,
-          favoriteCount: null,
-          inquiryCount: null,
+          // 收藏次数由 user_product_relation 实时统计
+          favoriteCount: data.favoriteCount || 0,
           images: data.images || [],
           seller: {
             id: data.sellerId,
             username: data.sellerUsername || '未知用户',
             avatar: data.sellerAvatar || '',
-            credit: null,
             productCount: data.sellerProductCount || 0
           },
-          brand: '',
-          model: '',
+          brand: data.brand || '',
+          model: data.model || '',
           condition: data.productCondition || '',
-          purchaseTime: '',
+          purchaseTime: data.purchaseTime || '',
+          features: data.features || '',
+          remarks: data.remark || '',
+          contactName: data.contactName || '',
+          // 联系电话仅登录后由后端返回，未登录时为 null
+          contactPhone: data.contactPhone || '',
           // 线下交易展示交易地址，线上交易无地址可展示
-          tradeMethod: data.tradeType === '线下' && data.address ? `${data.tradeType}（${data.address}）` : data.tradeType || '',
-          remarks: '',
+          tradeMethod: data.tradeType === '线下' && data.address
+            ? `${data.tradeType}（${data.address}）` : (data.tradeType || ''),
           reviews: []
         })
+        // 收藏状态由后端返回，未登录固定为 false
+        isFavorited.value = data.favorited === true
       } catch (error) {
         console.error('获取商品详情失败:', error)
         productNotFound.value = true
@@ -340,16 +366,24 @@ export default {
     }
     
     const toggleFavorite = async () => {
+      if (!authStore.isLoggedIn) {
+        ElMessage.warning('请先登录后再收藏')
+        router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+        return
+      }
       try {
-        // TODO: 调用API收藏/取消收藏
         if (isFavorited.value) {
+          await productApi.unfavoriteProduct(product.id)
           ElMessage.success('已取消收藏')
         } else {
+          await productApi.favoriteProduct(product.id)
           ElMessage.success('已收藏')
         }
         isFavorited.value = !isFavorited.value
+        // 收藏次数同步刷新，避免只改状态不更新计数
+        product.favoriteCount = Math.max(0, (product.favoriteCount || 0) + (isFavorited.value ? 1 : -1))
       } catch (error) {
-        console.error('操作失败:', error)
+        console.error('收藏操作失败:', error)
       }
     }
     
@@ -358,9 +392,22 @@ export default {
       ElMessage.info('私信功能开发中')
     }
     
+    // 电话联系：使用商品上填写的联系电话（未登录时后端不返回，这里给出提示）
     const callSeller = () => {
-      // TODO: 实现电话联系功能
-      ElMessage.info('电话联系功能开发中')
+      if (!authStore.isLoggedIn) {
+        ElMessage.warning('请先登录后查看卖家联系方式')
+        router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+        return
+      }
+      if (!product.contactPhone) {
+        ElMessage.info('卖家未填写联系电话')
+        return
+      }
+      ElMessageBox.alert(
+        `联系人：${product.contactName || product.seller.username}\n联系电话：${product.contactPhone}`,
+        '联系方式',
+        { confirmButtonText: '知道了' }
+      ).catch(() => {})
     }
     
     const inquiry = () => {
@@ -376,6 +423,10 @@ export default {
       router.push('/')
     }
     
+    const goToEdit = () => {
+      router.push(`/products/${product.id}/edit`)
+    }
+
     const goToProducts = () => {
       router.push('/products')
     }
@@ -404,7 +455,9 @@ export default {
       inquiry,
       goBack,
       goToHome,
-      goToProducts
+      goToProducts,
+      goToEdit,
+      isOwner
     }
   }
 }

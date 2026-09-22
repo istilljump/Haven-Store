@@ -129,6 +129,28 @@ export function getFavoriteProducts(queryParams) {
 }
 
 /**
+ * 查询我发布的商品（我的发布）
+ * @param {Object} queryParams - 查询参数
+ * @param {number} [queryParams.status] - 商品状态（1在售 2已售出 3已下架）
+ * @param {number} [queryParams.page] - 页码
+ * @param {number} [queryParams.pageSize] - 每页条数
+ * @returns {Promise} 返回分页商品列表（{records, total}）
+ */
+export function getMyProducts(queryParams) {
+  return request.get('/product/mine', queryParams)
+}
+
+/**
+ * 上传商品图片
+ * @param {FormData} formData - 表单数据，字段名为 file
+ * @param {function} onProgress - 上传进度回调
+ * @returns {Promise} 返回可直接用于 img src 的图片地址
+ */
+export function uploadProductImage(formData, onProgress = null) {
+  return request.upload('/product/upload', formData, onProgress)
+}
+
+/**
  * 默认导出：便于以 productApi.xxx() 的形式统一调用
  */
 export default {
@@ -142,5 +164,7 @@ export default {
   removeProduct,
   favoriteProduct,
   unfavoriteProduct,
-  getFavoriteProducts
+  getFavoriteProducts,
+  getMyProducts,
+  uploadProductImage
 }

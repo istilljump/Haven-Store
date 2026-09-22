@@ -13,8 +13,10 @@ import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.dto.ProductEstimateDTO;
 import com.example.product.entity.Product;
+import com.example.product.entity.UserProductRelation;
 import com.example.product.enums.ProductStatusEnum;
 import com.example.product.mapper.ProductMapper;
+import com.example.product.mapper.UserProductRelationMapper;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.ProductAddVO;
@@ -62,6 +64,9 @@ public class ProductServiceImpl implements ProductService {
     /** 用户模块数据访问对象（用于补齐商品发布者信息） */
     private final UserMapper userMapper;
 
+    /** 用户-商品关联数据访问对象（收藏） */
+    private final UserProductRelationMapper userProductRelationMapper;
+
     /** 分类启用状态标识（与 category.status 字段对应：1 启用，0 禁用） */
     private static final int CATEGORY_STATUS_ENABLE = 1;
 
@@ -70,6 +75,9 @@ public class ProductServiceImpl implements ProductService {
 
     /** 排序方式：价格降序 */
     private static final String SORT_PRICE_DESC = "priceDesc";
+
+    /** 关联类型：收藏 */
+    private static final String RELATION_TYPE_COLLECT = "collect";
 
     /**
      * 发布二手商品：
@@ -247,8 +255,17 @@ public class ProductServiceImpl implements ProductService {
         product.setDescription(dto.getDescription());
         product.setCategoryId(dto.getCategoryId());
         product.setPrice(dto.getPrice());
+        product.setOriginalPrice(dto.getOriginalPrice());
         product.setProductCondition(dto.getProductCondition());
         product.setTradeType(dto.getTradeType());
+        product.setBrand(dto.getBrand());
+        product.setModel(dto.getModel());
+        product.setPurchaseTime(dto.getPurchaseTime());
+        product.setFeatures(dto.getFeatures());
+        product.setRemark(dto.getRemark());
+        product.setContactName(dto.getContactName());
+        product.setContactPhone(dto.getContactPhone());
+        product.setCoverImage(dto.getCoverImage());
         // 线上交易：地址与经纬度强制置空，杜绝脏坐标入库（前端可能传 0 值或空字符串）
         if (ProductConstant.TRADE_TYPE_ONLINE.equals(dto.getTradeType())) {
             product.setAddress(null);
@@ -322,8 +339,10 @@ public class ProductServiceImpl implements ProductService {
             vo.setDescription(p.getDescription());
             vo.setCoverImage(p.getCoverImage());
             vo.setPrice(p.getPrice());
+            vo.setOriginalPrice(p.getOriginalPrice());
             vo.setProductCondition(p.getProductCondition());
             vo.setTradeType(p.getTradeType());
+            vo.setStatus(p.getStatus());
             vo.setCategoryId(p.getCategoryId());
             vo.setCategoryName(categoryNameMap.get(p.getCategoryId()));
             User seller = sellerMap.get(p.getUserId());
@@ -363,9 +382,20 @@ public class ProductServiceImpl implements ProductService {
         vo.setPrice(product.getPrice());
         vo.setCategoryId(product.getCategoryId());
         vo.setCategoryName(loadCategoryNameMap().get(product.getCategoryId()));
+        vo.setOriginalPrice(product.getOriginalPrice());
         vo.setStatus(product.getStatus());
         vo.setProductCondition(product.getProductCondition());
         vo.setTradeType(product.getTradeType());
+        vo.setBrand(product.getBrand());
+        vo.setModel(product.getModel());
+        vo.setPurchaseTime(product.getPurchaseTime());
+        vo.setFeatures(product.getFeatures());
+        vo.setRemark(product.getRemark());
+        vo.setContactName(product.getContactName());
+        // 联系电话只给登录用户看，未登录时不返回，避免联系方式被随意爬取
+        vo.setContactPhone(UserHolder.getUserId() == null ? null : product.getContactPhone());
+        vo.setFavoriteCount(countFavorites(productId));
+        vo.setFavorited(isFavorited(productId));
         vo.setAddress(product.getAddress());
         vo.setLongitude(product.getLongitude());
         vo.setLatitude(product.getLatitude());
@@ -399,6 +429,245 @@ public class ProductServiceImpl implements ProductService {
         }
         return userMapper.selectBatchIds(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+    }
+
+    /**
+     * 收藏商品
+     * <p>
+     * 依赖 (user_id, product_id, relation_type) 唯一索引防重，重复收藏视为成功，不报错
+     */
+    @Override
+    public void addFavorite(Long productId) {
+        Long userId = requireLoginUserId();
+        if (productMapper.selectById(productId) == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (isFavorited(productId)) {
+            return;
+        }
+        UserProductRelation relation = new UserProductRelation();
+        relation.setUserId(userId);
+        relation.setProductId(productId);
+        relation.setRelationType(RELATION_TYPE_COLLECT);
+        userProductRelationMapper.insert(relation);
+        log.info("用户收藏商品，用户ID：{}，商品ID：{}", userId, productId);
+    }
+
+    /**
+     * 取消收藏商品
+     */
+    @Override
+    public void removeFavorite(Long productId) {
+        Long userId = requireLoginUserId();
+        userProductRelationMapper.delete(new LambdaQueryWrapper<UserProductRelation>()
+                .eq(UserProductRelation::getUserId, userId)
+                .eq(UserProductRelation::getProductId, productId)
+                .eq(UserProductRelation::getRelationType, RELATION_TYPE_COLLECT));
+        log.info("用户取消收藏，用户ID：{}，商品ID：{}", userId, productId);
+    }
+
+    /**
+     * 查询当前用户收藏的商品
+     * <p>
+     * 需要保持收藏的先后顺序，无法直接交给 SQL 分页，故先按收藏时间取 ID 再内存分页
+     * （单用户收藏量级很小，代价可接受）
+     */
+    @Override
+    public Page<ProductListVO> listMyFavorites(Integer page, Integer pageSize) {
+        Long userId = requireLoginUserId();
+        List<Long> productIds = userProductRelationMapper.selectList(
+                        new LambdaQueryWrapper<UserProductRelation>()
+                                .eq(UserProductRelation::getUserId, userId)
+                                .eq(UserProductRelation::getRelationType, RELATION_TYPE_COLLECT)
+                                .orderByDesc(UserProductRelation::getCreateTime))
+                .stream()
+                .map(UserProductRelation::getProductId)
+                .collect(Collectors.toList());
+        if (productIds.isEmpty()) {
+            return new Page<>(page, pageSize, 0);
+        }
+        Map<Long, Product> productMap = productMapper.selectBatchIds(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
+        List<Product> ordered = productIds.stream()
+                .map(productMap::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        return toVoPage(ordered, page, pageSize);
+    }
+
+    /**
+     * 查询当前用户发布的商品（我的发布）
+     */
+    @Override
+    public Page<ProductListVO> listMyProducts(Integer status, Integer page, Integer pageSize) {
+        Long userId = requireLoginUserId();
+        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
+                .eq(Product::getUserId, userId)
+                .orderByDesc(Product::getCreateTime)
+                .orderByDesc(Product::getId);
+        if (status != null) {
+            wrapper.eq(Product::getStatus, status);
+        }
+        Page<Product> productPage = productMapper.selectPage(new Page<>(page, pageSize), wrapper);
+
+        Page<ProductListVO> result = new Page<>(productPage.getCurrent(), productPage.getSize(), productPage.getTotal());
+        result.setRecords(toVoList(productPage.getRecords()));
+        return result;
+    }
+
+    /**
+     * 修改自己发布的商品
+     * <p>
+     * 越权校验：只能改自己发布且仍然存在的商品
+     */
+    @Override
+    public void updateProduct(Long productId, ProductAddDTO dto) {
+        Long userId = requireLoginUserId();
+        Product exist = productMapper.selectById(productId);
+        if (exist == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (!userId.equals(exist.getUserId())) {
+            throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能修改自己发布的商品");
+        }
+        if (!ProductConstant.VALID_TRADE_TYPES.contains(dto.getTradeType())) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "交易方式不合法，仅支持：线上、线下");
+        }
+        if (!ProductConstant.VALID_CONDITIONS.contains(dto.getProductCondition())) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
+                    "成色不合法，仅支持：全新、九成新、八成新、七成新及以下");
+        }
+        if (categoryMapper.selectById(dto.getCategoryId()) == null) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品分类不存在");
+        }
+        validateOfflineTrade(dto);
+
+        Product update = new Product();
+        update.setId(productId);
+        update.setTitle(dto.getTitle());
+        update.setDescription(dto.getDescription());
+        update.setCategoryId(dto.getCategoryId());
+        update.setPrice(dto.getPrice());
+        update.setOriginalPrice(dto.getOriginalPrice());
+        update.setProductCondition(dto.getProductCondition());
+        update.setTradeType(dto.getTradeType());
+        update.setBrand(dto.getBrand());
+        update.setModel(dto.getModel());
+        update.setPurchaseTime(dto.getPurchaseTime());
+        update.setFeatures(dto.getFeatures());
+        update.setRemark(dto.getRemark());
+        update.setContactName(dto.getContactName());
+        update.setContactPhone(dto.getContactPhone());
+        // 未传封面图时保留原图，避免编辑一次就把图片弄丢
+        if (StringUtils.hasText(dto.getCoverImage())) {
+            update.setCoverImage(dto.getCoverImage());
+        }
+        if (ProductConstant.TRADE_TYPE_ONLINE.equals(dto.getTradeType())) {
+            update.setAddress(null);
+            update.setLongitude(null);
+            update.setLatitude(null);
+        } else {
+            update.setAddress(dto.getAddress());
+            update.setLongitude(dto.getLongitude());
+            update.setLatitude(dto.getLatitude());
+        }
+        productMapper.updateById(update);
+        log.info("商品修改成功，商品ID：{}，卖家用户ID：{}", productId, userId);
+    }
+
+    /**
+     * 下架自己发布的商品（软下架，不删数据）
+     */
+    @Override
+    public void offlineProduct(Long productId) {
+        Long userId = requireLoginUserId();
+        Product exist = productMapper.selectById(productId);
+        if (exist == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (!userId.equals(exist.getUserId())) {
+            throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能下架自己发布的商品");
+        }
+        Product update = new Product();
+        update.setId(productId);
+        update.setStatus(ProductStatusEnum.OFF_SHELF.getCode());
+        productMapper.updateById(update);
+        log.info("商品已下架，商品ID：{}", productId);
+    }
+
+    /**
+     * 取当前登录用户 ID，未登录直接抛 401
+     */
+    private Long requireLoginUserId() {
+        Long userId = UserHolder.getUserId();
+        if (userId == null) {
+            throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
+        }
+        return userId;
+    }
+
+    /**
+     * 统计商品被收藏的次数
+     */
+    private Long countFavorites(Long productId) {
+        return userProductRelationMapper.selectCount(new LambdaQueryWrapper<UserProductRelation>()
+                .eq(UserProductRelation::getProductId, productId)
+                .eq(UserProductRelation::getRelationType, RELATION_TYPE_COLLECT));
+    }
+
+    /**
+     * 判断当前登录用户是否已收藏该商品（未登录返回 false）
+     */
+    private boolean isFavorited(Long productId) {
+        Long userId = UserHolder.getUserId();
+        if (userId == null) {
+            return false;
+        }
+        return userProductRelationMapper.selectCount(new LambdaQueryWrapper<UserProductRelation>()
+                .eq(UserProductRelation::getUserId, userId)
+                .eq(UserProductRelation::getProductId, productId)
+                .eq(UserProductRelation::getRelationType, RELATION_TYPE_COLLECT)) > 0;
+    }
+
+    /**
+     * 商品实体列表 -> 列表项 VO（补齐分类名与发布者）
+     */
+    private List<ProductListVO> toVoList(List<Product> products) {
+        Map<Integer, String> categoryNameMap = loadCategoryNameMap();
+        Map<Long, User> sellerMap = loadSellerMap(products);
+        return products.stream().map(p -> {
+            ProductListVO vo = new ProductListVO();
+            vo.setId(p.getId());
+            vo.setTitle(p.getTitle());
+            vo.setDescription(p.getDescription());
+            vo.setCoverImage(p.getCoverImage());
+            vo.setPrice(p.getPrice());
+            vo.setOriginalPrice(p.getOriginalPrice());
+            vo.setProductCondition(p.getProductCondition());
+            vo.setTradeType(p.getTradeType());
+            vo.setStatus(p.getStatus());
+            vo.setCategoryId(p.getCategoryId());
+            vo.setCategoryName(categoryNameMap.get(p.getCategoryId()));
+            User seller = sellerMap.get(p.getUserId());
+            vo.setUsername(seller == null ? null : seller.getUsername());
+            vo.setCreateTime(p.getCreateTime());
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * 内存分页（收藏列表用）
+     */
+    private Page<ProductListVO> toVoPage(List<Product> ordered, Integer page, Integer pageSize) {
+        long total = ordered.size();
+        int from = Math.max(0, (page - 1) * pageSize);
+        int to = Math.min(ordered.size(), from + pageSize);
+        List<Product> slice = from >= ordered.size()
+                ? Collections.emptyList()
+                : new ArrayList<>(ordered.subList(from, to));
+        Page<ProductListVO> result = new Page<>(page, pageSize, total);
+        result.setRecords(toVoList(slice));
+        return result;
     }
 
     /**

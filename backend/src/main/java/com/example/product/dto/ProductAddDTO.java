@@ -8,6 +8,7 @@ import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Digits;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.io.Serializable;
@@ -37,6 +38,52 @@ public class ProductAddDTO implements Serializable {
     @ApiModelProperty(value = "商品描述", example = "自用一年，无拆修，成色良好，可小刀")
     @Size(max = 1000, message = "商品描述长度不能超过1000个字符")
     private String description;
+
+    /** 封面图 URL（由上传接口返回；不传则商品无图） */
+    @ApiModelProperty(value = "封面图URL", example = "/api/uploads/20260922/ab12cd.png")
+    @Size(max = 255, message = "封面图地址长度不能超过255个字符")
+    private String coverImage;
+
+    /** 原价（元），可选，用于展示折扣 */
+    @ApiModelProperty(value = "原价（元）", example = "4599.00")
+    @DecimalMin(value = "0.00", message = "原价不能为负数")
+    @Digits(integer = 8, fraction = 2, message = "原价整数部分最多8位，小数最多2位")
+    private BigDecimal originalPrice;
+
+    /** 品牌（可选） */
+    @ApiModelProperty(value = "品牌", example = "Apple")
+    @Size(max = 50, message = "品牌长度不能超过50个字符")
+    private String brand;
+
+    /** 型号（可选） */
+    @ApiModelProperty(value = "型号", example = "iPhone 12 128G")
+    @Size(max = 50, message = "型号长度不能超过50个字符")
+    private String model;
+
+    /** 购买时间（可选） */
+    @ApiModelProperty(value = "购买时间", example = "2023-06-15")
+    @Size(max = 20, message = "购买时间长度不能超过20个字符")
+    private String purchaseTime;
+
+    /** 商品特色（可选，多个用逗号分隔） */
+    @ApiModelProperty(value = "商品特色，多个用逗号分隔", example = "国行,无拆修")
+    @Size(max = 255, message = "商品特色长度不能超过255个字符")
+    private String features;
+
+    /** 备注说明（可选） */
+    @ApiModelProperty(value = "备注说明")
+    @Size(max = 255, message = "备注长度不能超过255个字符")
+    private String remark;
+
+    /** 联系人（可选） */
+    @ApiModelProperty(value = "联系人")
+    @Size(max = 30, message = "联系人长度不能超过30个字符")
+    private String contactName;
+
+    /** 联系电话（可选） */
+    @ApiModelProperty(value = "联系电话")
+    @Pattern(regexp = "^$|^1[3-9]\\d{9}$", message = "联系电话格式不正确")
+    private String contactPhone;
 
     /** 分类 ID */
     @ApiModelProperty(value = "分类ID", required = true, example = "1")

@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
@@ -30,6 +31,24 @@ public class WebMvcConfig implements WebMvcConfigurer {
     /** 允许跨域的前端来源（从配置文件读取，支持配置多个，逗号分隔） */
     @Value("${cors.origin-patterns}")
     private String[] corsOriginPatterns;
+
+    /** 上传文件的落盘目录（与 UploadController 使用同一配置项） */
+    @Value("${file.upload-dir:./uploads}")
+    private String uploadDir;
+
+    /**
+     * 静态资源映射：把上传目录暴露为 /uploads/**
+     * <p>
+     * 说明：图片是通过 img 标签直接访问的，请求不会带上 Authorization 头，
+     * 因此 /uploads/** 已在下面的拦截器白名单中放行
+     *
+     * @param registry 资源处理器注册器
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        String location = java.nio.file.Paths.get(uploadDir).toAbsolutePath().normalize().toUri().toString();
+        registry.addResourceHandler("/uploads/**").addResourceLocations(location);
+    }
 
     /**
      * 全局跨域配置
@@ -70,11 +89,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         // 用户模块：登录、注册接口放行
                         "/user/login",
                         "/user/register",
-                        // 商品浏览类接口放行：商品列表与详情页允许游客浏览（二手平台的常规做法），
-                        // 发布商品 /product/add 与附近查询 /product/nearby 仍需登录
-                        "/product/search",
-                        "/product/detail/**",
-                        "/product/categories",
+                        // 说明：/product/search、/product/detail/**、/product/categories 与 /uploads/**
+                        // 属于「公开但可选鉴权」，由 JwtInterceptor 的 jwt.public-paths 处理，
+                        // 不能在这里排除——否则登录用户访问时登录态为空，拿不到「是否已收藏」等信息
                         // 管理后台：登录接口必须放行，否则没有 Token 就永远登不进去
                         "/admin/login",
                         // 健康检查放行：供 Docker HEALTHCHECK 与部署脚本在未登录时探测

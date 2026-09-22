@@ -55,6 +55,10 @@ public class Product implements Serializable {
     @ApiModelProperty("商品价格（元）")
     private BigDecimal price;
 
+    /** 原价（元），用于展示折扣；可为空 */
+    @ApiModelProperty("原价（元）")
+    private BigDecimal originalPrice;
+
     /** 成色：全新 / 九成新 / 八成新 / 七成新及以下 */
     @ApiModelProperty("成色：全新/九成新/八成新/七成新及以下")
     private String productCondition;
@@ -62,6 +66,34 @@ public class Product implements Serializable {
     /** 交易方式：线上 / 线下 */
     @ApiModelProperty("交易方式：线上/线下")
     private String tradeType;
+
+    /** 品牌 */
+    @ApiModelProperty("品牌")
+    private String brand;
+
+    /** 型号 */
+    @ApiModelProperty("型号")
+    private String model;
+
+    /** 购买时间（发布页日期选择器的值） */
+    @ApiModelProperty("购买时间")
+    private String purchaseTime;
+
+    /** 商品特色（多个用逗号分隔） */
+    @ApiModelProperty("商品特色")
+    private String features;
+
+    /** 备注说明 */
+    @ApiModelProperty("备注说明")
+    private String remark;
+
+    /** 联系人 */
+    @ApiModelProperty("联系人")
+    private String contactName;
+
+    /** 联系电话 */
+    @ApiModelProperty("联系电话")
+    private String contactPhone;
 
     /** 线下交易地址（交易方式为线上时为空） */
     @ApiModelProperty("线下交易地址")

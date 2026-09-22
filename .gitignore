@@ -178,3 +178,7 @@ Thumbs.db
 # 个人开发过程记录（AI 提示词/提交说明），不进入公开仓库
 commit_notes/
 ai_commit_notes/
+
+# 用户上传的图片（运行时产物，不入库）
+uploads/
+backend/uploads/

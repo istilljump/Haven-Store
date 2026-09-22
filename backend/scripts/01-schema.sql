@@ -61,8 +61,16 @@ CREATE TABLE `product` (
     `cover_image`       VARCHAR(255)  DEFAULT NULL            COMMENT '封面图URL',
     `category_id`       INT           NOT NULL                COMMENT '分类ID（关联 category 表）',
     `price`             DECIMAL(10,2) NOT NULL                COMMENT '商品价格（元）',
+    `original_price`    DECIMAL(10,2) DEFAULT NULL            COMMENT '原价（元），用于展示折扣',
     `product_condition` VARCHAR(10)   NOT NULL                COMMENT '成色：全新/九成新/八成新/七成新及以下',
     `trade_type`        VARCHAR(10)   NOT NULL                COMMENT '交易方式：线上/线下',
+    `brand`             VARCHAR(50)   DEFAULT NULL            COMMENT '品牌',
+    `model`             VARCHAR(50)   DEFAULT NULL            COMMENT '型号',
+    `purchase_time`     VARCHAR(20)   DEFAULT NULL            COMMENT '购买时间（发布页日期选择器的值）',
+    `features`          VARCHAR(255)  DEFAULT NULL            COMMENT '商品特色（多个用逗号分隔）',
+    `remark`            VARCHAR(255)  DEFAULT NULL            COMMENT '备注说明',
+    `contact_name`      VARCHAR(30)   DEFAULT NULL            COMMENT '联系人',
+    `contact_phone`     VARCHAR(11)   DEFAULT NULL            COMMENT '联系电话',
     `address`           VARCHAR(200)  DEFAULT NULL            COMMENT '线下交易地址（线上交易时为空）',
     `longitude`         DECIMAL(10,6) DEFAULT NULL            COMMENT '经度（-180~180）',
     `latitude`          DECIMAL(10,6) DEFAULT NULL            COMMENT '纬度（-90~90）',
@@ -161,9 +169,18 @@ INSERT INTO `user` (`id`, `username`, `password`, `phone`, `nickname`, `status`,
 -- 示例商品（testuser1 发布）
 -- 说明：cover_image 指向 frontend/public/images/products/ 下的图片，
 -- 这两张图与「二手iPhone 12」「编程书籍套装」对应，改动标题/价格时请同步替换图片
-INSERT INTO `product` (`user_id`, `title`, `description`, `category_id`, `price`, `product_condition`, `trade_type`, `address`, `longitude`, `latitude`, `status`, `cover_image`) VALUES
-    (2, '二手iPhone 12', '95新，功能完好，无拆修，原装配件齐全，电池健康度90%以上。支持当面验机。', 1, 3500.00, '九成新', '线下', '北京市朝阳区国贸CBD', 116.466240, 39.920800, 1, '/images/products/iphone-12.png'),
-    (2, '编程书籍套装',  '包含算法、数据结构、计算机网络等经典教材共 6 本，无笔记无划线，书页保存完好。', 3,  150.00, '八成新', '线上', NULL,               NULL,       NULL,       1, '/images/products/programming-books.png');
+INSERT INTO `product` (`user_id`, `title`, `description`, `category_id`, `price`, `original_price`,
+                       `product_condition`, `trade_type`, `brand`, `model`, `purchase_time`, `features`,
+                       `remark`, `contact_name`, `contact_phone`, `address`, `longitude`, `latitude`,
+                       `status`, `cover_image`) VALUES
+    (2, '二手iPhone 12', '95新，功能完好，无拆修，原装配件齐全，电池健康度90%以上。支持当面验机。',
+        1, 3500.00, 4599.00, '九成新', '线下', 'Apple', 'iPhone 12 128G', '2023-06-15',
+        '支持验机,无拆修记录', '无磕碰无划痕，支持验机', '测试用户1', '13800138001',
+        '北京市朝阳区国贸CBD', 116.466240, 39.920800, 1, '/images/products/iphone-12.png'),
+    (2, '编程书籍套装', '包含算法、数据结构、计算机网络等经典教材共 6 本，无笔记无划线，书页保存完好。',
+        3, 150.00, 420.00, '八成新', '线上', '机械工业出版社', '套装 6 册', '2022-09-01',
+        '包装齐全,发票齐全', '整套出不单卖，可小刀', '测试用户1', '13800138001',
+        NULL, NULL, NULL, 1, '/images/products/programming-books.png');
 
 -- 示例系统消息
 INSERT INTO `system_message` (`receiver_id`, `message_type`, `title`, `content`, `is_read`) VALUES

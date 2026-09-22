@@ -43,6 +43,10 @@ public class ProductListVO implements Serializable {
     @ApiModelProperty("价格（元）")
     private BigDecimal price;
 
+    /** 原价（元），用于在列表上展示折扣 */
+    @ApiModelProperty("原价（元）")
+    private BigDecimal originalPrice;
+
     /** 成色 */
     @ApiModelProperty("成色")
     private String productCondition;
@@ -50,6 +54,10 @@ public class ProductListVO implements Serializable {
     /** 交易方式：线上/线下 */
     @ApiModelProperty("交易方式")
     private String tradeType;
+
+    /** 状态：1 在售，2 已售出，3 已下架（列表页需要据此展示状态与操作按钮） */
+    @ApiModelProperty("状态：1在售 2已售出 3已下架")
+    private Integer status;
 
     /** 分类 ID */
     @ApiModelProperty("分类ID")

@@ -68,6 +68,11 @@ jwt:
   secret: SecondHandMarket@Jwt$Secret$Key$2026$Competition
   # Token 有效期：7 天（单位毫秒）
   expiration: 604800000
+  # 公开路径：允许游客访问；携带有效 Token 时仍会解析登录态
+  # 说明：这里写成逗号分隔的单行字符串——@Value 无法绑定 YAML 列表（列表会展开成
+  #      public-paths[0] 这类键名，导致读到空值），逗号分隔由 Spring 自动转成数组
+  #      这些路径也不要在 WebMvcConfig 的拦截器白名单里重复配置，否则登录态会丢失
+  public-paths: /user/login,/user/register,/admin/login,/health,/product/search,/product/detail/**,/product/categories,/uploads/**
 
 # ==================== Knife4j 接口文档配置 ====================
 knife4j:
@@ -76,6 +81,13 @@ knife4j:
   setting:
     # 文档界面语言：简体中文
     language: zh_cn
+
+# ==================== 文件上传配置 ====================
+file:
+  # 上传文件落盘目录（相对项目启动目录；生产环境建议挂载到独立数据卷）
+  upload-dir: ./uploads
+  # 图片对外访问前缀（含上下文路径 /api，前端可直接作为 img src 使用）
+  access-prefix: /api/uploads
 
 # ==================== 跨域配置 ====================
 cors:

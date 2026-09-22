@@ -21,6 +21,7 @@ import sys
 import time
 import urllib.error
 import urllib.parse
+import uuid
 import urllib.request
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/api"
@@ -83,6 +84,56 @@ def check(name, actual, expected):
         FAILURES.append(name)
 
 
+def upload_png(path, token):
+    """上传一张 1x1 的合法 PNG，返回 (http_status, 解析后的 JSON)。
+
+    说明：multipart 请求体必须手工拼装——urllib 没有内置的 multipart 编码器。
+    """
+    png = bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108020000009077"
+        "3dde0000000c4944415408ed63f8cfc000000301010018dd8db0000000004945"
+        "4e44ae426082")
+    boundary = "----smokeboundary" + uuid.uuid4().hex
+    body = (
+        ("--" + boundary + "\r\n"
+         'Content-Disposition: form-data; name="file"; filename="smoke.png"\r\n'
+         "Content-Type: image/png\r\n\r\n").encode("ascii")
+        + png
+        + ("\r\n--" + boundary + "--\r\n").encode("ascii")
+    )
+    url = BASE + path
+    headers = {"Content-Type": "multipart/form-data; boundary=" + boundary}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return resp.status, json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read().decode("utf-8", "replace") or "{}")
+
+
+# 测试数据的标题标记：脚本开头与结尾都会据此清理，保证可重复执行
+TEST_TITLE_MARKERS = ("冒烟商品", "扩展字段商品", "待删除商品", "UPLOAD-TEST",
+                      "NO-COVER-ITEM", "DELETE-TEST", "VERIFY-ITEM")
+
+
+def cleanup_test_products(token):
+    """删除历史遗留的测试商品，使脚本可重复运行。
+
+    走管理端列表拿全量数据（含已下架的商品，前台搜索只看在售，会漏掉下架残留）。
+    """
+    _, _, r = call("GET", "/admin/products?page=1&pageSize=200", token=token)
+    records = ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []
+    removed = 0
+    for item in records:
+        title = item.get("title") or ""
+        if any(title.startswith(m) for m in TEST_TITLE_MARKERS):
+            call("DELETE", "/admin/products/%d" % item["id"], token=token)
+            removed += 1
+    return removed
+
+
 def section(title):
     print("\n===== " + title + " =====")
 
@@ -110,6 +161,11 @@ def main():
 
     _, _, r = call("POST", "/admin/login", {"username": "admin", "password": "wrong-password"})
     check("错误密码被拒", r, "用户名或密码错误")
+
+    # 清理上一次运行可能留下的测试商品，避免污染后续断言（如前台商品总数）
+    cleaned = cleanup_test_products(admin_token)
+    if cleaned:
+        print("  （已清理历史测试商品 %d 件）" % cleaned)
 
     # ---------- 4. 普通用户越权 ----------
     section("4. 普通用户越权校验")
@@ -429,6 +485,134 @@ def main():
 
     _, _, r = call("DELETE", "/admin/products/1")
     check("未登录删除商品被拒（401）", r, '"code":401')
+
+    # ---------- 17. 商品图片上传 ----------
+    section("17. 商品图片上传")
+    status_code, resp = upload_png("/product/upload", admin_token)
+    check("POST /product/upload", resp, '"code":200')
+    image_url = (resp.get("data") if isinstance(resp, dict) else None)
+    check("返回可访问的图片地址", image_url, "/api/uploads/")
+
+    if image_url:
+        # 上传的图片由 img 标签直接访问，不带 Token；路径前缀含 /api
+        _, headers, body = call("GET", image_url.replace("/api", ""), raw=True)
+        check("图片可直接访问（无需登录）", headers.get("Content-Type", ""), "image")
+        check("图片内容非空", "NONEMPTY" if len(body) > 0 else "EMPTY", "NONEMPTY")
+
+    status_code, resp = upload_png("/product/upload", None)
+    check("未登录上传被拒（401）", resp, '"code":401')
+
+    # ---------- 18. 商品扩展字段持久化 ----------
+    section("18. 商品扩展字段持久化")
+    _, _, r = call("POST", "/product/add",
+                   {"title": "扩展字段商品", "description": "用于验证新增字段落库",
+                    "categoryId": 1, "price": 888.00, "originalPrice": 1299.00,
+                    "productCondition": "全新", "tradeType": "线上",
+                    "brand": "TestBrand", "model": "T1", "purchaseTime": "2024-03-01",
+                    "features": "包邮,支持验货", "remark": "仅用于测试",
+                    "contactName": "测试联系人", "contactPhone": "13900139000",
+                    "coverImage": image_url}, token=admin_token)
+    ext_id = ((r.get("data") or {}).get("productId") if isinstance(r, dict) else None)
+    check("创建带扩展字段的商品", ext_id, None)
+
+    if ext_id:
+        _, _, r = call("GET", "/product/detail/%d" % ext_id, token=admin_token)
+        check("原价已保存", r, '"originalPrice":1299')
+        check("品牌已保存", r, "TestBrand")
+        check("型号已保存", r, "T1")
+        check("购买时间已保存", r, "2024-03-01")
+        check("商品特色已保存", r, "包邮,支持验货")
+        check("备注已保存", r, "仅用于测试")
+        check("联系人已保存", r, "测试联系人")
+        check("封面图为上传地址", r, "/api/uploads/")
+        check("登录用户可见联系电话", r, "13900139000")
+
+        _, _, r = call("GET", "/product/detail/%d" % ext_id)
+        check("游客看不到联系电话", r, '"contactPhone":null')
+        check("游客仍可查看商品详情", r, '"code":200')
+
+    # ---------- 19. 收藏 ----------
+    section("19. 收藏")
+    if ext_id:
+        _, _, r = call("GET", "/product/detail/%d" % ext_id)
+        check("初始未收藏", r, '"favorited":false')
+        check("初始收藏数为 0", r, '"favoriteCount":0')
+
+        _, _, r = call("POST", "/product/%d/favorite" % ext_id, token=admin_token)
+        check("POST 收藏", r, '"code":200')
+        _, _, r = call("GET", "/product/detail/%d" % ext_id, token=admin_token)
+        check("收藏后 favorited 为 true", r, '"favorited":true')
+        check("收藏后计数为 1", r, '"favoriteCount":1')
+
+        _, _, r = call("GET", "/product/detail/%d" % ext_id)
+        check("游客看到计数但 favorited 为 false", r, '"favorited":false')
+        check("游客看到收藏计数 1", r, '"favoriteCount":1')
+
+        _, _, r = call("POST", "/product/%d/favorite" % ext_id, token=admin_token)
+        check("重复收藏不报错", r, '"code":200')
+        _, _, r = call("GET", "/product/favorites", token=admin_token)
+        check("收藏列表包含该商品", r, '%d' % ext_id)
+
+        _, _, r = call("DELETE", "/product/%d/favorite" % ext_id, token=admin_token)
+        check("DELETE 取消收藏", r, '"code":200')
+        _, _, r = call("GET", "/product/detail/%d" % ext_id, token=admin_token)
+        check("取消后计数归零", r, '"favoriteCount":0')
+
+        _, _, r = call("POST", "/product/%d/favorite" % ext_id)
+        check("未登录收藏被拒（401）", r, '"code":401')
+
+    # ---------- 20. 我的发布 / 编辑 / 下架 ----------
+    section("20. 我的发布 / 编辑 / 下架")
+    _, _, r = call("GET", "/product/mine", token=admin_token)
+    check("GET /product/mine", r, '"records"')
+    check("我的发布只含自己发布的商品", r, "扩展字段商品")
+    mine_text = json.dumps(r, ensure_ascii=False)
+    check("我的发布不含他人商品", "ABSENT" if "二手iPhone 12" not in mine_text else "PRESENT", "ABSENT")
+
+    _, _, r = call("GET", "/product/mine")
+    check("未登录访问我的发布被拒（401）", r, '"code":401')
+
+    if ext_id:
+        _, _, r = call("PUT", "/product/%d" % ext_id,
+                       {"title": "扩展字段商品-已改", "description": "编辑后的描述内容",
+                        "categoryId": 2, "price": 777.00, "originalPrice": 999.00,
+                        "productCondition": "九成新", "tradeType": "线上"}, token=admin_token)
+        check("PUT 编辑自己的商品", r, '"code":200')
+        _, _, r = call("GET", "/product/detail/%d" % ext_id, token=admin_token)
+        check("标题已更新", r, "扩展字段商品-已改")
+        check("价格已更新", r, '"price":777')
+        check("分类已更新", r, "电脑办公")
+
+        # 他人不能改：用普通用户 Token
+        _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+        other_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
+        _, _, r = call("PUT", "/product/%d" % ext_id,
+                       {"title": "越权修改", "categoryId": 1, "price": 1,
+                        "productCondition": "全新", "tradeType": "线上"}, token=other_token)
+        check("他人编辑被拒（403）", r, '"code":403')
+
+        _, _, r = call("DELETE", "/product/%d" % ext_id, token=other_token)
+        check("他人下架被拒（403）", r, '"code":403')
+
+        _, _, r = call("DELETE", "/product/%d" % ext_id, token=admin_token)
+        check("DELETE 下架自己的商品", r, '"code":200')
+        _, _, r = call("GET", "/product/detail/%d" % ext_id, token=admin_token)
+        check("下架后状态为 3", r, '"status":3')
+        _, _, r = call("GET", "/product/search?page=1&pageSize=50")
+        check("已下架商品不出现在前台列表",
+              "ABSENT" if "扩展字段商品" not in json.dumps(r, ensure_ascii=False) else "PRESENT", "ABSENT")
+        # 前台只返回在售商品：总数应与「在售商品数」一致，且不含已下架的那条
+        _, _, r2 = call("GET", "/admin/products?page=1&pageSize=200&status=1", token=admin_token)
+        on_shelf = ((r2.get("data") or {}).get("total") if isinstance(r2, dict) else None)
+        _, _, r3 = call("GET", "/product/search?page=1&pageSize=50")
+        front_total = ((r3.get("data") or {}).get("total") if isinstance(r3, dict) else None)
+        check("前台列表总数与在售商品数一致", front_total, on_shelf)
+
+        _, _, r = call("DELETE", "/admin/products/%d" % ext_id, token=admin_token)
+        check("管理端物理删除", r, '"code":200')
+
+    # ---------- 收尾：清理本次产生的测试数据 ----------
+    cleanup_test_products(admin_token)
 
     # ---------- 汇总 ----------
     print("\n" + "=" * 46)

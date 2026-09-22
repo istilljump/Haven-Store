@@ -78,20 +78,26 @@
               <div v-else class="grid">
                 <div v-for="product in products" :key="product.id" class="product-card">
                   <div class="product-image">
-                    <img :src="product.image || '/default-product.png'" :alt="product.title" />
+                    <img :src="product.coverImage || '/default-product.png'" :alt="product.title" />
                     <div class="price">¥{{ product.price }}</div>
                   </div>
                   <div class="product-info">
                     <h4 class="title">{{ product.title }}</h4>
                     <p class="description">{{ product.description }}</p>
                     <div class="meta">
-                      <span class="status" :class="product.status">
+                      <span class="status" :class="'s' + product.status">
                         {{ getProductStatusText(product.status) }}
                       </span>
                       <span class="time">{{ product.time }}</span>
                     </div>
                     <div class="actions">
-                      <el-button size="small" type="danger" @click="deleteProduct(product.id)">删除</el-button>
+                      <el-button size="small" @click="router.push(`/products/${product.id}/edit`)">编辑</el-button>
+                      <el-button
+                        v-if="product.status === 1"
+                        size="small"
+                        type="danger"
+                        @click="offlineProduct(product.id)"
+                      >下架</el-button>
                     </div>
                   </div>
                 </div>
@@ -111,6 +117,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store'
+import productApi from '@/api/product'
 
 export default {
   name: 'UserProfile',
@@ -250,60 +257,47 @@ export default {
       return roleMap[role] || role
     }
     
+    // 我的发布：来自 GET /product/mine（当前登录用户发布的商品）
     const loadUserProducts = async () => {
       loading.value = true
       try {
-        // TODO: 调用API获取用户商品列表
-        // const response = await userStore.getUserProducts({ page: 1, pageSize: 12 })
-        // products.value = response.data.list
-        
-        // 模拟数据
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        products.value = [
-          {
-            id: 1,
-            title: '二手iPhone 12',
-            description: '95新，功能完好',
-            price: 3500,
-            image: '',
-            status: 'active',
-            time: '2小时前'
-          }
-        ]
+        const data = await productApi.getMyProducts({ page: 1, pageSize: 50 })
+        products.value = data.records || []
       } catch (error) {
         console.error('获取用户商品列表失败:', error)
+        products.value = []
       } finally {
         loading.value = false
       }
     }
     
+    // 状态取值与后端 ProductStatusEnum 一致：1 在售 / 2 已售出 / 3 已下架
     const getProductStatusText = (status) => {
-      const statusMap = {
-        'active': '在售',
-        'sold': '已售出',
-        'deleted': '已删除'
-      }
-      return statusMap[status] || status
+      const statusMap = { 1: '在售', 2: '已售出', 3: '已下架' }
+      return statusMap[status] || '未知'
+    }
+    
+    const getProductStatusType = (status) => {
+      const statusMap = { 1: 'success', 2: 'warning', 3: 'info' }
+      return statusMap[status] || 'info'
     }
     
     const goToCreateProduct = () => {
       router.push('/products/create')
     }
     
-    const deleteProduct = async (id) => {
+    // 下架商品（软下架：状态改为已下架，数据保留，可在管理端或重新上架恢复）
+    const offlineProduct = async (id) => {
       try {
-        await ElMessageBox.confirm('确定要删除这个商品吗？此操作不可恢复', '确认删除', {
+        await ElMessageBox.confirm('确定要下架这个商品吗？下架后不会出现在商品列表中。', '确认下架', {
           type: 'warning'
         })
-        
-        // TODO: 调用API删除商品
-        // await productApi.deleteProduct(id)
-        
-        ElMessage.success('商品删除成功')
+        await productApi.removeProduct(id)
+        ElMessage.success('商品已下架')
         loadUserProducts()
       } catch (error) {
         if (error !== 'cancel') {
-          console.error('删除商品失败:', error)
+          console.error('下架商品失败:', error)
         }
       }
     }
@@ -326,8 +320,9 @@ export default {
       getRoleText,
       loadUserProducts,
       getProductStatusText,
+      getProductStatusType,
       goToCreateProduct,
-      deleteProduct
+      offlineProduct
     }
   }
 }
@@ -472,17 +467,17 @@ export default {
   font-size: 12px;
 }
 
-.status.active {
+.status.s1 {
   background: #67c23a;
   color: white;
 }
 
-.status.sold {
+.status.s2 {
   background: #e6a23c;
   color: white;
 }
 
-.status.deleted {
+.status.s3 {
   background: #f56c6c;
   color: white;
 }

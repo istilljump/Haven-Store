@@ -76,4 +76,52 @@ public interface ProductService {
      * @return 商品详情
      */
     ProductDetailVO getProductDetail(Long productId);
+
+    /**
+     * 收藏商品
+     *
+     * @param productId 商品 ID
+     */
+    void addFavorite(Long productId);
+
+    /**
+     * 取消收藏商品
+     *
+     * @param productId 商品 ID
+     */
+    void removeFavorite(Long productId);
+
+    /**
+     * 查询当前用户收藏的商品
+     *
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @return 商品分页数据
+     */
+    Page<ProductListVO> listMyFavorites(Integer page, Integer pageSize);
+
+    /**
+     * 查询当前用户发布的商品（我的发布）
+     *
+     * @param status   商品状态（1 在售，2 已售出，3 已下架；为空表示全部）
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @return 商品分页数据
+     */
+    Page<ProductListVO> listMyProducts(Integer status, Integer page, Integer pageSize);
+
+    /**
+     * 修改自己发布的商品
+     *
+     * @param productId 商品 ID
+     * @param dto       修改入参（仅发布者本人可改）
+     */
+    void updateProduct(Long productId, ProductAddDTO dto);
+
+    /**
+     * 下架自己发布的商品（软下架：状态改为已下架，不删数据）
+     *
+     * @param productId 商品 ID
+     */
+    void offlineProduct(Long productId);
 }
