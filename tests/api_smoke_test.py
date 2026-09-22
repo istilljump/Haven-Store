@@ -115,7 +115,8 @@ def upload_png(path, token):
 
 # 测试数据的标题标记：脚本开头与结尾都会据此清理，保证可重复执行
 TEST_TITLE_MARKERS = ("冒烟商品", "扩展字段商品", "待删除商品", "UPLOAD-TEST",
-                      "NO-COVER-ITEM", "DELETE-TEST", "VERIFY-ITEM")
+                      "NO-COVER-ITEM", "DELETE-TEST", "VERIFY-ITEM",
+                      "评价测试商品", "多图测试商品", "单图兼容商品", "超限图片")
 
 
 def cleanup_test_products(token):
@@ -656,8 +657,194 @@ def main():
         _, _, r = call("DELETE", "/admin/products/%d" % ext_id, token=admin_token)
         check("管理端物理删除", r, '"code":200')
 
+    # ---------- 21. 个人资料 ----------
+    section("21. 个人资料")
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+    me_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
+    check("普通用户登录", me_token, None)
+
+    _, _, r = call("GET", "/user/info", token=me_token)
+    check("获取个人资料", r, '"username":"testuser1"')
+    check("资料含邮箱字段", r, '"email"')
+    check("资料含简介字段", r, '"bio"')
+    check("资料含 isAdmin 标识", r, '"isAdmin":false')
+    text = json.dumps(r, ensure_ascii=False)
+    check("资料不含 password 字段", "NOT-FOUND" if "password" not in text else "LEAKED", "NOT-FOUND")
+
+    _, _, r = call("PUT", "/user/info",
+                   {"nickname": "测试用户1", "phone": "13800138001",
+                    "email": "smoke@haven.com", "bio": "冒烟测试简介"}, token=me_token)
+    check("保存个人资料", r, '"code":200')
+    _, _, r = call("GET", "/user/info", token=me_token)
+    check("邮箱已保存", r, "smoke@haven.com")
+    check("简介已保存", r, "冒烟测试简介")
+
+    _, _, r = call("PUT", "/user/info", {"nickname": "x", "phone": "13800138002"}, token=me_token)
+    check("手机号被他人占用时拒绝", r, "已被其他账号使用")
+    _, _, r = call("PUT", "/user/info", {"email": "not-an-email"}, token=me_token)
+    check("非法邮箱被拒", r, "邮箱格式不正确")
+    _, _, r = call("PUT", "/user/info", {"nickname": "x"})
+    check("未登录改资料被拒（401）", r, '"code":401')
+
+    # ---------- 22. 修改密码 ----------
+    section("22. 修改密码")
+    _, _, r = call("PUT", "/user/password",
+                   {"oldPassword": "wrong-password", "newPassword": "smoke12345",
+                    "confirmPassword": "smoke12345"}, token=me_token)
+    check("原密码错误被拒", r, "原密码不正确")
+    _, _, r = call("PUT", "/user/password",
+                   {"oldPassword": "123456", "newPassword": "smoke12345",
+                    "confirmPassword": "different1"}, token=me_token)
+    check("两次新密码不一致被拒", r, "两次输入的新密码不一致")
+    _, _, r = call("PUT", "/user/password",
+                   {"oldPassword": "123456", "newPassword": "123456",
+                    "confirmPassword": "123456"}, token=me_token)
+    check("新旧密码相同被拒", r, "新密码不能与原密码相同")
+    _, _, r = call("PUT", "/user/password",
+                   {"oldPassword": "123456", "newPassword": "smoke12345",
+                    "confirmPassword": "smoke12345"}, token=me_token)
+    check("修改密码成功", r, '"code":200')
+
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "smoke12345"})
+    check("可用新密码登录", r, '"code":200"'.replace('"code":200"', '"code":200'))
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+    check("旧密码已失效", r, "用户名或密码错误")
+
+    # 改回原密码，避免影响其他用例与演示数据
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "smoke12345"})
+    back_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
+    _, _, r = call("PUT", "/user/password",
+                   {"oldPassword": "smoke12345", "newPassword": "123456",
+                    "confirmPassword": "123456"}, token=back_token)
+    check("改回原密码", r, '"code":200')
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+    check("原密码恢复可用", r, '"code":200')
+    _, _, r = call("PUT", "/user/password",
+                   {"oldPassword": "123456", "newPassword": "smoke12345",
+                    "confirmPassword": "smoke12345"})
+    check("未登录改密码被拒（401）", r, '"code":401')
+
+    # ---------- 23. 头像上传 ----------
+    section("23. 头像上传")
+    # 用测试账号而不是 testuser1：头像无法通过接口清空，避免把演示账号的头像改掉
+    _, _, r = call("POST", "/user/login", {"username": "smoke_test_user", "password": "123456"})
+    smoke_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
+    check("测试账号登录", smoke_token, None)
+    status_code, resp = upload_png("/user/avatar", smoke_token)
+    check("POST /user/avatar", resp, '"code":200')
+    avatar_url = (resp.get("data") if isinstance(resp, dict) else None)
+    check("返回头像地址", avatar_url, "/api/uploads/avatar/")
+    if avatar_url:
+        _, headers, body = call("GET", avatar_url.replace("/api", ""), raw=True)
+        check("头像可直接访问", headers.get("Content-Type", ""), "image")
+        _, _, r = call("GET", "/user/info", token=smoke_token)
+        check("资料里头像已更新", r, avatar_url)
+    status_code, resp = upload_png("/user/avatar", None)
+    check("未登录上传头像被拒（401）", resp, '"code":401')
+
+    # ---------- 24. 商品评价 ----------
+    section("24. 商品评价")
+    # 用测试商品承载评价，删除商品时会级联清掉评论，保证脚本可重复
+    _, _, r = call("POST", "/product/add",
+                   {"title": "评价测试商品", "description": "用于验证评价功能",
+                    "categoryId": 1, "price": 66.00, "productCondition": "全新",
+                    "tradeType": "线上"}, token=admin_token)
+    cmt_pid = ((r.get("data") or {}).get("productId") if isinstance(r, dict) else None)
+    check("创建评价测试商品", cmt_pid, None)
+
+    if cmt_pid:
+        _, _, r = call("GET", "/product/%d/comments" % cmt_pid)
+        check("游客可看评论列表", r, '"code":200')
+        check("初始评论数为 0", r, '"total":0')
+
+        _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
+                       {"content": "游客发表评价尝试", "rating": 5})
+        check("游客发表评论被拒（401）", r, '"code":401')
+
+        _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
+                       {"content": "评价自己发布的商品", "rating": 5}, token=admin_token)
+        check("不能评价自己发布的商品", r, "不能评价自己发布的商品")
+
+        _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
+                       {"content": "商品成色与描述一致，卖家很负责。", "rating": 5}, token=me_token)
+        check("发表评价成功", r, '"code":200')
+
+        _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
+                       {"content": "重复评价测试内容", "rating": 4}, token=me_token)
+        check("重复评价被拒", r, "已经评价过该商品")
+
+        _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
+                       {"content": "评分越界测试", "rating": 6}, token=me_token)
+        check("评分超出范围被拒", r, "评分最高为5")
+        _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
+                       {"content": "短", "rating": 5}, token=me_token)
+        check("评价内容过短被拒", r, "评论内容长度须为2-500个字符")
+
+        _, _, r = call("GET", "/product/%d/comments" % cmt_pid)
+        check("评论列表含新评论", r, "商品成色与描述一致")
+        check("评论含评论人用户名", r, "testuser1")
+        _, _, r = call("GET", "/product/%d/comments?page=1&pageSize=5" % cmt_pid)
+        check("评论列表支持分页", r, '"total":1')
+
+        _, _, r = call("GET", "/product/detail/%d" % cmt_pid, token=me_token)
+        check("详情含评论数", r, '"commentCount":1')
+        check("详情含平均评分", r, '"ratingAvg":5.0')
+        check("评价人视角 commented 为 true", r, '"commented":true')
+        _, _, r = call("GET", "/product/detail/%d" % cmt_pid)
+        check("游客视角 commented 为 false", r, '"commented":false')
+        check("游客也能看到评论数", r, '"commentCount":1')
+
+    # ---------- 25. 商品多图 ----------
+    section("25. 商品多图")
+    img1 = (upload_png("/product/upload", admin_token)[1] or {}).get("data")
+    img2 = (upload_png("/product/upload", admin_token)[1] or {}).get("data")
+    img3 = (upload_png("/product/upload", admin_token)[1] or {}).get("data")
+    check("上传三张图片", all([img1, img2, img3]), None)
+
+    _, _, r = call("POST", "/product/add",
+                   {"title": "多图测试商品", "description": "验证多图链路",
+                    "categoryId": 1, "price": 100.00, "productCondition": "全新",
+                    "tradeType": "线上", "images": [img1, img2, img3]}, token=admin_token)
+    multi_pid = ((r.get("data") or {}).get("productId") if isinstance(r, dict) else None)
+    check("创建多图商品", multi_pid, None)
+
+    if multi_pid:
+        _, _, r = call("GET", "/product/detail/%d" % multi_pid, token=admin_token)
+        check("详情返回全部 3 张图", r, '"images":["%s","%s","%s"]' % (img1, img2, img3))
+        _, _, r = call("GET", "/product/search?keyword=" + urllib.parse.quote("多图测试"),
+                       token=admin_token)
+        check("列表封面取第一张", r, img1)
+
+        _, _, r = call("PUT", "/product/%d" % multi_pid,
+                       {"title": "多图测试商品", "description": "编辑为单图",
+                        "categoryId": 1, "price": 90.00, "productCondition": "全新",
+                        "tradeType": "线上", "images": [img2]}, token=admin_token)
+        check("编辑商品图片", r, '"code":200')
+        _, _, r = call("GET", "/product/detail/%d" % multi_pid, token=admin_token)
+        check("编辑后只剩 1 张", r, '"images":["%s"]' % img2)
+
+        _, _, r = call("POST", "/product/add",
+                       {"title": "单图兼容商品", "description": "验证 coverImage 兼容",
+                        "categoryId": 1, "price": 50.00, "productCondition": "全新",
+                        "tradeType": "线上", "coverImage": img3}, token=admin_token)
+        single_pid = ((r.get("data") or {}).get("productId") if isinstance(r, dict) else None)
+        check("创建单图商品（仅传 coverImage）", single_pid, None)
+        if single_pid:
+            _, _, r = call("GET", "/product/detail/%d" % single_pid, token=admin_token)
+            check("单图商品 images 兼容返回", r, '"images":["%s"]' % img3)
+
+        _, _, r = call("POST", "/product/add",
+                       {"title": "超限图片", "categoryId": 1, "price": 1,
+                        "productCondition": "全新", "tradeType": "线上",
+                        "images": [img1] * 10}, token=admin_token)
+        check("超过 9 张被拒", r, "最多上传 9 张图片")
+
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)
+    # 把演示账号 testuser1 的资料恢复为初始状态（邮箱与简介在种子里为空）
+    if me_token:
+        call("PUT", "/user/info", {"nickname": "测试用户1", "phone": "13800138001",
+                                   "email": "", "bio": ""}, token=me_token)
 
     # ---------- 汇总 ----------
     print("\n" + "=" * 46)

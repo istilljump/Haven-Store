@@ -122,6 +122,18 @@ public class ProductDetailVO implements Serializable {
     @ApiModelProperty("当前用户是否已收藏")
     private Boolean favorited;
 
+    /** 评论数 */
+    @ApiModelProperty("评论数")
+    private Long commentCount;
+
+    /** 平均评分（无评论时为 null） */
+    @ApiModelProperty("平均评分")
+    private Double ratingAvg;
+
+    /** 当前登录用户是否已评价过该商品（未登录时为 false） */
+    @ApiModelProperty("当前用户是否已评价")
+    private Boolean commented;
+
     /** 发布时间 */
     @ApiModelProperty("发布时间")
     private LocalDateTime createTime;

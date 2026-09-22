@@ -51,6 +51,9 @@ public class JwtInterceptor implements HandlerInterceptor {
      * 说明：这些路径不能简单地从拦截器中排除——一旦排除，登录用户访问时
      * UserHolder 为空，"我是否已收藏"、"联系电话" 这类依赖登录态的信息就取不到。
      * 因此改为「公开但可选鉴权」：无 Token 或 Token 无效时按游客放行。
+     * <p>
+     * 配置格式：支持 "路径" 与 "METHOD:路径" 两种写法，后者用于限定只有该方法的请求
+     * 才免登录（例如评论列表 GET 公开，但发表评论 POST 仍需登录）。
      */
     @Value("${jwt.public-paths:}")
     private String[] publicPaths;
@@ -122,8 +125,22 @@ public class JwtInterceptor implements HandlerInterceptor {
         if (StringUtils.hasText(contextPath) && path.startsWith(contextPath)) {
             path = path.substring(contextPath.length());
         }
+        String method = request.getMethod();
         for (String pattern : publicPaths) {
-            if (StringUtils.hasText(pattern) && pathMatcher.match(pattern.trim(), path)) {
+            if (!StringUtils.hasText(pattern)) {
+                continue;
+            }
+            String rule = pattern.trim();
+            // 支持 "GET:/product/*/comments" 形式：同一路径的读操作公开、写操作仍需登录
+            int colon = rule.indexOf(':');
+            if (colon > 0) {
+                String ruleMethod = rule.substring(0, colon).trim();
+                if (!ruleMethod.equalsIgnoreCase(method)) {
+                    continue;
+                }
+                rule = rule.substring(colon + 1).trim();
+            }
+            if (pathMatcher.match(rule, path)) {
                 return true;
             }
         }

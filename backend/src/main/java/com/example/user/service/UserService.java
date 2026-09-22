@@ -2,9 +2,12 @@ package com.example.user.service;
 
 import com.example.common.Result;
 import com.example.user.dto.LoginDTO;
+import com.example.user.dto.ChangePasswordDTO;
 import com.example.user.dto.RegisterDTO;
+import com.example.user.dto.UserUpdateDTO;
 import com.example.user.entity.User;
 import com.example.user.vo.LoginUserVO;
+import com.example.user.vo.UserInfoVO;
 
 /**
  * 用户模块业务逻辑接口
@@ -35,5 +38,28 @@ public interface UserService {
      *
      * @return 当前登录用户信息（不含密码字段）
      */
-    Result<User> getCurrentUserInfo();
+    Result<UserInfoVO> getCurrentUserInfo();
+
+    /**
+     * 修改当前登录用户的资料
+     * <p>
+     * 用户名不可修改；手机号填写时需要保证全局唯一
+     *
+     * @param dto 资料入参
+     */
+    void updateCurrentUserInfo(UserUpdateDTO dto);
+
+    /**
+     * 修改当前登录用户的密码
+     *
+     * @param dto 改密入参（原密码、新密码、确认新密码）
+     */
+    void changePassword(ChangePasswordDTO dto);
+
+    /**
+     * 更新当前登录用户的头像
+     *
+     * @param avatarUrl 头像地址（由上传接口返回）
+     */
+    void updateAvatar(String avatarUrl);
 }

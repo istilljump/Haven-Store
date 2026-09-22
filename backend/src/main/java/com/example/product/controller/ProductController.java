@@ -3,11 +3,13 @@ package com.example.product.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.category.entity.Category;
 import com.example.common.Result;
+import com.example.product.dto.CommentAddDTO;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductEstimateDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
+import com.example.product.vo.CommentVO;
 import com.example.product.vo.ProductAddVO;
 import com.example.product.vo.ProductDetailVO;
 import com.example.product.vo.ProductEstimateVO;
@@ -185,6 +187,37 @@ public class ProductController {
     @DeleteMapping("/{productId}/favorite")
     public Result<Void> unfavorite(@PathVariable Long productId) {
         productService.removeFavorite(productId);
+        return Result.success();
+    }
+
+    /**
+     * 分页查询商品评论
+     *
+     * @param productId 商品 ID
+     * @param page      页码
+     * @param pageSize  每页条数
+     * @return 评论分页数据
+     */
+    @ApiOperation(value = "获取商品评论", notes = "无需登录；按时间倒序返回正常状态的评论")
+    @GetMapping("/{productId}/comments")
+    public Result<Page<CommentVO>> comments(
+            @PathVariable Long productId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return Result.success(productService.listComments(productId, page, pageSize));
+    }
+
+    /**
+     * 发表商品评论
+     *
+     * @param productId 商品 ID
+     * @param dto       评论入参
+     * @return 操作结果
+     */
+    @ApiOperation(value = "发表商品评论", notes = "需要登录；不能评价自己发布的商品，同一商品只能评价一次")
+    @PostMapping("/{productId}/comments")
+    public Result<Void> addComment(@PathVariable Long productId, @RequestBody @Validated CommentAddDTO dto) {
+        productService.addComment(productId, dto);
         return Result.success();
     }
 

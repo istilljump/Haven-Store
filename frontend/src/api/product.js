@@ -151,6 +151,28 @@ export function uploadProductImage(formData, onProgress = null) {
 }
 
 /**
+ * 获取商品评论（游客可访问）
+ * @param {number} productId - 商品ID
+ * @param {Object} queryParams - 查询参数（page、pageSize）
+ * @returns {Promise} 返回分页评论列表（{records, total}）
+ */
+export function getProductComments(productId, queryParams) {
+  return request.get(`/product/${productId}/comments`, queryParams)
+}
+
+/**
+ * 发表商品评论
+ * @param {number} productId - 商品ID
+ * @param {Object} commentData - 评论内容
+ * @param {string} commentData.content - 评论内容
+ * @param {number} commentData.rating - 评分 1-5
+ * @returns {Promise} 返回发表结果
+ */
+export function addProductComment(productId, commentData) {
+  return request.post(`/product/${productId}/comments`, commentData)
+}
+
+/**
  * 默认导出：便于以 productApi.xxx() 的形式统一调用
  */
 export default {
@@ -166,5 +188,7 @@ export default {
   unfavoriteProduct,
   getFavoriteProducts,
   getMyProducts,
-  uploadProductImage
+  uploadProductImage,
+  getProductComments,
+  addProductComment
 }

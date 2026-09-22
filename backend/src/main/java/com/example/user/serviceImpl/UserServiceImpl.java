@@ -7,12 +7,15 @@ import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
 import com.example.user.constant.UserConstant;
 import com.example.user.dto.LoginDTO;
+import com.example.user.dto.ChangePasswordDTO;
 import com.example.user.dto.RegisterDTO;
+import com.example.user.dto.UserUpdateDTO;
 import com.example.user.entity.User;
 import com.example.user.enums.UserStatusEnum;
 import com.example.user.mapper.UserMapper;
 import com.example.user.service.UserService;
 import com.example.user.vo.LoginUserVO;
+import com.example.user.vo.UserInfoVO;
 import com.example.utils.JwtUtil;
 import com.example.utils.PasswordUtil;
 import com.example.utils.RedisUtil;
@@ -21,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.concurrent.TimeUnit;
 
@@ -143,7 +147,7 @@ public class UserServiceImpl implements UserService {
      * @return 当前登录用户信息（密码字段已置空）
      */
     @Override
-    public Result<User> getCurrentUserInfo() {
+    public Result<UserInfoVO> getCurrentUserInfo() {
         // 1. 从线程上下文获取当前登录用户 ID（由 JWT 拦截器写入，不从请求参数获取，杜绝越权）
         Long userId = UserHolder.getUserId();
         if (userId == null) {
@@ -165,6 +169,114 @@ public class UserServiceImpl implements UserService {
         }
         // 5. 密码脱敏：任何返回结果都不允许出现密码字段
         user.setPassword(null);
-        return Result.success(user);
+        return Result.success(toUserInfoVO(user));
+    }
+
+    /**
+     * 修改当前登录用户的资料
+     */
+    @Override
+    public void updateCurrentUserInfo(UserUpdateDTO dto) {
+        Long userId = requireLoginUserId();
+        // 手机号填写时需保持唯一（排除自己）
+        if (StringUtils.hasText(dto.getPhone())) {
+            Long count = userMapper.selectCount(new LambdaQueryWrapper<User>()
+                    .eq(User::getPhone, dto.getPhone())
+                    .ne(User::getId, userId));
+            if (count != null && count > 0) {
+                throw new BusinessException("该手机号已被其他账号使用");
+            }
+        }
+
+        User update = new User();
+        update.setId(userId);
+        update.setNickname(dto.getNickname());
+        update.setPhone(StringUtils.hasText(dto.getPhone()) ? dto.getPhone() : null);
+        update.setEmail(StringUtils.hasText(dto.getEmail()) ? dto.getEmail() : null);
+        update.setBio(StringUtils.hasText(dto.getBio()) ? dto.getBio() : null);
+        userMapper.updateById(update);
+
+        // 资料变更后清掉缓存，避免个人中心读到旧数据
+        redisUtil.delete(RedisKeyConst.USER_INFO_KEY + userId);
+        log.info("用户资料已更新，用户ID：{}", userId);
+    }
+
+    /**
+     * 修改当前登录用户的密码
+     * <p>
+     * 校验原密码 → 校验两次新密码一致 → BCrypt 加密后落库；
+     * 改密后清除用户缓存，相当于强制重新登录
+     */
+    @Override
+    public void changePassword(ChangePasswordDTO dto) {
+        Long userId = requireLoginUserId();
+        if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
+            throw new BusinessException("两次输入的新密码不一致");
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        if (!passwordUtil.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new BusinessException("原密码不正确");
+        }
+        if (dto.getOldPassword().equals(dto.getNewPassword())) {
+            throw new BusinessException("新密码不能与原密码相同");
+        }
+
+        User update = new User();
+        update.setId(userId);
+        update.setPassword(passwordUtil.encode(dto.getNewPassword()));
+        userMapper.updateById(update);
+
+        redisUtil.delete(RedisKeyConst.USER_INFO_KEY + userId);
+        log.info("用户密码已修改，用户ID：{}", userId);
+    }
+
+    /**
+     * 更新当前登录用户的头像
+     */
+    @Override
+    public void updateAvatar(String avatarUrl) {
+        Long userId = requireLoginUserId();
+        if (!StringUtils.hasText(avatarUrl)) {
+            throw new BusinessException("头像地址不能为空");
+        }
+        User update = new User();
+        update.setId(userId);
+        update.setAvatar(avatarUrl);
+        userMapper.updateById(update);
+
+        redisUtil.delete(RedisKeyConst.USER_INFO_KEY + userId);
+        log.info("用户头像已更新，用户ID：{}", userId);
+    }
+
+    /**
+     * 取当前登录用户 ID，未登录直接抛 401
+     */
+    private Long requireLoginUserId() {
+        Long userId = UserHolder.getUserId();
+        if (userId == null) {
+            throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
+        }
+        return userId;
+    }
+
+    /**
+     * 用户实体 -> 个人中心展示对象（脱敏，并补齐 isAdmin）
+     */
+    private UserInfoVO toUserInfoVO(User user) {
+        UserInfoVO vo = new UserInfoVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setNickname(user.getNickname());
+        vo.setPhone(user.getPhone());
+        vo.setEmail(user.getEmail());
+        vo.setBio(user.getBio());
+        vo.setAvatar(user.getAvatar());
+        vo.setStatus(user.getStatus());
+        vo.setIsAdmin(UserConstant.ROLE_ADMIN.equals(user.getRole()));
+        vo.setCreateTime(user.getCreateTime());
+        return vo;
     }
 }

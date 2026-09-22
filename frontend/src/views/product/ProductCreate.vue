@@ -247,7 +247,7 @@
               </div>
               <div class="info-item">
                 <span class="label">图片数量：</span>
-                <span class="value">{{ imageList.length }}张</span>
+                <span class="value">{{ form.images.length }}张</span>
               </div>
             </div>
           </div>
@@ -316,8 +316,8 @@ export default {
       purchaseTime: '',
       features: [],
       remarks: '',
-      // 已上传成功的封面图地址（取第一张图片）
-      coverImage: ''
+      // 已上传成功的图片地址列表（第一张作为封面）
+      images: []
     })
     
     const rules = {
@@ -376,7 +376,7 @@ export default {
       } else if (currentStep.value === 1) {
         // 说明：后端尚未提供图片上传接口（商品表 cover_image 也暂未开放写入），
         // 因此这里只做提示，不阻塞流程，避免用户卡在图片步骤无法发布
-        if (imageList.value.length === 0 && !form.coverImage) {
+        if (form.images.length === 0) {
           ElMessage.warning('未选择商品图片，商品将没有封面图')
         }
         currentStep.value = 2
@@ -410,16 +410,16 @@ export default {
     
     const handleImageRemove = (file) => {
       const index = imageList.value.findIndex(item => item.uid === file.uid)
-      if (index !== -1 && form.coverImage === imageList.value[index].url) {
-        form.coverImage = ''
+      if (index === -1) {
+        return
       }
-      if (index !== -1) {
-        imageList.value.splice(index, 1)
-      }
-      // 删掉封面图后，用剩下的第一张顶上
-      if (!form.coverImage) {
-        const next = imageList.value.find(item => item.url)
-        form.coverImage = next ? next.url : ''
+      const removedUrl = imageList.value[index].url
+      imageList.value.splice(index, 1)
+      if (removedUrl) {
+        const urlIndex = form.images.indexOf(removedUrl)
+        if (urlIndex !== -1) {
+          form.images.splice(urlIndex, 1)
+        }
       }
     }
     
@@ -434,9 +434,8 @@ export default {
       if (index !== -1) {
         imageList.value[index].url = url
       }
-      // 第一张作为封面图
-      if (!form.coverImage) {
-        form.coverImage = url
+      if (!form.images.includes(url)) {
+        form.images.push(url)
       }
     }
     
@@ -535,7 +534,9 @@ export default {
           remark: form.remarks || null,
           contactName: form.contactName || null,
           contactPhone: form.contactPhone || null,
-          coverImage: form.coverImage || null,
+          // 图片独立成表；coverImage 仍传第一张，兼容只认封面的旧逻辑
+          images: form.images,
+          coverImage: form.images.length ? form.images[0] : null,
           description: form.description
         }
 
@@ -596,9 +597,9 @@ export default {
         form.contactName = data.contactName || ''
         form.contactPhone = data.contactPhone || ''
         form.description = data.description || ''
-        // 已有封面图直接挂到上传列表，用户不重新上传即可保留
+        // 已有图片直接挂到上传列表，用户不重新上传即可保留
         if (data.images && data.images.length) {
-          form.coverImage = data.images[0]
+          form.images = [...data.images]
           imageList.value = data.images.map((url, index) => ({
             name: '已上传图片' + (index + 1),
             url,

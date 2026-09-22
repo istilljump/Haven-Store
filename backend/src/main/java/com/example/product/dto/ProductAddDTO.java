@@ -12,6 +12,7 @@ import javax.validation.constraints.Pattern;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.io.Serializable;
+import java.util.List;
 import java.math.BigDecimal;
 
 /**
@@ -38,6 +39,11 @@ public class ProductAddDTO implements Serializable {
     @ApiModelProperty(value = "商品描述", example = "自用一年，无拆修，成色良好，可小刀")
     @Size(max = 1000, message = "商品描述长度不能超过1000个字符")
     private String description;
+
+    /** 商品图片列表（由上传接口返回；第一张作为封面） */
+    @ApiModelProperty(value = "商品图片列表（第一张作为封面）", example = "[\"/api/uploads/product/20260922/a.png\"]")
+    @Size(max = 9, message = "最多上传 9 张图片")
+    private List<String> images;
 
     /** 封面图 URL（由上传接口返回；不传则商品无图） */
     @ApiModelProperty(value = "封面图URL", example = "/api/uploads/20260922/ab12cd.png")

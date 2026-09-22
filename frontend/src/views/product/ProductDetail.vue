@@ -137,8 +137,12 @@
                 <span class="value">{{ product.favoriteCount }}</span>
               </div>
               <div class="stat-item">
-                <span class="label">成色:</span>
-                <span class="value">{{ orDash(product.condition) }}</span>
+                <span class="label">评分:</span>
+                <span class="value">{{ product.ratingAvg === null || product.ratingAvg === undefined ? '暂无评分' : product.ratingAvg + ' 分' }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="label">评价数:</span>
+                <span class="value">{{ product.commentCount || 0 }}</span>
               </div>
             </div>
           </div>
@@ -194,23 +198,73 @@
             </div>
           </el-tab-pane>
           
-          <el-tab-pane label="评价记录" name="reviews">
+          <el-tab-pane :label="`评价记录 (${commentTotal})`" name="reviews">
             <div class="reviews-content">
-              <div v-if="product.reviews && product.reviews.length > 0">
-                <div v-for="review in product.reviews" :key="review.id" class="review-item">
+              <!-- 发表评价：仅登录用户、非商品发布者、且尚未评价过时可写 -->
+              <div v-if="canComment" class="comment-form">
+                <div class="comment-form-title">发表评价</div>
+                <div class="comment-rate">
+                  <span class="label">评分：</span>
+                  <el-rate v-model="commentForm.rating" />
+                </div>
+                <el-input
+                  v-model="commentForm.content"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="500"
+                  show-word-limit
+                  placeholder="说说这件商品的实际情况，帮助其他买家参考"
+                />
+                <el-button
+                  type="primary"
+                  class="comment-submit"
+                  :loading="commentSubmitting"
+                  @click="submitComment"
+                >
+                  发表评价
+                </el-button>
+              </div>
+              <el-alert
+                v-else-if="isOwner"
+                title="这是您自己发布的商品，不能评价"
+                type="info"
+                :closable="false"
+                show-icon
+                class="comment-tip"
+              />
+              <el-alert
+                v-else-if="product.commented"
+                title="您已评价过该商品"
+                type="success"
+                :closable="false"
+                show-icon
+                class="comment-tip"
+              />
+
+              <div v-if="comments.length > 0">
+                <div v-for="review in comments" :key="review.id" class="review-item">
                   <div class="review-header">
-                    <el-avatar :src="review.user.avatar" size="small" />
+                    <el-avatar :src="review.avatar || '/default-avatar.png'" size="small" />
                     <div class="review-user">
-                      <div class="username">{{ review.user.username }}</div>
+                      <div class="username">{{ review.username }}</div>
                       <div class="review-time">{{ review.createTime }}</div>
                     </div>
                     <div class="review-rating">
-                      <el-rate v-model="review.rating" disabled />
+                      <el-rate :model-value="review.rating" disabled />
                     </div>
                   </div>
                   <div class="review-content">
                     {{ review.content }}
                   </div>
+                </div>
+                <div class="comment-pagination">
+                  <el-pagination
+                    v-model:current-page="commentPage"
+                    :page-size="commentPageSize"
+                    :total="commentTotal"
+                    layout="prev, pager, next"
+                    @current-change="loadComments"
+                  />
                 </div>
               </div>
               <div v-else class="no-reviews">
@@ -252,6 +306,13 @@ export default {
     
     const loading = ref(true)
     const productNotFound = ref(false)
+    // 评价列表（独立分页，与商品详情分开请求）
+    const comments = ref([])
+    const commentTotal = ref(0)
+    const commentPage = ref(1)
+    const commentPageSize = ref(10)
+    const commentSubmitting = ref(false)
+    const commentForm = reactive({ content: '', rating: 5 })
     const activeTab = ref('detail')
     const isFavorited = ref(false)
     
@@ -266,6 +327,9 @@ export default {
       publishTime: '',
       viewCount: 0,
       favoriteCount: 0,
+      commentCount: 0,
+      ratingAvg: null,
+      commented: false,
       inquiryCount: 0,
       images: [],
       seller: {
@@ -284,8 +348,7 @@ export default {
       contactName: '',
       contactPhone: '',
       tradeMethod: '',
-      remarks: '',
-      reviews: []
+      remarks: ''
     })
     
     const productId = computed(() => route.params.id)
@@ -312,6 +375,10 @@ export default {
           viewCount: data.viewCount || 0,
           // 收藏次数由 user_product_relation 实时统计
           favoriteCount: data.favoriteCount || 0,
+          // 评价统计：平均分无评价时为 null
+          commentCount: data.commentCount || 0,
+          ratingAvg: data.ratingAvg === undefined ? null : data.ratingAvg,
+          commented: data.commented === true,
           images: data.images || [],
           seller: {
             id: data.sellerId,
@@ -330,8 +397,7 @@ export default {
           contactPhone: data.contactPhone || '',
           // 线下交易展示交易地址，线上交易无地址可展示
           tradeMethod: data.tradeType === '线下' && data.address
-            ? `${data.tradeType}（${data.address}）` : (data.tradeType || ''),
-          reviews: []
+            ? `${data.tradeType}（${data.address}）` : (data.tradeType || '')
         })
         // 收藏状态由后端返回，未登录固定为 false
         isFavorited.value = data.favorited === true
@@ -347,7 +413,11 @@ export default {
     // 需要监听参数变化重新拉取，否则会一直显示上一个商品
     watch(productId, (id) => {
       if (id) {
+        // 切换商品时评价分页要回到第一页，否则会停留在上一个商品的页码
+        commentPage.value = 1
+        comments.value = []
         fetchProductDetail()
+        loadComments()
       }
     })
     
@@ -355,6 +425,52 @@ export default {
     const orDash = (value) => (value === null || value === undefined || value === '') ? '暂无' : value
     
     // 状态取值与后端 ProductStatusEnum 一致：1 在售 / 2 已售出 / 3 已下架
+    // 是否可发表评价：登录 + 非发布者 + 尚未评价过
+    const canComment = computed(() => {
+      return authStore.isLoggedIn && !isOwner.value && !product.commented
+    })
+
+    // 加载评价列表（游客也能看）
+    const loadComments = async () => {
+      if (!productId.value) return
+      try {
+        const data = await productApi.getProductComments(productId.value, {
+          page: commentPage.value,
+          pageSize: commentPageSize.value
+        })
+        comments.value = data.records || []
+        commentTotal.value = data.total || 0
+      } catch (error) {
+        console.error('加载评价失败:', error)
+        comments.value = []
+        commentTotal.value = 0
+      }
+    }
+
+    // 发表评价后同时刷新评价列表与商品统计（评分/评价数会变）
+    const submitComment = async () => {
+      if (!commentForm.content || commentForm.content.trim().length < 2) {
+        ElMessage.warning('评价内容至少 2 个字符')
+        return
+      }
+      try {
+        commentSubmitting.value = true
+        await productApi.addProductComment(productId.value, {
+          content: commentForm.content.trim(),
+          rating: commentForm.rating
+        })
+        ElMessage.success('评价已发表')
+        commentForm.content = ''
+        commentForm.rating = 5
+        commentPage.value = 1
+        await Promise.all([loadComments(), fetchProductDetail()])
+      } catch (error) {
+        console.error('发表评价失败:', error)
+      } finally {
+        commentSubmitting.value = false
+      }
+    }
+
     const getStatusType = (status) => {
       const statusMap = { 1: 'success', 2: 'warning', 3: 'info' }
       return statusMap[status] || 'info'
@@ -434,6 +550,7 @@ export default {
     onMounted(() => {
       if (productId.value) {
         fetchProductDetail()
+        loadComments()
       } else {
         productNotFound.value = true
         loading.value = false
@@ -449,6 +566,15 @@ export default {
       getStatusType,
       getStatusText,
       orDash,
+      canComment,
+      comments,
+      commentTotal,
+      commentPage,
+      commentPageSize,
+      commentSubmitting,
+      commentForm,
+      loadComments,
+      submitComment,
       toggleFavorite,
       contactSeller,
       callSeller,
@@ -697,6 +823,44 @@ export default {
 .review-content {
   color: #666;
   line-height: 1.6;
+}
+
+.comment-form {
+  padding: 16px;
+  margin-bottom: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.comment-form-title {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #303133;
+}
+
+.comment-rate {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.comment-rate .label {
+  color: #606266;
+  margin-right: 8px;
+}
+
+.comment-submit {
+  margin-top: 12px;
+}
+
+.comment-tip {
+  margin-bottom: 20px;
+}
+
+.comment-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
 }
 
 .no-reviews {

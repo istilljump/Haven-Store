@@ -107,6 +107,22 @@
         </el-tab-pane>
       </el-tabs>
     </div>
+    <!-- 更换头像对话框 -->
+    <el-dialog v-model="avatarDialog" title="更换头像" width="420px">
+      <div class="avatar-upload">
+        <el-upload
+          action="/api/user/avatar"
+          :headers="avatarHeaders"
+          accept="image/*"
+          :show-file-list="false"
+          :on-success="handleAvatarSuccess"
+          :on-error="handleAvatarError"
+        >
+          <img :src="user?.avatar || '/default-avatar.png'" class="avatar-preview" alt="头像预览" />
+          <div class="avatar-tip">点击图片选择新头像（jpg/png/gif/webp，不超过 5MB）</div>
+        </el-upload>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -117,7 +133,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store'
+import { getToken } from '@/utils/auth'
 import productApi from '@/api/product'
+import userApi from '@/api/user'
 
 export default {
   name: 'UserProfile',
@@ -184,6 +202,8 @@ export default {
     
     const loading = ref(false)
     const products = ref([])
+    const saving = ref(false)
+    const avatarDialog = ref(false)
     
     // 初始化表单数据
     onMounted(async () => {
@@ -207,36 +227,80 @@ export default {
     const saveBasicInfo = async () => {
       try {
         await formRef.value.validate()
-        
-        // TODO: 调用API更新用户信息
-        // await userStore.updateUserInfoAsync(form)
-        
+      } catch (error) {
+        // 表单校验未通过，错误已就地提示
+        return
+      }
+      try {
+        saving.value = true
+        // 用户名是登录账号不可改，因此只提交可编辑字段
+        await userApi.updateUserInfo({
+          nickname: form.nickname,
+          phone: form.phone,
+          email: form.email,
+          bio: form.bio
+        })
+        // 重新拉取，保证页面展示与后端一致（手机号等会被后端做唯一性处理）
+        await userStore.getUserInfo()
         ElMessage.success('基本信息保存成功')
       } catch (error) {
         console.error('保存基本信息失败:', error)
+      } finally {
+        saving.value = false
       }
     }
     
     const changePassword = async () => {
       try {
         await passwordFormRef.value.validate()
-        
-        // TODO: 调用API修改密码
-        // await userStore.changePassword(passwordForm)
-        
+      } catch (error) {
+        return
+      }
+      try {
+        saving.value = true
+        await userApi.changePassword({
+          oldPassword: passwordForm.oldPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmPassword
+        })
         ElMessage.success('密码修改成功')
         passwordForm.oldPassword = ''
         passwordForm.newPassword = ''
         passwordForm.confirmPassword = ''
+        passwordFormRef.value && passwordFormRef.value.resetFields()
         activeTab.value = 'basic'
       } catch (error) {
         console.error('修改密码失败:', error)
+      } finally {
+        saving.value = false
       }
     }
     
     const showUploadDialog = () => {
-      // TODO: 实现头像上传功能
-      ElMessage.info('头像上传功能开发中')
+      avatarDialog.value = true
+    }
+
+    // 头像上传走 el-upload 自己的 XHR，不会经过 axios 拦截器，需要手动带 Token
+    const avatarHeaders = computed(() => ({ Authorization: 'Bearer ' + (getToken() || '') }))
+
+    // 上传成功：后端返回新头像地址，刷新用户信息后更新头像展示
+    const handleAvatarSuccess = async (response) => {
+      const url = response && response.data
+      if (!url) {
+        ElMessage.error('头像上传失败')
+        return
+      }
+      try {
+        await userStore.getUserInfo()
+        ElMessage.success('头像已更新')
+        avatarDialog.value = false
+      } catch (error) {
+        console.error('刷新用户信息失败:', error)
+      }
+    }
+
+    const handleAvatarError = () => {
+      ElMessage.error('头像上传失败，请检查图片格式与大小')
     }
     
     const getRoleTagType = (role) => {
@@ -303,6 +367,11 @@ export default {
     }
     
     return {
+      saving,
+      avatarDialog,
+      avatarHeaders,
+      handleAvatarSuccess,
+      handleAvatarError,
       activeTab,
       formRef,
       passwordFormRef,
@@ -465,6 +534,25 @@ export default {
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
+}
+
+.avatar-upload {
+  text-align: center;
+}
+
+.avatar-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 1px solid #e4e7ed;
+  cursor: pointer;
+  object-fit: cover;
+}
+
+.avatar-tip {
+  margin-top: 12px;
+  color: #909399;
+  font-size: 13px;
 }
 
 .status.s1 {

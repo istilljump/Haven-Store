@@ -72,7 +72,8 @@ jwt:
   # 说明：这里写成逗号分隔的单行字符串——@Value 无法绑定 YAML 列表（列表会展开成
   #      public-paths[0] 这类键名，导致读到空值），逗号分隔由 Spring 自动转成数组
   #      这些路径也不要在 WebMvcConfig 的拦截器白名单里重复配置，否则登录态会丢失
-  public-paths: /user/login,/user/register,/admin/login,/health,/product/search,/product/detail/**,/product/categories,/uploads/**
+  #      其中 "GET:路径" 表示只有该方法的请求免登录（评论列表公开，发表评论仍需登录）
+  public-paths: /user/login,/user/register,/admin/login,/health,/product/search,/product/detail/**,/product/categories,GET:/product/*/comments,/uploads/**
 
 # ==================== Knife4j 接口文档配置 ====================
 knife4j:

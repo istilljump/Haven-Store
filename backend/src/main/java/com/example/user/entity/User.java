@@ -42,9 +42,17 @@ public class User implements Serializable {
     @ApiModelProperty("手机号")
     private String phone;
 
+    /** 邮箱 */
+    @ApiModelProperty("邮箱")
+    private String email;
+
     /** 昵称 */
     @ApiModelProperty("昵称")
     private String nickname;
+
+    /** 个人简介 */
+    @ApiModelProperty("个人简介")
+    private String bio;
 
     /** 头像 URL */
     @ApiModelProperty("头像URL")

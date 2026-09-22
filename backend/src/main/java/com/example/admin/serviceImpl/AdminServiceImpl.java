@@ -18,8 +18,12 @@ import com.example.common.RedisKeyConst;
 import com.example.message.entity.Message;
 import com.example.message.enums.MessageReceiverTypeEnum;
 import com.example.message.mapper.MessageMapper;
+import com.example.product.entity.Comment;
 import com.example.product.entity.Product;
+import com.example.product.entity.ProductImage;
 import com.example.product.enums.ProductStatusEnum;
+import com.example.product.mapper.CommentMapper;
+import com.example.product.mapper.ProductImageMapper;
 import com.example.product.mapper.ProductMapper;
 import com.example.user.constant.UserConstant;
 import com.example.user.entity.User;
@@ -75,6 +79,12 @@ public class AdminServiceImpl implements AdminService {
     private final CategoryMapper categoryMapper;
 
     private final MessageMapper messageMapper;
+
+    /** 商品图片数据访问对象（删除商品时连带清理） */
+    private final ProductImageMapper productImageMapper;
+
+    /** 商品评论数据访问对象（删除商品时连带清理） */
+    private final CommentMapper commentMapper;
 
     private final PasswordUtil passwordUtil;
 
@@ -294,15 +304,24 @@ public class AdminServiceImpl implements AdminService {
 
     /**
      * 删除商品（物理删除）
+     * <p>
+     * 商品表没有外键约束，删除主记录不会连带清理子表；
+     * 这里显式清掉该商品的图片与评论，避免留下查不到出处的孤儿数据
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteProduct(Long productId) {
         Product product = productMapper.selectById(productId);
         if (product == null) {
             throw new BusinessException("商品不存在");
         }
+        int images = productImageMapper.delete(new LambdaQueryWrapper<ProductImage>()
+                .eq(ProductImage::getProductId, productId));
+        int comments = commentMapper.delete(new LambdaQueryWrapper<Comment>()
+                .eq(Comment::getProductId, productId));
         productMapper.deleteById(productId);
-        log.info("管理员删除商品，商品ID：{}，标题：{}", productId, product.getTitle());
+        log.info("管理员删除商品，商品ID：{}，标题：{}，连带清理图片 {} 张、评论 {} 条",
+                productId, product.getTitle(), images, comments);
     }
 
     // ==================== 分类管理 ====================

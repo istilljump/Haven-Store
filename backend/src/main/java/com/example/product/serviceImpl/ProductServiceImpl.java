@@ -9,16 +9,22 @@ import com.example.common.BusinessException;
 import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
 import com.example.product.constant.ProductConstant;
+import com.example.product.dto.CommentAddDTO;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.dto.ProductEstimateDTO;
+import com.example.product.entity.Comment;
 import com.example.product.entity.Product;
+import com.example.product.entity.ProductImage;
 import com.example.product.entity.UserProductRelation;
 import com.example.product.enums.ProductStatusEnum;
+import com.example.product.mapper.CommentMapper;
+import com.example.product.mapper.ProductImageMapper;
 import com.example.product.mapper.ProductMapper;
 import com.example.product.mapper.UserProductRelationMapper;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
+import com.example.product.vo.CommentVO;
 import com.example.product.vo.ProductAddVO;
 import com.example.product.vo.ProductDetailVO;
 import com.example.product.vo.ProductEstimateVO;
@@ -67,6 +73,12 @@ public class ProductServiceImpl implements ProductService {
     /** 用户-商品关联数据访问对象（收藏） */
     private final UserProductRelationMapper userProductRelationMapper;
 
+    /** 商品评论数据访问对象 */
+    private final CommentMapper commentMapper;
+
+    /** 商品图片数据访问对象 */
+    private final ProductImageMapper productImageMapper;
+
     /** 分类启用状态标识（与 category.status 字段对应：1 启用，0 禁用） */
     private static final int CATEGORY_STATUS_ENABLE = 1;
 
@@ -78,6 +90,9 @@ public class ProductServiceImpl implements ProductService {
 
     /** 关联类型：收藏 */
     private static final String RELATION_TYPE_COLLECT = "collect";
+
+    /** 评论状态：正常（0 为隐藏） */
+    private static final int COMMENT_STATUS_NORMAL = 1;
 
     /**
      * 发布二手商品：
@@ -116,6 +131,8 @@ public class ProductServiceImpl implements ProductService {
         // 7. 组装商品实体并写入数据库（创建时间、更新时间由 MyBatis-Plus 自动填充）
         Product product = buildProduct(dto, userId);
         productMapper.insert(product);
+        // 图片独立成表；cover_image 已由 buildProduct 取第一张，这里落库完整列表
+        saveProductImages(product.getId(), dto);
         log.info("商品发布成功，商品ID：{}，卖家用户ID：{}，分类：{}，交易方式：{}",
                 product.getId(), userId, category.getName(), dto.getTradeType());
         // 7. 获取AI估价建议（可选，不影响发布流程）
@@ -375,10 +392,7 @@ public class ProductServiceImpl implements ProductService {
         vo.setId(product.getId());
         vo.setTitle(product.getTitle());
         vo.setDescription(product.getDescription());
-        // 当前只有封面图一张，配图后自动出现在前端轮播里
-        vo.setImages(StringUtils.hasText(product.getCoverImage())
-                ? Collections.singletonList(product.getCoverImage())
-                : new ArrayList<>());
+        vo.setImages(loadProductImages(product));
         vo.setPrice(product.getPrice());
         vo.setCategoryId(product.getCategoryId());
         vo.setCategoryName(loadCategoryNameMap().get(product.getCategoryId()));
@@ -396,6 +410,9 @@ public class ProductServiceImpl implements ProductService {
         vo.setContactPhone(UserHolder.getUserId() == null ? null : product.getContactPhone());
         vo.setFavoriteCount(countFavorites(productId));
         vo.setFavorited(isFavorited(productId));
+        vo.setCommentCount(countComments(productId));
+        vo.setRatingAvg(avgRating(productId));
+        vo.setCommented(isCommented(productId));
         vo.setAddress(product.getAddress());
         vo.setLongitude(product.getLongitude());
         vo.setLatitude(product.getLatitude());
@@ -572,6 +589,12 @@ public class ProductServiceImpl implements ProductService {
             update.setLatitude(dto.getLatitude());
         }
         productMapper.updateById(update);
+        // 传了图片列表就整体替换（前端提交的是当前完整列表）
+        if (dto.getImages() != null) {
+            productImageMapper.delete(new LambdaQueryWrapper<ProductImage>()
+                    .eq(ProductImage::getProductId, productId));
+            saveProductImages(productId, dto);
+        }
         log.info("商品修改成功，商品ID：{}，卖家用户ID：{}", productId, userId);
     }
 
@@ -593,6 +616,165 @@ public class ProductServiceImpl implements ProductService {
         update.setStatus(ProductStatusEnum.OFF_SHELF.getCode());
         productMapper.updateById(update);
         log.info("商品已下架，商品ID：{}", productId);
+    }
+
+    /**
+     * 分页查询商品评论（只展示正常状态的评论，按时间倒序）
+     */
+    @Override
+    public Page<CommentVO> listComments(Long productId, Integer page, Integer pageSize) {
+        LambdaQueryWrapper<Comment> wrapper = new LambdaQueryWrapper<Comment>()
+                .eq(Comment::getProductId, productId)
+                .eq(Comment::getStatus, COMMENT_STATUS_NORMAL)
+                .orderByDesc(Comment::getCreateTime)
+                .orderByDesc(Comment::getId);
+        Page<Comment> commentPage = commentMapper.selectPage(new Page<>(page, pageSize), wrapper);
+
+        // 批量回查评论人信息，避免逐条查询
+        List<Long> userIds = commentPage.getRecords().stream()
+                .map(Comment::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, User> userMap = userIds.isEmpty()
+                ? Collections.emptyMap()
+                : userMapper.selectBatchIds(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+
+        Page<CommentVO> result = new Page<>(commentPage.getCurrent(), commentPage.getSize(), commentPage.getTotal());
+        result.setRecords(commentPage.getRecords().stream().map(c -> {
+            CommentVO vo = new CommentVO();
+            vo.setId(c.getId());
+            vo.setContent(c.getContent());
+            vo.setRating(c.getRating());
+            vo.setUserId(c.getUserId());
+            User author = userMap.get(c.getUserId());
+            vo.setUsername(author == null ? "已注销用户" : author.getUsername());
+            vo.setAvatar(author == null ? null : author.getAvatar());
+            vo.setCreateTime(c.getCreateTime());
+            return vo;
+        }).collect(Collectors.toList()));
+        return result;
+    }
+
+    /**
+     * 发表商品评论
+     */
+    @Override
+    public void addComment(Long productId, CommentAddDTO dto) {
+        Long userId = requireLoginUserId();
+        Product product = productMapper.selectById(productId);
+        if (product == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (userId.equals(product.getUserId())) {
+            throw new BusinessException("不能评价自己发布的商品");
+        }
+        if (isCommented(productId)) {
+            throw new BusinessException("您已经评价过该商品");
+        }
+
+        Comment comment = new Comment();
+        comment.setUserId(userId);
+        comment.setProductId(productId);
+        comment.setContent(dto.getContent());
+        comment.setRating(dto.getRating());
+        comment.setStatus(COMMENT_STATUS_NORMAL);
+        commentMapper.insert(comment);
+        log.info("用户发表评价，用户ID：{}，商品ID：{}，评分：{}", userId, productId, dto.getRating());
+    }
+
+    /**
+     * 保存商品图片列表（第一张同时作为封面冗余到 product.cover_image）
+     */
+    private void saveProductImages(Long productId, ProductAddDTO dto) {
+        List<String> images = resolveImageList(dto);
+        if (images.isEmpty()) {
+            return;
+        }
+        // 封面以列表第一张为准，避免出现「列表顺序」与「封面」不一致
+        Product coverUpdate = new Product();
+        coverUpdate.setId(productId);
+        coverUpdate.setCoverImage(images.get(0));
+        productMapper.updateById(coverUpdate);
+
+        for (int i = 0; i < images.size(); i++) {
+            ProductImage image = new ProductImage();
+            image.setProductId(productId);
+            image.setImageUrl(images.get(i));
+            image.setSort(i);
+            productImageMapper.insert(image);
+        }
+    }
+
+    /**
+     * 取本次提交的图片列表：优先 images，其次单张 coverImage
+     */
+    private List<String> resolveImageList(ProductAddDTO dto) {
+        List<String> images = new ArrayList<>();
+        if (dto.getImages() != null) {
+            dto.getImages().stream()
+                    .filter(StringUtils::hasText)
+                    .forEach(images::add);
+        }
+        if (images.isEmpty() && StringUtils.hasText(dto.getCoverImage())) {
+            images.add(dto.getCoverImage());
+        }
+        return images;
+    }
+
+    /**
+     * 读取商品图片列表；图片表没有记录时退回 cover_image（兼容历史数据）
+     */
+    private List<String> loadProductImages(Product product) {
+        List<ProductImage> rows = productImageMapper.selectList(
+                new LambdaQueryWrapper<ProductImage>()
+                        .eq(ProductImage::getProductId, product.getId())
+                        .orderByAsc(ProductImage::getSort)
+                        .orderByAsc(ProductImage::getId));
+        if (!rows.isEmpty()) {
+            return rows.stream().map(ProductImage::getImageUrl).collect(Collectors.toList());
+        }
+        return StringUtils.hasText(product.getCoverImage())
+                ? Collections.singletonList(product.getCoverImage())
+                : new ArrayList<>();
+    }
+
+    /**
+     * 统计商品评论数
+     */
+    private Long countComments(Long productId) {
+        return commentMapper.selectCount(new LambdaQueryWrapper<Comment>()
+                .eq(Comment::getProductId, productId)
+                .eq(Comment::getStatus, COMMENT_STATUS_NORMAL));
+    }
+
+    /**
+     * 计算商品平均评分（无评论时返回 null，前端据此显示"暂无评分"）
+     */
+    private Double avgRating(Long productId) {
+        List<Comment> comments = commentMapper.selectList(new LambdaQueryWrapper<Comment>()
+                .eq(Comment::getProductId, productId)
+                .eq(Comment::getStatus, COMMENT_STATUS_NORMAL));
+        if (comments.isEmpty()) {
+            return null;
+        }
+        double sum = comments.stream().mapToInt(Comment::getRating).sum();
+        // 保留一位小数
+        return Math.round(sum / comments.size() * 10) / 10.0;
+    }
+
+    /**
+     * 判断当前登录用户是否已评价过该商品（未登录返回 false）
+     */
+    private boolean isCommented(Long productId) {
+        Long userId = UserHolder.getUserId();
+        if (userId == null) {
+            return false;
+        }
+        return commentMapper.selectCount(new LambdaQueryWrapper<Comment>()
+                .eq(Comment::getUserId, userId)
+                .eq(Comment::getProductId, productId)) > 0;
     }
 
     /**

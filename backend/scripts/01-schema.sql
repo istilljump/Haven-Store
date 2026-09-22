@@ -23,7 +23,9 @@ CREATE TABLE `user` (
     `username`    VARCHAR(20)  NOT NULL                COMMENT '用户名（登录账号，唯一）',
     `password`    VARCHAR(100) NOT NULL                COMMENT '密码（BCrypt 密文，固定 60 位）',
     `phone`       VARCHAR(11)  DEFAULT NULL            COMMENT '手机号（唯一）',
+    `email`       VARCHAR(100) DEFAULT NULL            COMMENT '邮箱',
     `nickname`    VARCHAR(30)  DEFAULT NULL            COMMENT '昵称',
+    `bio`         VARCHAR(255) DEFAULT NULL            COMMENT '个人简介',
     `avatar`      VARCHAR(255) DEFAULT NULL            COMMENT '头像URL',
     `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -109,6 +111,20 @@ CREATE TABLE `system_message` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '系统消息表';
 
 -- ------------------------------------------------------------
+-- 商品图片表（一个商品可有多张图，sort 最小的作为封面）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `product_image`;
+CREATE TABLE `product_image` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '图片ID',
+    `product_id`  BIGINT       NOT NULL                COMMENT '商品ID（关联 product 表）',
+    `image_url`   VARCHAR(255) NOT NULL                COMMENT '图片访问地址',
+    `sort`        INT          NOT NULL DEFAULT 0      COMMENT '排序值（越小越靠前，第一张即封面）',
+    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_product_id` (`product_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品图片表';
+
+-- ------------------------------------------------------------
 -- 用户-商品关联表（收藏等，预留）
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS `user_product_relation`;
@@ -181,6 +197,11 @@ INSERT INTO `product` (`user_id`, `title`, `description`, `category_id`, `price`
         3, 150.00, 420.00, '八成新', '线上', '机械工业出版社', '套装 6 册', '2022-09-01',
         '包装齐全,发票齐全', '整套出不单卖，可小刀', '测试用户1', '13800138001',
         NULL, NULL, NULL, 1, '/images/products/programming-books.png');
+
+-- 示例商品图片（与 product.cover_image 保持一致，演示多图链路）
+INSERT INTO `product_image` (`product_id`, `image_url`, `sort`) VALUES
+    (1, '/images/products/iphone-12.png', 0),
+    (2, '/images/products/programming-books.png', 0);
 
 -- 示例系统消息
 INSERT INTO `system_message` (`receiver_id`, `message_type`, `title`, `content`, `is_read`) VALUES

@@ -3,8 +3,10 @@ package com.example.product.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.category.entity.Category;
 import com.example.common.Result;
+import com.example.product.dto.CommentAddDTO;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
+import com.example.product.vo.CommentVO;
 import com.example.product.vo.ProductAddVO;
 import com.example.product.vo.ProductDetailVO;
 import com.example.product.vo.ProductListVO;
@@ -124,4 +126,24 @@ public interface ProductService {
      * @param productId 商品 ID
      */
     void offlineProduct(Long productId);
+
+    /**
+     * 分页查询商品评论（游客可访问）
+     *
+     * @param productId 商品 ID
+     * @param page      页码
+     * @param pageSize  每页条数
+     * @return 评论分页数据
+     */
+    Page<CommentVO> listComments(Long productId, Integer page, Integer pageSize);
+
+    /**
+     * 发表商品评论
+     * <p>
+     * 需要登录；不允许评价自己发布的商品；同一用户对同一商品只能评价一次
+     *
+     * @param productId 商品 ID
+     * @param dto       评论入参
+     */
+    void addComment(Long productId, CommentAddDTO dto);
 }
