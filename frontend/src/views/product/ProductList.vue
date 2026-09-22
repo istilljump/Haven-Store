@@ -20,10 +20,12 @@
         </el-col>
         <el-col :span="6">
           <el-select v-model="searchForm.category" placeholder="选择分类" clearable>
-            <el-option label="数码产品" value="digital" />
-            <el-option label="图书教材" value="book" />
-            <el-option label="生活用品" value="daily" />
-            <el-option label="学习用品" value="study" />
+            <el-option
+              v-for="item in categoryOptions"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
           </el-select>
         </el-col>
         <el-col :span="6">
@@ -53,15 +55,15 @@
       <div v-else class="grid">
         <div v-for="product in products" :key="product.id" class="product-card" @click="viewProduct(product.id)">
           <div class="product-image">
-            <img :src="product.image || PLACEHOLDER_IMAGE" :alt="product.title" />
+            <img :src="product.coverImage || PLACEHOLDER_IMAGE" :alt="product.title" />
             <div class="price">¥{{ product.price }}</div>
           </div>
           <div class="product-info">
             <h3 class="title">{{ product.title }}</h3>
             <p class="description">{{ product.description }}</p>
             <div class="meta">
-              <span class="author">{{ product.author }}</span>
-              <span class="time">{{ product.time }}</span>
+              <span class="author">{{ product.username }}</span>
+              <span class="time">{{ formatTime(product.createTime) }}</span>
             </div>
           </div>
         </div>
@@ -86,6 +88,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
+import productApi from '@/api/product'
+import { formatRelativeTime } from '@/utils/format'
 
 export default {
   name: 'ProductList',
@@ -95,23 +99,15 @@ export default {
   setup() {
     const router = useRouter()
     
-    // 无图片时的占位图
-    // 说明：原先回退到 '/placeholder.png'，但项目里并没有这个文件（public 目录此前不存在），
-    // 未配图的商品会显示成破图。改用内联 SVG 占位，不依赖任何静态资源。
-    const PLACEHOLDER_IMAGE =
-      "data:image/svg+xml;charset=utf-8," +
-      encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">' +
-        '<rect width="400" height="400" fill="#f5f7fa"/>' +
-        '<text x="200" y="205" font-size="20" fill="#c0c4cc" text-anchor="middle" ' +
-        'font-family="sans-serif">暂无图片</text></svg>'
-      )
+    // 无图片时的占位图（文件位于 public/default-product.png）
+    const PLACEHOLDER_IMAGE = '/default-product.png'
     
     const products = ref([])
     const loading = ref(false)
     const total = ref(0)
     const currentPage = ref(1)
     const pageSize = ref(12)
+    const categoryOptions = ref([])
     
     const searchForm = reactive({
       keyword: '',
@@ -119,47 +115,48 @@ export default {
       priceRange: ''
     })
     
+    // 价格区间 -> 后端 minPrice/maxPrice 的映射（'1000+' 表示下限 1000、无上限）
+    const PRICE_RANGE_MAP = {
+      '0-100': [0, 100],
+      '100-500': [100, 500],
+      '500-1000': [500, 1000],
+      '1000+': [1000, null]
+    }
+    
+    // 加载分类下拉数据（只取启用状态的分类）
+    const loadCategories = async () => {
+      try {
+        categoryOptions.value = await productApi.getProductCategories()
+      } catch (error) {
+        console.error('加载商品分类失败:', error)
+      }
+    }
+    
     const fetchProducts = async () => {
       loading.value = true
       try {
-        // TODO: 实现商品列表API调用
-        // const response = await api.getProducts({
-        //   page: currentPage.value,
-        //   size: pageSize.value,
-        //   ...searchForm
-        // })
-        // products.value = response.data.list
-        // total.value = response.data.total
-        
-        // 模拟数据
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        products.value = [
-          {
-            id: 1,
-            title: '二手iPhone 12',
-            description: '95新，功能完好',
-            price: 3500,
-            image: '/images/products/iphone-12.png',
-            author: '张三',
-            time: '2小时前'
-          },
-          {
-            id: 2,
-            title: '编程书籍套装',
-            description: '包含算法、数据结构等',
-            price: 150,
-            image: '/images/products/programming-books.png',
-            author: '李四',
-            time: '5小时前'
-          }
-        ]
-        total.value = 2
+        const range = PRICE_RANGE_MAP[searchForm.priceRange] || [null, null]
+        // 空字符串会被后端当作"未筛选"，此处直接转成 undefined，避免发出无意义的空参数
+        const data = await productApi.searchProducts({
+          keyword: searchForm.keyword || undefined,
+          categoryId: searchForm.category || undefined,
+          minPrice: range[0] === null ? undefined : range[0],
+          maxPrice: range[1] === null ? undefined : range[1],
+          page: currentPage.value,
+          pageSize: pageSize.value
+        })
+        products.value = data.records || []
+        total.value = data.total || 0
       } catch (error) {
         console.error('获取商品列表失败:', error)
+        products.value = []
+        total.value = 0
       } finally {
         loading.value = false
       }
     }
+    
+    const formatTime = (time) => formatRelativeTime(time) || '刚刚'
     
     const handleSearch = () => {
       currentPage.value = 1
@@ -192,6 +189,7 @@ export default {
     }
     
     onMounted(() => {
+      loadCategories()
       fetchProducts()
     })
     
@@ -202,7 +200,9 @@ export default {
       currentPage,
       pageSize,
       searchForm,
+      categoryOptions,
       PLACEHOLDER_IMAGE,
+      formatTime,
       handleSearch,
       resetSearch,
       handleSizeChange,

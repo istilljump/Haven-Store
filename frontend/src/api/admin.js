@@ -38,9 +38,7 @@ export function getAdminDashboard() {
  * @returns {Promise} 返回分页用户列表（{records, total}）
  */
 export function getAdminUsers(queryParams) {
-  return request.get('/admin/users', {
-    params: queryParams
-  })
+  return request.get('/admin/users', queryParams)
 }
 
 /**
@@ -79,9 +77,7 @@ export function updateUserStatus(userId, statusData) {
  * @returns {Promise} 返回分页商品列表（{records, total}）
  */
 export function getAdminProducts(queryParams) {
-  return request.get('/admin/products', {
-    params: queryParams
-  })
+  return request.get('/admin/products', queryParams)
 }
 
 /**
@@ -93,6 +89,15 @@ export function getAdminProducts(queryParams) {
  */
 export function updateProductStatus(productId, statusData) {
   return request.put(`/admin/products/${productId}/status`, statusData)
+}
+
+/**
+ * 删除商品
+ * @param {number} productId - 商品ID
+ * @returns {Promise} 返回删除结果
+ */
+export function deleteProduct(productId) {
+  return request.delete(`/admin/products/${productId}`)
 }
 
 /**
@@ -156,9 +161,7 @@ export function sendSystemMessage(messageData) {
  * @returns {Promise} 返回分页消息列表（{records, total}）
  */
 export function getAdminMessages(queryParams) {
-  return request.get('/admin/messages', {
-    params: queryParams
-  })
+  return request.get('/admin/messages', queryParams)
 }
 
 /**
@@ -211,6 +214,7 @@ export default {
   updateUserStatus,
   getAdminProducts,
   updateProductStatus,
+  deleteProduct,
   getAdminCategories,
   addCategory,
   updateCategory,

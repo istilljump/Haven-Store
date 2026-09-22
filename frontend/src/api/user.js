@@ -78,9 +78,7 @@ export function uploadAvatar(formData, onProgress = null) {
  * @returns {Promise} 返回商品列表
  */
 export function getUserProducts(queryParams) {
-  return request.get('/user/products', {
-    params: queryParams
-  })
+  return request.get('/user/products', queryParams)
 }
 
 /**
@@ -91,9 +89,7 @@ export function getUserProducts(queryParams) {
  * @returns {Promise} 返回收藏列表
  */
 export function getUserFavorites(queryParams) {
-  return request.get('/user/favorites', {
-    params: queryParams
-  })
+  return request.get('/user/favorites', queryParams)
 }
 
 /**
@@ -105,9 +101,7 @@ export function getUserFavorites(queryParams) {
  * @returns {Promise} 返回消息列表
  */
 export function getUserMessages(queryParams) {
-  return request.get('/user/messages', {
-    params: queryParams
-  })
+  return request.get('/user/messages', queryParams)
 }
 
 /**
@@ -145,9 +139,7 @@ export function deleteMessage(messageId) {
  * @returns {Promise} 返回订单列表
  */
 export function getUserOrders(queryParams) {
-  return request.get('/user/orders', {
-    params: queryParams
-  })
+  return request.get('/user/orders', queryParams)
 }
 
 /**

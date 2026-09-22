@@ -86,10 +86,17 @@
             <template #default="{ row }">
               <el-image
                 :src="row.coverImage || '/default-product.png'"
-                :preview-src-list="[row.coverImage || '/default-product.png']"
+                :preview-src-list="row.coverImage ? [row.coverImage] : []"
+                :preview-teleported="true"
                 fit="cover"
                 style="width: 60px; height: 60px; border-radius: 8px;"
-              />
+              >
+                <!-- 加载失败时显示占位图，而不是 Element Plus 默认的「FAILED」文案 -->
+                <template #error>
+                  <img src="/default-product.png" alt="暂无图片"
+                       style="width: 60px; height: 60px; border-radius: 8px;" />
+                </template>
+              </el-image>
             </template>
           </el-table-column>
           <el-table-column prop="title" label="商品标题" min-width="200">
@@ -419,12 +426,12 @@ const deleteProduct = (product) => {
 // 执行删除操作
 const doDeleteProduct = async (product) => {
   try {
-    // 这里应该调用删除API，由于是Mock，我们直接从列表中移除
-    productList.value = productList.value.filter(p => p.id !== product.id)
-    total.value -= 1
+    await adminApi.deleteProduct(product.id)
     ElMessage.success(`商品 "${product.title}" 已被删除`)
+    // 删除后按当前页重新拉取，而不是只改本地数组（否则刷新就"复活"）
+    loadProducts()
   } catch (error) {
-    ElMessage.error('删除商品失败')
+    console.error('删除商品失败:', error)
   } finally {
     confirmDialog.value = false
   }
@@ -485,22 +492,21 @@ const getStatusText = (status) => {
   return statusMap[status] || '未知'
 }
 
-// 获取交易方式样式类
+// 获取交易方式样式类（取值与后端 ProductConstant 一致：线上/线下）
 const getTradeTypeClass = (tradeType) => {
   const typeMap = {
-    'online': 'primary',
-    'offline': 'success',
-    'both': 'warning'
+    '线上': 'primary',
+    '线下': 'success'
   }
-  return typeMap[tradeType] || 'default'
+  // ElTag 的 type 只接受 primary/success/info/warning/danger
+  return typeMap[tradeType] || 'info'
 }
 
 // 获取交易方式文本
 const getTradeTypeName = (tradeType) => {
   const typeMap = {
-    'online': '在线交易',
-    'offline': '线下交易',
-    'both': '均可'
+    '线上': '线上交易',
+    '线下': '线下交易'
   }
   return typeMap[tradeType] || '未知'
 }

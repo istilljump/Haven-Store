@@ -78,6 +78,16 @@ public interface AdminService {
     void updateProductStatus(Long productId, Integer status);
 
     /**
+     * 删除商品
+     * <p>
+     * 物理删除。商品表无外键约束，删除不会失败；
+     * user_product_relation 与 comment 两张关联表目前没有业务写入，因此不做级联清理
+     *
+     * @param productId 商品 ID
+     */
+    void deleteProduct(Long productId);
+
+    /**
      * 查询全部分类（按排序值升序）
      *
      * @return 分类列表

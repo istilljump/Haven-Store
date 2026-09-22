@@ -6,8 +6,11 @@ import com.example.common.Result;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.vo.ProductAddVO;
+import com.example.product.vo.ProductDetailVO;
+import com.example.product.vo.ProductListVO;
 import com.example.product.vo.ProductNearbyVO;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -46,4 +49,31 @@ public interface ProductService {
      * @return 可用分类列表
      */
     List<Category> listEnabledCategories();
+
+    /**
+     * 搜索在售商品（前台商品列表页）
+     * <p>
+     * 只返回在售状态（status=1）的商品；关键词对标题模糊匹配
+     *
+     * @param keyword    关键词（商品标题，可为空）
+     * @param categoryId 分类 ID（可为空）
+     * @param minPrice   价格下限（可为空）
+     * @param maxPrice   价格上限（可为空）
+     * @param sort       排序方式：latest 最新发布（默认）/ priceAsc 价格升序 / priceDesc 价格降序
+     * @param page       页码
+     * @param pageSize   每页条数
+     * @return 商品分页数据
+     */
+    Page<ProductListVO> searchProducts(String keyword, Integer categoryId, BigDecimal minPrice,
+                                       BigDecimal maxPrice, String sort, Integer page, Integer pageSize);
+
+    /**
+     * 获取商品详情（前台商品详情页）
+     * <p>
+     * 每次调用会把该商品的浏览次数 +1
+     *
+     * @param productId 商品 ID
+     * @return 商品详情
+     */
+    ProductDetailVO getProductDetail(Long productId);
 }

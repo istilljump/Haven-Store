@@ -60,7 +60,7 @@
               </div>
               <div class="meta-item">
                 <span class="label">发布时间:</span>
-                <span class="value">{{ product.publishTime }}</span>
+                <span class="value">{{ product.publishTime || '暂无' }}</span>
               </div>
               <div class="meta-item">
                 <span class="label">浏览次数:</span>
@@ -74,9 +74,7 @@
                 <div class="seller-details">
                   <div class="seller-name">{{ product.seller.username }}</div>
                   <div class="seller-meta">
-                    <span>信用: {{ product.seller.credit }}</span>
-                    <span>|</span>
-                    <span>发布商品: {{ product.seller.productCount }}</span>
+                    <span>发布在售: {{ product.seller.productCount }} 件</span>
                   </div>
                 </div>
               </div>
@@ -105,7 +103,7 @@
             <div class="action-buttons">
               <el-button 
                 type="danger" 
-                :disabled="product.status !== 'active'"
+                :disabled="product.status !== 1"
                 @click="toggleFavorite"
                 :icon="isFavorited ? StarFilled : Star"
               >
@@ -113,7 +111,7 @@
               </el-button>
               <el-button 
                 type="primary" 
-                :disabled="product.status !== 'active'"
+                :disabled="product.status !== 1"
                 @click="inquiry"
               >
                 我要购买
@@ -130,12 +128,12 @@
                 <span class="value">{{ product.viewCount }}</span>
               </div>
               <div class="stat-item">
-                <span class="label">收藏次数:</span>
-                <span class="value">{{ product.favoriteCount }}</span>
+                <span class="label">成色:</span>
+                <span class="value">{{ orDash(product.condition) }}</span>
               </div>
               <div class="stat-item">
-                <span class="label">咨询次数:</span>
-                <span class="value">{{ product.inquiryCount }}</span>
+                <span class="label">交易方式:</span>
+                <span class="value">{{ orDash(product.tradeMethod) }}</span>
               </div>
             </div>
           </div>
@@ -150,12 +148,12 @@
               <div v-if="product.detailHtml" v-html="product.detailHtml"></div>
               <div v-else>
                 <el-descriptions title="商品描述" border>
-                  <el-descriptions-item label="品牌">{{ product.brand }}</el-descriptions-item>
-                  <el-descriptions-item label="型号">{{ product.model }}</el-descriptions-item>
-                  <el-descriptions-item label="新旧程度">{{ product.condition }}</el-descriptions-item>
-                  <el-descriptions-item label="购买时间">{{ product.purchaseTime }}</el-descriptions-item>
-                  <el-descriptions-item label="交易方式">{{ product.tradeMethod }}</el-descriptions-item>
-                  <el-descriptions-item label="备注">{{ product.remarks }}</el-descriptions-item>
+                  <el-descriptions-item label="分类">{{ orDash(product.category) }}</el-descriptions-item>
+                  <el-descriptions-item label="新旧程度">{{ orDash(product.condition) }}</el-descriptions-item>
+                  <el-descriptions-item label="交易方式">{{ orDash(product.tradeMethod) }}</el-descriptions-item>
+                  <el-descriptions-item label="发布时间">{{ product.publishTime || '暂无' }}</el-descriptions-item>
+                  <el-descriptions-item label="卖家">{{ orDash(product.seller.username) }}</el-descriptions-item>
+                  <el-descriptions-item label="商品描述">{{ orDash(product.description) }}</el-descriptions-item>
                 </el-descriptions>
               </div>
             </div>
@@ -221,6 +219,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
+import productApi from '@/api/product'
 
 export default {
   name: 'ProductDetail',
@@ -244,7 +243,7 @@ export default {
       price: 0,
       originalPrice: 0,
       category: '',
-      status: 'active',
+      status: null,
       publishTime: '',
       viewCount: 0,
       favoriteCount: 0,
@@ -269,110 +268,47 @@ export default {
     
     const productId = computed(() => route.params.id)
     
-    /**
-     * 演示数据：按商品 id 索引
-     * <p>
-     * 说明：此前这里无论访问哪个 id 都返回同一条写死的商品，
-     * 于是 /products/2 会显示成 /products/1 的标题、价格与图片。
-     * 现改为按 id 取，两条数据与商品列表（ProductList.vue）保持一致；
-     * 成色与交易方式也改用后端 ProductConstant 认可的取值（全新/九成新/八成新/七成新及以下、线上/线下），
-     * 避免演示数据与真实校验规则打架。
-     */
-    const PRODUCT_FIXTURES = {
-      1: {
-        title: '二手iPhone 12',
-        description: '95新，功能完好，无拆修，原装配件齐全，电池健康度90%以上。支持当面验机。',
-        price: 3500,
-        originalPrice: 4599,
-        category: '手机数码',
-        status: 'active',
-        publishTime: '2024-01-15 14:30:00',
-        viewCount: 156,
-        favoriteCount: 23,
-        inquiryCount: 8,
-        images: ['/images/products/iphone-12.png'],
-        seller: {
-          id: 1,
-          username: '张三',
-          avatar: '',
-          credit: 4.8,
-          productCount: 15
-        },
-        brand: 'Apple',
-        model: 'iPhone 12 128G',
-        condition: '九成新',
-        purchaseTime: '2023年6月',
-        tradeMethod: '线下',
-        remarks: '无磕碰无划痕，功能完好，支持验机',
-        reviews: [
-          {
-            id: 1,
-            user: {
-              username: '买家A',
-              avatar: ''
-            },
-            rating: 5,
-            content: '手机成色很好，功能正常，卖家很诚信。',
-            createTime: '2024-01-14 10:30:00'
-          }
-        ]
-      },
-      2: {
-        title: '编程书籍套装',
-        description: '包含算法、数据结构、计算机网络等经典教材共 6 本，无笔记无划线，书页保存完好。',
-        price: 150,
-        originalPrice: 420,
-        category: '图书教材',
-        status: 'active',
-        publishTime: '2024-01-15 11:05:00',
-        viewCount: 88,
-        favoriteCount: 14,
-        inquiryCount: 5,
-        images: ['/images/products/programming-books.png'],
-        seller: {
-          id: 2,
-          username: '李四',
-          avatar: '',
-          credit: 4.6,
-          productCount: 8
-        },
-        brand: '机械工业出版社',
-        model: '套装 6 册',
-        condition: '八成新',
-        purchaseTime: '2022年9月',
-        tradeMethod: '线上',
-        remarks: '整套出不单卖，可小刀，包邮',
-        reviews: [
-          {
-            id: 1,
-            user: {
-              username: '买家B',
-              avatar: ''
-            },
-            rating: 5,
-            content: '书很新，包装仔细，发货也快。',
-            createTime: '2024-01-14 16:20:00'
-          }
-        ]
-      }
-    }
-    
+    // 详情数据来自后端 GET /product/detail/{id}（游客可访问）
     const fetchProductDetail = async () => {
       loading.value = true
       try {
-        // TODO: 调用API获取商品详情
-        // const response = await api.getProductDetail(productId.value)
-        // Object.assign(product, response.data)
-        
-        // 模拟数据：按 id 取演示数据，取不到则视为商品不存在
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        const fixture = PRODUCT_FIXTURES[productId.value]
-        if (!fixture) {
+        const data = await productApi.getProductDetail(productId.value)
+        if (!data) {
           productNotFound.value = true
           return
         }
         productNotFound.value = false
-        Object.assign(product, { ...fixture, id: productId.value })
+        Object.assign(product, {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          price: data.price,
+          // 原价、品牌、型号、购买时间、评价等字段数据库中没有对应列，
+          // 这里保持为空，由模板按「暂无」渲染，不编造内容
+          originalPrice: null,
+          category: data.categoryName || '未分类',
+          status: data.status,
+          publishTime: data.createTime,
+          viewCount: data.viewCount || 0,
+          favoriteCount: null,
+          inquiryCount: null,
+          images: data.images || [],
+          seller: {
+            id: data.sellerId,
+            username: data.sellerUsername || '未知用户',
+            avatar: data.sellerAvatar || '',
+            credit: null,
+            productCount: data.sellerProductCount || 0
+          },
+          brand: '',
+          model: '',
+          condition: data.productCondition || '',
+          purchaseTime: '',
+          // 线下交易展示交易地址，线上交易无地址可展示
+          tradeMethod: data.tradeType === '线下' && data.address ? `${data.tradeType}（${data.address}）` : data.tradeType || '',
+          remarks: '',
+          reviews: []
+        })
       } catch (error) {
         console.error('获取商品详情失败:', error)
         productNotFound.value = true
@@ -389,22 +325,18 @@ export default {
       }
     })
     
+    // 展示占位：后端没有该字段时显示「暂无」，避免出现空白或 undefined
+    const orDash = (value) => (value === null || value === undefined || value === '') ? '暂无' : value
+    
+    // 状态取值与后端 ProductStatusEnum 一致：1 在售 / 2 已售出 / 3 已下架
     const getStatusType = (status) => {
-      const statusMap = {
-        'active': 'success',
-        'sold': 'warning',
-        'deleted': 'danger'
-      }
+      const statusMap = { 1: 'success', 2: 'warning', 3: 'info' }
       return statusMap[status] || 'info'
     }
     
     const getStatusText = (status) => {
-      const statusMap = {
-        'active': '在售',
-        'sold': '已售出',
-        'deleted': '已下架'
-      }
-      return statusMap[status] || status
+      const statusMap = { 1: '在售', 2: '已售出', 3: '已下架' }
+      return statusMap[status] || '未知'
     }
     
     const toggleFavorite = async () => {
@@ -465,6 +397,7 @@ export default {
       isFavorited,
       getStatusType,
       getStatusText,
+      orDash,
       toggleFavorite,
       contactSeller,
       callSeller,

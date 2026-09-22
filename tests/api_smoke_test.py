@@ -353,6 +353,83 @@ def main():
                     "productCondition": "全新", "tradeType": "线上"})
     check("未登录发布被拒（401）", r, '"code":401')
 
+    # ---------- 14. 商品搜索（游客可访问） ----------
+    section("14. 商品搜索（无需登录）")
+    _, _, r = call("GET", "/product/search?page=1&pageSize=10")
+    check("游客可访问商品搜索", r, '"code":200')
+    check("返回分页结构", r, '"records"')
+    check("列表项含封面图字段", r, '"coverImage"')
+    check("列表项含分类名称", r, '"categoryName"')
+    check("列表项含发布者", r, '"username"')
+
+    _, _, r = call("GET", "/product/search?keyword=" + urllib.parse.quote("编程"))
+    check("关键词筛选生效", r, "编程书籍套装")
+    total_kw = ((r.get("data") or {}).get("total") if isinstance(r, dict) else None)
+    check("关键词筛选命中 1 条", total_kw, "1")
+
+    _, _, r = call("GET", "/product/search?keyword=" + urllib.parse.quote("绝不存在的商品"))
+    check("无命中时返回空列表", r, '"total":0')
+
+    _, _, r = call("GET", "/product/search?categoryId=3")
+    check("按分类筛选生效", r, "编程书籍套装")
+    _, _, r = call("GET", "/product/search?categoryId=1")
+    check("按分类筛选（手机数码）", r, "二手iPhone 12")
+
+    _, _, r = call("GET", "/product/search?minPrice=1000")
+    check("价格下限筛选生效", r, "二手iPhone 12")
+    _, _, r = call("GET", "/product/search?minPrice=1000&maxPrice=2000")
+    check("价格区间无命中", r, '"total":0')
+    _, _, r = call("GET", "/product/search?maxPrice=200")
+    check("价格上限筛选生效", r, "编程书籍套装")
+
+    _, _, r = call("GET", "/product/search?sort=priceAsc&page=1&pageSize=10")
+    check("价格升序排序", r, '"code":200')
+
+    # ---------- 15. 商品详情（游客可访问） ----------
+    section("15. 商品详情（无需登录）")
+    _, _, r = call("GET", "/product/detail/1")
+    check("游客可访问商品详情", r, '"code":200')
+    check("含图片数组", r, '"images"')
+    check("图片指向真实资源", r, "/images/products/iphone-12.png")
+    check("含分类名称", r, "手机数码")
+    check("含卖家用户名", r, "testuser1")
+    check("含卖家在售数", r, '"sellerProductCount"')
+    check("含成色与交易方式", r, '"productCondition"')
+    check("含线下交易地址", r, "北京市朝阳区")
+
+    views_before = ((r.get("data") or {}).get("viewCount") or 0) if isinstance(r, dict) else 0
+    _, _, r2 = call("GET", "/product/detail/1")
+    views_after = ((r2.get("data") or {}).get("viewCount") or 0) if isinstance(r2, dict) else 0
+    check("浏览次数随访问累加", str(views_after), str(views_before + 1))
+
+    _, _, r = call("GET", "/product/detail/2")
+    check("商品2 返回书籍数据", r, "编程书籍套装")
+    check("商品2 图片正确", r, "/images/products/programming-books.png")
+    check("商品2 分类正确", r, "图书教材")
+
+    _, _, r = call("GET", "/product/detail/99999")
+    check("不存在的商品被拒", r, "商品不存在")
+
+    # ---------- 16. 删除商品 ----------
+    section("16. 删除商品（管理端）")
+    _, _, r = call("POST", "/product/add",
+                   {"title": "待删除商品", "description": "用于验证删除接口", "categoryId": 1,
+                    "price": 10, "productCondition": "全新", "tradeType": "线上"},
+                   token=admin_token)
+    tmp_id = ((r.get("data") or {}).get("productId") if isinstance(r, dict) else None)
+    check("创建待删除商品", tmp_id, None)
+
+    if tmp_id:
+        _, _, r = call("DELETE", "/admin/products/%d" % tmp_id, token=admin_token)
+        check("DELETE /admin/products/{id}", r, '"code":200')
+        _, _, r = call("GET", "/product/detail/%d" % tmp_id)
+        check("删除后详情返回商品不存在", r, "商品不存在")
+        _, _, r = call("DELETE", "/admin/products/%d" % tmp_id, token=admin_token)
+        check("重复删除返回业务错误", r, "商品不存在")
+
+    _, _, r = call("DELETE", "/admin/products/1")
+    check("未登录删除商品被拒（401）", r, '"code":401')
+
     # ---------- 汇总 ----------
     print("\n" + "=" * 46)
     print("  通过: %d   失败: %d" % (PASS, FAIL))

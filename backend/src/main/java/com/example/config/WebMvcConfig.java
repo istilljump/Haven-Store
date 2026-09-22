@@ -70,6 +70,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         // 用户模块：登录、注册接口放行
                         "/user/login",
                         "/user/register",
+                        // 商品浏览类接口放行：商品列表与详情页允许游客浏览（二手平台的常规做法），
+                        // 发布商品 /product/add 与附近查询 /product/nearby 仍需登录
+                        "/product/search",
+                        "/product/detail/**",
+                        "/product/categories",
                         // 管理后台：登录接口必须放行，否则没有 Token 就永远登不进去
                         "/admin/login",
                         // 健康检查放行：供 Docker HEALTHCHECK 与部署脚本在未登录时探测

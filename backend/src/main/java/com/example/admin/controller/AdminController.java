@@ -214,6 +214,19 @@ public class AdminController {
         return Result.success();
     }
 
+    /**
+     * 删除商品
+     *
+     * @param productId 商品 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "删除商品", notes = "管理员功能：物理删除指定商品")
+    @DeleteMapping("/products/{productId}")
+    public Result<Void> deleteProduct(@PathVariable Long productId) {
+        adminService.deleteProduct(productId);
+        return Result.success();
+    }
+
     // ==================== 分类管理 ====================
 
     /**

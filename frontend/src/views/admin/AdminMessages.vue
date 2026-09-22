@@ -416,7 +416,7 @@ const getUserTypeClass = (userType) => {
     'admin': 'warning',
     'user': 'success'
   }
-  return typeMap[userType] || 'default'
+  return typeMap[userType] || 'info'
 }
 
 // 获取用户类型文本
@@ -435,7 +435,7 @@ const getStatusClass = (status) => {
     1: 'warning',
     2: 'success'
   }
-  return statusMap[status] || 'default'
+  return statusMap[status] || 'info'
 }
 
 // 获取状态文本

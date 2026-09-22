@@ -292,6 +292,19 @@ public class AdminServiceImpl implements AdminService {
         log.info("管理员变更商品状态，商品ID：{}，新状态：{}", productId, status);
     }
 
+    /**
+     * 删除商品（物理删除）
+     */
+    @Override
+    public void deleteProduct(Long productId) {
+        Product product = productMapper.selectById(productId);
+        if (product == null) {
+            throw new BusinessException("商品不存在");
+        }
+        productMapper.deleteById(productId);
+        log.info("管理员删除商品，商品ID：{}，标题：{}", productId, product.getTitle());
+    }
+
     // ==================== 分类管理 ====================
 
     @Override

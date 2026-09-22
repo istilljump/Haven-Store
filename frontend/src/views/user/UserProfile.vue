@@ -78,7 +78,7 @@
               <div v-else class="grid">
                 <div v-for="product in products" :key="product.id" class="product-card">
                   <div class="product-image">
-                    <img :src="product.image || '/placeholder.png'" :alt="product.title" />
+                    <img :src="product.image || '/default-product.png'" :alt="product.title" />
                     <div class="price">¥{{ product.price }}</div>
                   </div>
                   <div class="product-info">

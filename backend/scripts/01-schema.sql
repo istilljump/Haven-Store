@@ -69,6 +69,7 @@ CREATE TABLE `product` (
     `create_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `status`            TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1在售 2已售出 3已下架',
+    `view_count`        INT           NOT NULL DEFAULT 0      COMMENT '浏览次数（详情页每次访问累加）',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
     KEY `idx_category_id` (`category_id`),
@@ -158,9 +159,11 @@ INSERT INTO `user` (`id`, `username`, `password`, `phone`, `nickname`, `status`,
     (3, 'testuser2', '$2a$10$1CX3LKmt/AGGOLn6lmtb6eyG1XtMrZYi7PB.9ZdtiLRQoZwUmGvU.', '13800138002', '测试用户2', 1, 0);
 
 -- 示例商品（testuser1 发布）
-INSERT INTO `product` (`user_id`, `title`, `description`, `category_id`, `price`, `product_condition`, `trade_type`, `address`, `longitude`, `latitude`, `status`) VALUES
-    (2, 'iPhone 13 Pro 256G 深空灰', '95新，无拆修，原装充电器，发票齐全', 1, 6999.00, '九成新', '线下', '北京市朝阳区国贸CBD', 116.466240, 39.920800, 1),
-    (2, 'MacBook Pro 13寸 2020款',   '性能完好，轻度使用，适合办公学习',   2, 8999.00, '八成新', '线上', NULL,               NULL,       NULL,       1);
+-- 说明：cover_image 指向 frontend/public/images/products/ 下的图片，
+-- 这两张图与「二手iPhone 12」「编程书籍套装」对应，改动标题/价格时请同步替换图片
+INSERT INTO `product` (`user_id`, `title`, `description`, `category_id`, `price`, `product_condition`, `trade_type`, `address`, `longitude`, `latitude`, `status`, `cover_image`) VALUES
+    (2, '二手iPhone 12', '95新，功能完好，无拆修，原装配件齐全，电池健康度90%以上。支持当面验机。', 1, 3500.00, '九成新', '线下', '北京市朝阳区国贸CBD', 116.466240, 39.920800, 1, '/images/products/iphone-12.png'),
+    (2, '编程书籍套装',  '包含算法、数据结构、计算机网络等经典教材共 6 本，无笔记无划线，书页保存完好。', 3,  150.00, '八成新', '线上', NULL,               NULL,       NULL,       1, '/images/products/programming-books.png');
 
 -- 示例系统消息
 INSERT INTO `system_message` (`receiver_id`, `message_type`, `title`, `content`, `is_read`) VALUES

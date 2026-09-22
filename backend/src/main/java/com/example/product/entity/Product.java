@@ -85,7 +85,11 @@ public class Product implements Serializable {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
-    /** 商品状态：1 上架，0 下架 */
-    @ApiModelProperty("商品状态：1上架 0下架")
+    /** 商品状态：1 在售，2 已售出，3 已下架（取值见 ProductStatusEnum） */
+    @ApiModelProperty("商品状态：1在售 2已售出 3已下架")
     private Integer status;
+
+    /** 浏览次数（详情页每次访问累加） */
+    @ApiModelProperty("浏览次数")
+    private Integer viewCount;
 }

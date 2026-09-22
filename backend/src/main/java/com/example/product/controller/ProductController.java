@@ -9,18 +9,23 @@ import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.ProductAddVO;
+import com.example.product.vo.ProductDetailVO;
 import com.example.product.vo.ProductEstimateVO;
+import com.example.product.vo.ProductListVO;
 import com.example.product.vo.ProductNearbyVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -89,5 +94,42 @@ public class ProductController {
     @GetMapping("/categories")
     public Result<List<Category>> getCategories() {
         return Result.success(productService.listEnabledCategories());
+    }
+
+    /**
+     * 搜索在售商品（前台商品列表页）
+     *
+     * @param keyword    关键词（商品标题）
+     * @param categoryId 分类 ID
+     * @param minPrice   价格下限
+     * @param maxPrice   价格上限
+     * @param sort       排序方式：latest 最新发布（默认）/ priceAsc / priceDesc
+     * @param page       页码
+     * @param pageSize   每页条数
+     * @return 商品分页数据
+     */
+    @ApiOperation(value = "搜索商品", notes = "无需登录；只返回在售商品，支持关键词、分类、价格区间与排序")
+    @GetMapping("/search")
+    public Result<Page<ProductListVO>> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "12") Integer pageSize) {
+        return Result.success(productService.searchProducts(keyword, categoryId, minPrice, maxPrice, sort, page, pageSize));
+    }
+
+    /**
+     * 获取商品详情（前台商品详情页）
+     *
+     * @param productId 商品 ID
+     * @return 商品详情
+     */
+    @ApiOperation(value = "获取商品详情", notes = "无需登录；每次调用会把该商品的浏览次数 +1")
+    @GetMapping("/detail/{productId}")
+    public Result<ProductDetailVO> getDetail(@PathVariable Long productId) {
+        return Result.success(productService.getProductDetail(productId));
     }
 }

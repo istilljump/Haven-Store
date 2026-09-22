@@ -1,6 +1,7 @@
 package com.example.product.serviceImpl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.category.entity.Category;
 import com.example.category.mapper.CategoryMapper;
@@ -17,15 +18,25 @@ import com.example.product.mapper.ProductMapper;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.ProductAddVO;
+import com.example.product.vo.ProductDetailVO;
 import com.example.product.vo.ProductEstimateVO;
+import com.example.product.vo.ProductListVO;
 import com.example.product.vo.ProductNearbyVO;
+import com.example.user.entity.User;
+import com.example.user.mapper.UserMapper;
 import com.example.utils.UserHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 
 /**
@@ -48,8 +59,17 @@ public class ProductServiceImpl implements ProductService {
     /** AI估价服务对象 */
     private final ProductAIService productAIService;
 
+    /** 用户模块数据访问对象（用于补齐商品发布者信息） */
+    private final UserMapper userMapper;
+
     /** 分类启用状态标识（与 category.status 字段对应：1 启用，0 禁用） */
     private static final int CATEGORY_STATUS_ENABLE = 1;
+
+    /** 排序方式：价格升序 */
+    private static final String SORT_PRICE_ASC = "priceAsc";
+
+    /** 排序方式：价格降序 */
+    private static final String SORT_PRICE_DESC = "priceDesc";
 
     /**
      * 发布二手商品：
@@ -255,5 +275,141 @@ public class ProductServiceImpl implements ProductService {
                         .eq(Category::getStatus, CATEGORY_STATUS_ENABLE)
                         .orderByAsc(Category::getSort)
                         .orderByAsc(Category::getId));
+    }
+
+    /**
+     * 搜索在售商品
+     * <p>
+     * 只返回在售商品：已售出与已下架的不出现在前台列表里
+     */
+    @Override
+    public Page<ProductListVO> searchProducts(String keyword, Integer categoryId, BigDecimal minPrice,
+                                              BigDecimal maxPrice, String sort, Integer page, Integer pageSize) {
+        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
+                .eq(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode());
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(Product::getTitle, keyword.trim());
+        }
+        if (categoryId != null) {
+            wrapper.eq(Product::getCategoryId, categoryId);
+        }
+        if (minPrice != null) {
+            wrapper.ge(Product::getPrice, minPrice);
+        }
+        if (maxPrice != null) {
+            wrapper.le(Product::getPrice, maxPrice);
+        }
+        // 排序：默认按发布时间倒序，其余两种按价格
+        if (SORT_PRICE_ASC.equals(sort)) {
+            wrapper.orderByAsc(Product::getPrice).orderByDesc(Product::getId);
+        } else if (SORT_PRICE_DESC.equals(sort)) {
+            wrapper.orderByDesc(Product::getPrice).orderByDesc(Product::getId);
+        } else {
+            wrapper.orderByDesc(Product::getCreateTime).orderByDesc(Product::getId);
+        }
+
+        Page<Product> productPage = productMapper.selectPage(new Page<>(page, pageSize), wrapper);
+        List<Product> records = productPage.getRecords();
+
+        Map<Integer, String> categoryNameMap = loadCategoryNameMap();
+        Map<Long, User> sellerMap = loadSellerMap(records);
+
+        Page<ProductListVO> result = new Page<>(productPage.getCurrent(), productPage.getSize(), productPage.getTotal());
+        result.setRecords(records.stream().map(p -> {
+            ProductListVO vo = new ProductListVO();
+            vo.setId(p.getId());
+            vo.setTitle(p.getTitle());
+            vo.setDescription(p.getDescription());
+            vo.setCoverImage(p.getCoverImage());
+            vo.setPrice(p.getPrice());
+            vo.setProductCondition(p.getProductCondition());
+            vo.setTradeType(p.getTradeType());
+            vo.setCategoryId(p.getCategoryId());
+            vo.setCategoryName(categoryNameMap.get(p.getCategoryId()));
+            User seller = sellerMap.get(p.getUserId());
+            vo.setUsername(seller == null ? null : seller.getUsername());
+            vo.setCreateTime(p.getCreateTime());
+            return vo;
+        }).collect(Collectors.toList()));
+        return result;
+    }
+
+    /**
+     * 获取商品详情
+     * <p>
+     * 浏览次数用 SQL 自增（view_count = view_count + 1）而不是先查后写，
+     * 并发访问下不会互相覆盖
+     */
+    @Override
+    public ProductDetailVO getProductDetail(Long productId) {
+        Product product = productMapper.selectById(productId);
+        if (product == null) {
+            throw new BusinessException("商品不存在");
+        }
+
+        // 浏览计数自增（在返回值之前执行，保证详情页展示的是累加后的次数）
+        UpdateWrapper<Product> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", productId).setSql("view_count = view_count + 1");
+        productMapper.update(null, updateWrapper);
+
+        ProductDetailVO vo = new ProductDetailVO();
+        vo.setId(product.getId());
+        vo.setTitle(product.getTitle());
+        vo.setDescription(product.getDescription());
+        // 当前只有封面图一张，配图后自动出现在前端轮播里
+        vo.setImages(StringUtils.hasText(product.getCoverImage())
+                ? Collections.singletonList(product.getCoverImage())
+                : new ArrayList<>());
+        vo.setPrice(product.getPrice());
+        vo.setCategoryId(product.getCategoryId());
+        vo.setCategoryName(loadCategoryNameMap().get(product.getCategoryId()));
+        vo.setStatus(product.getStatus());
+        vo.setProductCondition(product.getProductCondition());
+        vo.setTradeType(product.getTradeType());
+        vo.setAddress(product.getAddress());
+        vo.setLongitude(product.getLongitude());
+        vo.setLatitude(product.getLatitude());
+        vo.setViewCount(product.getViewCount() == null ? 1 : product.getViewCount() + 1);
+        vo.setCreateTime(product.getCreateTime());
+
+        User seller = userMapper.selectById(product.getUserId());
+        if (seller != null) {
+            vo.setSellerId(seller.getId());
+            vo.setSellerUsername(seller.getUsername());
+            vo.setSellerAvatar(seller.getAvatar());
+            vo.setSellerProductCount(productMapper.selectCount(
+                    new LambdaQueryWrapper<Product>()
+                            .eq(Product::getUserId, seller.getId())
+                            .eq(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode())));
+        }
+        return vo;
+    }
+
+    /**
+     * 批量查询商品发布者信息（避免逐条回查造成 N+1）
+     */
+    private Map<Long, User> loadSellerMap(List<Product> products) {
+        List<Long> userIds = products.stream()
+                .map(Product::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return userMapper.selectBatchIds(userIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+    }
+
+    /**
+     * 查询分类 ID -> 分类名称映射
+     */
+    private Map<Integer, String> loadCategoryNameMap() {
+        List<Category> categories = categoryMapper.selectList(null);
+        if (categories.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return categories.stream()
+                .collect(Collectors.toMap(Category::getId, Category::getName, (a, b) -> a));
     }
 }

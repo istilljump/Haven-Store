@@ -77,9 +77,7 @@ export function getProductDetail(productId) {
  * @returns {Promise} 返回搜索结果
  */
 export function searchProducts(searchParams) {
-  return request.get('/product/search', {
-    params: searchParams
-  })
+  return request.get('/product/search', searchParams)
 }
 
 /**
@@ -127,9 +125,7 @@ export function unfavoriteProduct(productId) {
  * @returns {Promise} 返回收藏商品列表
  */
 export function getFavoriteProducts(queryParams) {
-  return request.get('/product/favorites', {
-    params: queryParams
-  })
+  return request.get('/product/favorites', queryParams)
 }
 
 /**
