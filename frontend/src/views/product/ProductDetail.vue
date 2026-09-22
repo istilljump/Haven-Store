@@ -290,7 +290,7 @@ export default {
           viewCount: 156,
           favoriteCount: 23,
           inquiryCount: 8,
-          images: [],
+          images: ['/images/products/iphone-12.png'],
           seller: {
             id: 1,
             username: '数码达人',

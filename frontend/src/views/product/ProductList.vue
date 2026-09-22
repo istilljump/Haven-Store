@@ -53,7 +53,7 @@
       <div v-else class="grid">
         <div v-for="product in products" :key="product.id" class="product-card" @click="viewProduct(product.id)">
           <div class="product-image">
-            <img :src="product.image || '/placeholder.png'" :alt="product.title" />
+            <img :src="product.image || PLACEHOLDER_IMAGE" :alt="product.title" />
             <div class="price">¥{{ product.price }}</div>
           </div>
           <div class="product-info">
@@ -95,6 +95,18 @@ export default {
   setup() {
     const router = useRouter()
     
+    // 无图片时的占位图
+    // 说明：原先回退到 '/placeholder.png'，但项目里并没有这个文件（public 目录此前不存在），
+    // 未配图的商品会显示成破图。改用内联 SVG 占位，不依赖任何静态资源。
+    const PLACEHOLDER_IMAGE =
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">' +
+        '<rect width="400" height="400" fill="#f5f7fa"/>' +
+        '<text x="200" y="205" font-size="20" fill="#c0c4cc" text-anchor="middle" ' +
+        'font-family="sans-serif">暂无图片</text></svg>'
+      )
+    
     const products = ref([])
     const loading = ref(false)
     const total = ref(0)
@@ -127,7 +139,7 @@ export default {
             title: '二手iPhone 12',
             description: '95新，功能完好',
             price: 3500,
-            image: '',
+            image: '/images/products/iphone-12.png',
             author: '张三',
             time: '2小时前'
           },
@@ -136,7 +148,7 @@ export default {
             title: '编程书籍套装',
             description: '包含算法、数据结构等',
             price: 150,
-            image: '',
+            image: '/images/products/programming-books.png',
             author: '李四',
             time: '5小时前'
           }
@@ -190,6 +202,7 @@ export default {
       currentPage,
       pageSize,
       searchForm,
+      PLACEHOLDER_IMAGE,
       handleSearch,
       resetSearch,
       handleSizeChange,
