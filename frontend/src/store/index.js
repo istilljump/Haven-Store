@@ -1,249 +1,240 @@
 /**
- * Vuex状态管理
+ * Pinia状态管理
  * 集中管理应用的状态
  */
 
-import { createStore } from 'vuex'
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 import { getToken, setToken, removeToken, getUserInfo, setUserInfo, removeUserInfo } from '@/utils/auth'
 import userApi from '@/api/user'
 
-const store = createStore({
-  state: {
-    // 用户信息
-    userInfo: null,
-    // Token
-    token: getToken(),
-    // 加载状态
-    loading: false,
-    // 错误信息
-    error: null,
-    // 全局配置
-    config: {
-      siteName: '二手商品交易市场',
-      version: '1.0.0',
-      apiBaseUrl: '/api'
+export const useUserStore = defineStore('user', () => {
+  // 状态
+  const userInfo = ref(null)
+  const token = ref(getToken())
+  const loading = ref(false)
+  const error = ref(null)
+
+  // 计算属性
+  const isLoggedIn = computed(() => !!userInfo.value)
+  const user = computed(() => userInfo.value)
+  const userId = computed(() => userInfo.value?.userId)
+  const username = computed(() => userInfo.value?.username)
+  const isAdmin = computed(() => userInfo.value?.isAdmin || false)
+  const isLoading = computed(() => loading.value)
+  const errorMessage = computed(() => error.value)
+
+  // 方法
+  const setToken = (newToken) => {
+    token.value = newToken
+    setToken(newToken)
+  }
+
+  const setUserInfo = (info) => {
+    userInfo.value = info
+    setUserInfo(info)
+  }
+
+  const clearUser = () => {
+    userInfo.value = null
+    token.value = null
+    removeToken()
+    removeUserInfo()
+  }
+
+  const setLoading = (isLoading) => {
+    loading.value = isLoading
+  }
+
+  const setError = (errorMessage) => {
+    error.value = errorMessage
+  }
+
+  const clearError = () => {
+    error.value = null
+  }
+
+  const updateUserInfo = (updatedInfo) => {
+    userInfo.value = { ...userInfo.value, ...updatedInfo }
+    setUserInfo(userInfo.value)
+  }
+
+  // Actions
+  const login = async (loginData) => {
+    try {
+      setLoading(true)
+      clearError()
+
+      const response = await userApi.login(loginData)
+      
+      // 保存Token和用户信息
+      setToken(response.token)
+      setUserInfo(response.userInfo)
+
+      return response
+    } catch (err) {
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
     }
-  },
+  }
 
-  getters: {
-    // 是否已登录
-    isLoggedIn: state => !!state.userInfo,
-    // 获取用户信息
-    user: state => state.userInfo,
-    // 获取用户ID
-    userId: state => state.userInfo?.userId,
-    // 获取用户名
-    username: state => state.userInfo?.username,
-    // 是否是管理员
-    isAdmin: state => state.userInfo?.isAdmin || false,
-    // 加载状态
-    isLoading: state => state.loading,
-    // 错误信息
-    error: state => state.error
-  },
+  const register = async (registrationData) => {
+    try {
+      setLoading(true)
+      clearError()
 
-  mutations: {
-    // 设置Token
-    SET_TOKEN(state, token) {
-      state.token = token
-      setToken(token)
-    },
-
-    // 设置用户信息
-    SET_USER_INFO(state, userInfo) {
-      state.userInfo = userInfo
-      setUserInfo(userInfo)
-    },
-
-    // 清除用户信息
-    CLEAR_USER(state) {
-      state.userInfo = null
-      state.token = null
-      removeToken()
-      removeUserInfo()
-    },
-
-    // 设置加载状态
-    SET_LOADING(state, loading) {
-      state.loading = loading
-    },
-
-    // 设置错误信息
-    SET_ERROR(state, error) {
-      state.error = error
-    },
-
-    // 清除错误信息
-    CLEAR_ERROR(state) {
-      state.error = null
-    },
-
-    // 更新用户信息
-    UPDATE_USER_INFO(state, userInfo) {
-      state.userInfo = { ...state.userInfo, ...userInfo }
-      setUserInfo(state.userInfo)
+      const response = await userApi.register(registrationData)
+      
+      return response
+    } catch (err) {
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
     }
-  },
+  }
 
-  actions: {
-    // 用户登录
-    async login({ commit }, loginData) {
-      try {
-        commit('SET_LOADING', true)
-        commit('CLEAR_ERROR')
-
-        const response = await userApi.login(loginData)
-        
-        // 保存Token和用户信息
-        commit('SET_TOKEN', response.token)
-        commit('SET_USER_INFO', response.userInfo)
-
-        return response
-      } catch (error) {
-        commit('SET_ERROR', error.message)
-        throw error
-      } finally {
-        commit('SET_LOADING', false)
+  const getUserInfo = async () => {
+    try {
+      if (!token.value) {
+        throw new Error('未登录')
       }
-    },
 
-    // 用户注册
-    async register({ commit }, registrationData) {
-      try {
-        commit('SET_LOADING', true)
-        commit('CLEAR_ERROR')
+      setLoading(true)
+      clearError()
 
-        const response = await userApi.register(registrationData)
-        
-        return response
-      } catch (error) {
-        commit('SET_ERROR', error.message)
-        throw error
-      } finally {
-        commit('SET_LOADING', false)
+      const response = await userApi.getCurrentUserInfo()
+      setUserInfo(response.data)
+      
+      return response.data
+    } catch (err) {
+      setError(err.message)
+      // 如果Token过期，清除用户信息
+      if (err.message.includes('未授权') || err.message.includes('Token')) {
+        clearUser()
+        throw new Error('登录已过期，请重新登录')
       }
-    },
-
-    // 获取用户信息
-    async getUserInfo({ commit, state }) {
-      try {
-        if (!state.token) {
-          throw new Error('未登录')
-        }
-
-        commit('SET_LOADING', true)
-        commit('CLEAR_ERROR')
-
-        const response = await userApi.getCurrentUserInfo()
-        commit('SET_USER_INFO', response.data)
-        
-        return response.data
-      } catch (error) {
-        commit('SET_ERROR', error.message)
-        // 如果Token过期，清除用户信息
-        if (error.message.includes('未授权') || error.message.includes('Token')) {
-          commit('CLEAR_USER')
-          throw new Error('登录已过期，请重新登录')
-        }
-        throw error
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-
-    // 更新用户信息
-    async updateUserInfo({ commit }, userInfo) {
-      try {
-        commit('SET_LOADING', true)
-        commit('CLEAR_ERROR')
-
-        const response = await userApi.updateUserInfo(userInfo)
-        // 更新本地状态
-        commit('UPDATE_USER_INFO', response.data)
-        
-        return response
-      } catch (error) {
-        commit('SET_ERROR', error.message)
-        throw error
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-
-    // 修改密码
-    async changePassword({ commit }, passwordData) {
-      try {
-        commit('SET_LOADING', true)
-        commit('CLEAR_ERROR')
-
-        const response = await userApi.changePassword(passwordData)
-        
-        return response
-      } catch (error) {
-        commit('SET_ERROR', error.message)
-        throw error
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-
-    // 用户登出
-    logout({ commit }) {
-      commit('CLEAR_USER')
-    },
-
-    // 上传头像
-    async uploadAvatar({ commit }, formData) {
-      try {
-        commit('SET_LOADING', true)
-        commit('CLEAR_ERROR')
-
-        const response = await userApi.uploadAvatar(formData)
-        
-        // 更新用户信息中的头像
-        if (response.data && response.data.avatar) {
-          commit('UPDATE_USER_INFO', { avatar: response.data.avatar })
-        }
-        
-        return response
-      } catch (error) {
-        commit('SET_ERROR', error.message)
-        throw error
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-
-    // 清除错误
-    clearError({ commit }) {
-      commit('CLEAR_ERROR')
-    },
-
-    // 加载应用配置
-    async loadConfig({ commit }) {
-      try {
-        // 这里可以从API加载配置信息
-        // 简化版本，使用默认配置
-        commit('SET_CONFIG', {
-          siteName: '二手商品交易市场',
-          version: '1.0.0',
-          apiBaseUrl: '/api'
-        })
-      } catch (error) {
-        console.error('加载配置失败:', error)
-      }
+      throw err
+    } finally {
+      setLoading(false)
     }
-  },
+  }
 
-  modules: {
-    // 可以添加其他模块，如商品模块、订单模块等
+  const updateUserInfoAsync = async (userInfoData) => {
+    try {
+      setLoading(true)
+      clearError()
+
+      const response = await userApi.updateUserInfo(userInfoData)
+      // 更新本地状态
+      updateUserInfo(response.data)
+      
+      return response
+    } catch (err) {
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const changePassword = async (passwordData) => {
+    try {
+      setLoading(true)
+      clearError()
+
+      const response = await userApi.changePassword(passwordData)
+      
+      return response
+    } catch (err) {
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const logout = () => {
+    clearUser()
+  }
+
+  const uploadAvatar = async (formData) => {
+    try {
+      setLoading(true)
+      clearError()
+
+      const response = await userApi.uploadAvatar(formData)
+      
+      // 更新用户信息中的头像
+      if (response.data && response.data.avatar) {
+        updateUserInfo({ avatar: response.data.avatar })
+      }
+      
+      return response
+    } catch (err) {
+      setError(err.message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearErrorState = () => {
+    clearError()
+  }
+
+  return {
+    // 状态
+    userInfo,
+    token,
+    loading,
+    error,
+    
+    // 计算属性
+    isLoggedIn,
+    user,
+    userId,
+    username,
+    isAdmin,
+    isLoading,
+    errorMessage,
+    
+    // 方法
+    setToken,
+    setUserInfo,
+    clearUser,
+    setLoading,
+    setError,
+    clearError,
+    updateUserInfo,
+    
+    // Actions
+    login,
+    register,
+    getUserInfo,
+    updateUserInfoAsync,
+    changePassword,
+    logout,
+    uploadAvatar,
+    clearErrorState
   }
 })
 
-// 持久化处理（可选）
-store.subscribe((mutation, state) => {
-  // 可以在这里将状态持久化到localStorage
-  // 例如：保存用户信息
-})
+export const useConfigStore = defineStore('config', () => {
+  const config = ref({
+    siteName: '二手商品交易市场',
+    version: '1.0.0',
+    apiBaseUrl: '/api'
+  })
 
-export default store
+  const updateConfig = (newConfig) => {
+    config.value = { ...config.value, ...newConfig }
+  }
+
+  return {
+    config,
+    updateConfig
+  }
+})
