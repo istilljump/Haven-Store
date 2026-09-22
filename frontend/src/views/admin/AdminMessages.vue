@@ -99,7 +99,7 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="150" align="center">
+          <el-table-column label="操作" width="170" align="center">
             <template #default="{ row }">
               <el-button 
                 type="primary" 
@@ -108,6 +108,14 @@
                 @click="viewMessageDetail(row)"
               >
                 查看
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                link
+                @click="handleDeleteMessage(row)"
+              >
+                删除
               </el-button>
             </template>
           </el-table-column>
@@ -280,7 +288,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Bell, ChatDotRound, Clock, Document } from '@element-plus/icons-vue'
 import adminApi from '@/api/admin'
 import { formatDate } from '@/utils/format'
@@ -407,6 +415,26 @@ const viewMessageDetail = (message) => {
 const closeMessageDetail = () => {
   selectedMessage.value = null
   messageDetailDialog.value = false
+}
+
+// 删除公告（同一次群发的记录会被整组删除）
+const handleDeleteMessage = async (message) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除公告「${message.title}」吗？该公告已发送给 ${message.receiverCount} 位用户，删除后无法恢复。`,
+      '确认删除',
+      { type: 'warning' }
+    )
+  } catch (error) {
+    return
+  }
+  try {
+    await adminApi.deleteMessage(message.id)
+    ElMessage.success('公告已删除')
+    loadMessages()
+  } catch (error) {
+    console.error('删除公告失败:', error)
+  }
 }
 
 // 获取用户类型样式类

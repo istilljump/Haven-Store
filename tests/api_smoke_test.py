@@ -119,18 +119,34 @@ TEST_TITLE_MARKERS = ("冒烟商品", "扩展字段商品", "待删除商品", "
 
 
 def cleanup_test_products(token):
-    """删除历史遗留的测试商品，使脚本可重复运行。
+    """删除历史遗留的测试数据，使脚本可重复运行。
 
-    走管理端列表拿全量数据（含已下架的商品，前台搜索只看在售，会漏掉下架残留）。
+    商品走管理端列表拿全量数据（含已下架的商品，前台搜索只看在售会漏掉下架残留）；
+    分类与消息同样需要清理，否则每跑一次就多几条。
     """
+    removed = 0
+
     _, _, r = call("GET", "/admin/products?page=1&pageSize=200", token=token)
     records = ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []
-    removed = 0
     for item in records:
         title = item.get("title") or ""
         if any(title.startswith(m) for m in TEST_TITLE_MARKERS):
             call("DELETE", "/admin/products/%d" % item["id"], token=token)
             removed += 1
+
+    _, _, r = call("GET", "/admin/categories", token=token)
+    for item in ((r.get("data") or []) if isinstance(r, dict) else []):
+        if (item.get("name") or "").startswith("冒烟分类"):
+            call("DELETE", "/admin/categories/%d" % item["id"], token=token)
+            removed += 1
+
+    # 消息按公告聚合，删除接口会把同一次群发的记录整组删掉
+    _, _, r = call("GET", "/admin/messages?page=1&pageSize=100", token=token)
+    for item in (((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []):
+        if (item.get("title") or "").startswith("冒烟"):
+            call("DELETE", "/admin/messages/%d" % item["id"], token=token)
+            removed += 1
+
     return removed
 
 
@@ -490,6 +506,30 @@ def main():
 
     _, _, r = call("DELETE", "/admin/products/1")
     check("未登录删除商品被拒（401）", r, '"code":401')
+
+    # ---------- 16.5 删除系统消息 ----------
+    section("16.5 删除系统消息")
+    _, _, r = call("POST", "/admin/messages",
+                   {"title": "冒烟待删除公告", "content": "该公告用于验证删除接口", "userType": "admin"},
+                   token=admin_token)
+    check("创建待删除公告", r, '"code":200')
+    _, _, r = call("GET", "/admin/messages?page=1&pageSize=50", token=admin_token)
+    target_id = None
+    for item in (((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []):
+        if item.get("title") == "冒烟待删除公告":
+            target_id = item["id"]
+            break
+    check("取到公告 ID", target_id, None)
+    if target_id:
+        _, _, r = call("DELETE", "/admin/messages/%d" % target_id, token=admin_token)
+        check("DELETE /admin/messages/{id}", r, '"code":200')
+        _, _, r = call("GET", "/admin/messages?page=1&pageSize=50", token=admin_token)
+        check("删除后公告不再出现",
+              "ABSENT" if "冒烟待删除公告" not in json.dumps(r, ensure_ascii=False) else "PRESENT", "ABSENT")
+        _, _, r = call("DELETE", "/admin/messages/%d" % target_id, token=admin_token)
+        check("重复删除返回业务错误", r, "消息不存在")
+    _, _, r = call("DELETE", "/admin/messages/1")
+    check("未登录删除消息被拒（401）", r, '"code":401')
 
     # ---------- 17. 商品图片上传 ----------
     section("17. 商品图片上传")

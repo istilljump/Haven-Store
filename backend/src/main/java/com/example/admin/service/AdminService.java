@@ -135,6 +135,16 @@ public interface AdminService {
     void sendMessage(AdminMessageSendDTO dto);
 
     /**
+     * 删除系统消息（按公告聚合删除）
+     * <p>
+     * 群发时一条公告会按接收者展开为多行，删除时整组一起删，
+     * 否则会出现「删了一条还剩几十条」的怪现象
+     *
+     * @param messageId 消息 ID（同组中任意一条即可定位该公告）
+     */
+    void deleteMessage(Long messageId);
+
+    /**
      * 获取系统设置（未保存过时返回默认值）
      *
      * @return 系统设置

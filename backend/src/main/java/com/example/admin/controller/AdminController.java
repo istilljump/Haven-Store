@@ -315,6 +315,19 @@ public class AdminController {
         return Result.success();
     }
 
+    /**
+     * 删除系统消息（整组删除一条公告）
+     *
+     * @param messageId 消息 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "删除系统消息", notes = "管理员功能：删除一条已发送的公告（同一次群发的记录整组删除）")
+    @DeleteMapping("/messages/{messageId}")
+    public Result<Void> deleteMessage(@PathVariable Long messageId) {
+        adminService.deleteMessage(messageId);
+        return Result.success();
+    }
+
     // ==================== 系统设置 ====================
 
     /**

@@ -436,6 +436,24 @@ public class AdminServiceImpl implements AdminService {
                 receiverType.getDesc(), receivers.size(), dto.getTitle());
     }
 
+    /**
+     * 删除系统消息（整组删除）
+     */
+    @Override
+    public void deleteMessage(Long messageId) {
+        Message message = messageMapper.selectById(messageId);
+        if (message == null) {
+            throw new BusinessException("消息不存在");
+        }
+        // 按「标题 + 内容 + 接收群体 + 消息类型」定位同一次群发产生的全部记录
+        int removed = messageMapper.delete(new LambdaQueryWrapper<Message>()
+                .eq(Message::getTitle, message.getTitle())
+                .eq(Message::getContent, message.getContent())
+                .eq(Message::getReceiverType, message.getReceiverType())
+                .eq(Message::getMessageType, message.getMessageType()));
+        log.info("管理员删除系统消息，消息ID：{}，标题：{}，删除条数：{}", messageId, message.getTitle(), removed);
+    }
+
     // ==================== 系统设置 ====================
 
     @Override

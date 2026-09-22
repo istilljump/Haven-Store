@@ -165,6 +165,15 @@ export function getAdminMessages(queryParams) {
 }
 
 /**
+ * 删除系统消息（整组删除一条公告）
+ * @param {number} messageId - 消息ID
+ * @returns {Promise} 返回删除结果
+ */
+export function deleteMessage(messageId) {
+  return request.delete(`/admin/messages/${messageId}`)
+}
+
+/**
  * 获取系统设置
  * @returns {Promise} 返回系统设置
  */
@@ -221,6 +230,7 @@ export default {
   deleteCategory,
   sendSystemMessage,
   getAdminMessages,
+  deleteMessage,
   getAdminSettings,
   updateAdminSettings,
   exportUsers,
