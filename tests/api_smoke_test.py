@@ -202,12 +202,17 @@ def main():
     text = json.dumps(r, ensure_ascii=False)
     check("响应中不出现 password 字段", "NOT-FOUND" if "password" not in text else "LEAKED", "NOT-FOUND")
 
-    new_name = "smoke_%d" % int(time.time())
+    # 使用固定用户名：后台没有删除用户的接口，若每次运行都新建账号会不断累积
+    new_name = "smoke_test_user"
     _, _, r = call("POST", "/admin/users",
                    {"username": new_name, "password": "123456",
                     "nickname": "冒烟测试用户", "phone": "", "isAdmin": False},
                    token=admin_token)
-    check("POST /admin/users 新增用户", r, '"code":200')
+    # 直接判断返回码，避免依赖 JSON 文本格式（json.dumps 默认会加空格）
+    resp_code = (r.get("code") if isinstance(r, dict) else None)
+    resp_msg = ((r.get("msg") if isinstance(r, dict) else "") or "")
+    check("POST /admin/users 新增用户（首次创建，之后幂等）",
+          "OK" if (resp_code == 200 or "已存在" in resp_msg) else "FAIL", "OK")
 
     _, _, r = call("GET", "/admin/users?page=1&pageSize=50&keyword=" + new_name, token=admin_token)
     check("新增用户可被关键词搜到", r, new_name)
