@@ -74,21 +74,24 @@
 <script>
 import { computed } from 'vue'
 import { useAuthStore } from '@/store/auth'
-import { useUserStore } from '@/store/index'
+import { useConfigStore } from '@/store/index'
 import { useRouter } from 'vue-router'
 
 export default {
   name: 'MainLayout',
   setup() {
     const authStore = useAuthStore()
+    // 站点配置来自 config store（此前误用 user store，且缺少 import，会抛 ReferenceError 导致白屏）
     const configStore = useConfigStore()
     const router = useRouter()
 
-    const userStore = useUserStore()
-    const config = computed(() => userStore.config)
+    const config = computed(() => configStore.config)
     const isLoggedIn = computed(() => authStore.isLoggedIn)
     const user = computed(() => authStore.user)
-    const isAdmin = computed(() => authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin')
+    // 后端登录态返回的是布尔值 isAdmin，这里同时兼容角色字符串写法
+    const isAdmin = computed(() => authStore.user?.isAdmin === true
+      || authStore.user?.role === 'admin'
+      || authStore.user?.role === 'super_admin')
 
     const handleLogout = () => {
       authStore.logout()

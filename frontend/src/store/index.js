@@ -5,7 +5,17 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getToken, setToken, removeToken, getUserInfo, setUserInfo, removeUserInfo } from '@/utils/auth'
+// 注意：这里对 utils/auth 的三个同名方法做别名导入。
+// 因为下面 store 内部也定义了同名方法（setToken / setUserInfo / getUserInfo），
+// 若直接同名导入会被内层 const 遮蔽，方法体里再调用自己就会无限递归（栈溢出）。
+import {
+  getToken,
+  setToken as saveToken,
+  removeToken,
+  getUserInfo as loadUserInfo,
+  setUserInfo as saveUserInfo,
+  removeUserInfo
+} from '@/utils/auth'
 import userApi from '@/api/user'
 
 export const useUserStore = defineStore('user', () => {
@@ -27,12 +37,12 @@ export const useUserStore = defineStore('user', () => {
   // 方法
   const setToken = (newToken) => {
     token.value = newToken
-    setToken(newToken)
+    saveToken(newToken)
   }
 
   const setUserInfo = (info) => {
     userInfo.value = info
-    setUserInfo(info)
+    saveUserInfo(info)
   }
 
   const clearUser = () => {
