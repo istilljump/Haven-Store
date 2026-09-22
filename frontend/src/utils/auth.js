@@ -193,7 +193,7 @@ export function logout() {
   ElMessage.success('已退出登录')
   
   // 跳转到登录页
-  router.push('/login')
+  router.push('/auth/login')
 }
 
 /**
@@ -202,7 +202,7 @@ export function logout() {
  */
 export function redirectToLogin(redirectUrl = '') {
   clearAuth()
-  const loginPath = '/login'
+  const loginPath = '/auth/login'
   const finalPath = redirectUrl ? `${loginPath}?redirect=${encodeURIComponent(redirectUrl)}` : loginPath
   router.push(finalPath)
 }

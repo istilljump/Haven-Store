@@ -21,7 +21,7 @@
                 SIN(RADIANS(p.latitude))
             ) AS distance
         FROM 
-            product p WITH (INDEX(idx_longitude, idx_latitude))  -- 强制使用经纬度索引
+            product p FORCE INDEX (idx_longitude)  -- 强制使用经纬度索引
         WHERE 
             p.status = #{status}
             AND p.longitude IS NOT NULL
@@ -30,7 +30,7 @@
             AND p.longitude BETWEEN #{minLongitude} AND #{maxLongitude}
             AND p.latitude BETWEEN #{minLatitude} AND #{maxLatitude}
         HAVING 
-            distance <= #{radius}
+            distance &lt;= #{radius}
         ORDER BY 
             distance ASC
         LIMIT #{offset}, #{pageSize}
@@ -40,7 +40,7 @@
     <select id="selectNearbyProductCount" resultType="java.lang.Long">
         SELECT COUNT(1)
         FROM 
-            product p WITH (INDEX(idx_longitude, idx_latitude))  -- 强制使用经纬度索引
+            product p FORCE INDEX (idx_longitude)  -- 强制使用经纬度索引
         WHERE 
             p.status = #{status}
             AND p.longitude IS NOT NULL
@@ -54,7 +54,7 @@
                 COS(RADIANS(p.longitude - #{centerLongitude})) +
                 SIN(RADIANS(#{centerLatitude})) * 
                 SIN(RADIANS(p.latitude))
-            ) <= #{radius}
+            ) &lt;= #{radius}
     </select>
 
 </mapper>

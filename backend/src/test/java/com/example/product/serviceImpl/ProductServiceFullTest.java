@@ -22,6 +22,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 /**
  * LBS附近查询功能完整测试类
@@ -51,12 +53,12 @@ class ProductServiceFullTest {
         // 模拟附近商品查询返回空列表
         when(productMapper.selectNearbyProducts(
                 any(BigDecimal.class), any(BigDecimal.class), any(Integer.class), 
-                any(Integer.class), any(Integer.class), any(Integer.class),
+                any(Integer.class), any(Integer.class), any(Integer.class), any(Integer.class),
                 any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class)
         )).thenReturn(List.of(createTestNearbyProduct()));
         // 模拟附近商品总数查询
         when(productMapper.selectNearbyProductCount(
-                any(BigDecimal.class), any(BigDecimal.class), any(Integer.class),
+                any(BigDecimal.class), any(BigDecimal.class), any(Integer.class), any(Integer.class),
                 any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class)
         )).thenReturn(1L);
     }
@@ -439,7 +441,7 @@ class ProductServiceFullTest {
         void testLargeDataQueryPerformance() {
             // 模拟返回大量数据
             when(productMapper.selectNearbyProductCount(
-                    any(BigDecimal.class), any(BigDecimal.class), any(Integer.class),
+                    any(BigDecimal.class), any(BigDecimal.class), any(Integer.class), any(Integer.class),
                     any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class)
             )).thenReturn(1000L);
             

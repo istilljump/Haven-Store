@@ -8,8 +8,8 @@ WORKDIR /app
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装依赖（必须装上 devDependencies，vite 在里面，否则 npm run build 会报 vite: not found）
+RUN npm ci
 
 # 复制源代码
 COPY . .

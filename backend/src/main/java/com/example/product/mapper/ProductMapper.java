@@ -6,6 +6,9 @@ import com.example.product.vo.ProductNearbyVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 /**
  * 二手商品模块数据访问层
  * <p>
@@ -26,6 +29,7 @@ public interface ProductMapper extends BaseMapper<Product> {
      * @param status 商品状态（1上架）
      * @param pageNum 分页页码
      * @param pageSize 每页条数
+     * @param offset 分页偏移量（由 Service 按 (pageNum - 1) * pageSize 计算后传入，供 LIMIT 使用）
      * @return 附近商品列表
      */
     List<ProductNearbyVO> selectNearbyProducts(
@@ -35,6 +39,7 @@ public interface ProductMapper extends BaseMapper<Product> {
             @Param("status") Integer status,
             @Param("pageNum") Integer pageNum,
             @Param("pageSize") Integer pageSize,
+            @Param("offset") Integer offset,
             @Param("minLongitude") BigDecimal minLongitude,
             @Param("maxLongitude") BigDecimal maxLongitude,
             @Param("minLatitude") BigDecimal minLatitude,
@@ -51,6 +56,7 @@ public interface ProductMapper extends BaseMapper<Product> {
             @Param("centerLongitude") BigDecimal centerLongitude,
             @Param("centerLatitude") BigDecimal centerLatitude,
             @Param("radius") Integer radius,
+            @Param("status") Integer status,
             @Param("minLongitude") BigDecimal minLongitude,
             @Param("maxLongitude") BigDecimal maxLongitude,
             @Param("minLatitude") BigDecimal minLatitude,

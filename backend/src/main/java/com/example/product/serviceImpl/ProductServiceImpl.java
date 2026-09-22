@@ -1,5 +1,6 @@
 package com.example.product.serviceImpl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.category.entity.Category;
 import com.example.category.mapper.CategoryMapper;
 import com.example.common.BusinessException;
@@ -157,7 +158,7 @@ public class ProductServiceImpl implements ProductService {
         // 3. 计算矩形范围（提高查询性能）
         double earthRadius = 6371; // 地球半径（公里）
         double deltaLat = dto.getRadius() / earthRadius * (180 / Math.PI);
-        double deltaLon = dto.getRadius() / (earthRadius * Math.cos(Math.toRadians(dto.getCenterLatitude()))) * (180 / Math.PI);
+        double deltaLon = dto.getRadius() / (earthRadius * Math.cos(Math.toRadians(dto.getCenterLatitude().doubleValue()))) * (180 / Math.PI);
 
         BigDecimal minLongitude = dto.getCenterLongitude().subtract(BigDecimal.valueOf(deltaLon));
         BigDecimal maxLongitude = dto.getCenterLongitude().add(BigDecimal.valueOf(deltaLon));
@@ -177,6 +178,7 @@ public class ProductServiceImpl implements ProductService {
                 ProductStatusEnum.ON_SHELF.getCode(), 
                 pageNum, 
                 pageSize,
+                offset,
                 minLongitude, 
                 maxLongitude, 
                 minLatitude, 
@@ -186,7 +188,8 @@ public class ProductServiceImpl implements ProductService {
         // 5. 构建分页结果
         Page<ProductNearbyVO> page = new Page<>(pageNum, pageSize);
         page.setRecords(products);
-        page.setTotal(getNearbyProductCount(dto.getCenterLongitude(), dto.getCenterLatitude(), dto.getRadius()));
+        page.setTotal(getNearbyProductCount(dto.getCenterLongitude(), dto.getCenterLatitude(), dto.getRadius(),
+                minLongitude, maxLongitude, minLatitude, maxLatitude));
 
         return Result.success(page);
     }
@@ -194,9 +197,13 @@ public class ProductServiceImpl implements ProductService {
     /**
      * 获取附近商品总数
      */
-    private long getNearbyProductCount(BigDecimal centerLongitude, BigDecimal centerLatitude, Integer radius) {
-        // 实现类似selectNearbyProducts的逻辑，只返回count
-        return productMapper.selectNearbyProductCount(centerLongitude, centerLatitude, radius);
+    private long getNearbyProductCount(BigDecimal centerLongitude, BigDecimal centerLatitude, Integer radius,
+                                       BigDecimal minLongitude, BigDecimal maxLongitude,
+                                       BigDecimal minLatitude, BigDecimal maxLatitude) {
+        // 与 selectNearbyProducts 使用同一套矩形范围条件，保证 total 与列表一致
+        return productMapper.selectNearbyProductCount(centerLongitude, centerLatitude, radius,
+                ProductStatusEnum.ON_SHELF.getCode(),
+                minLongitude, maxLongitude, minLatitude, maxLatitude);
     }
 
     /**

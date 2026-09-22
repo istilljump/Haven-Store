@@ -1,0 +1,166 @@
+-- ============================================================
+-- 二手商品交易平台 —— MySQL 8.0 初始化脚本
+-- 数据库：secondhand_market（与 application.yml / docker-compose.yml 保持一致）
+-- 用途：docker-compose 启动 MySQL 时自动执行（挂载到 /docker-entrypoint-initdb.d）
+--       也可手动执行：mysql -uroot -p < 01-schema.sql
+-- 说明：Docker 官方镜像会先根据 MYSQL_DATABASE 建库，这里再显式建一次以兼容手动执行
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS `secondhand_market`
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_general_ci;
+
+USE `secondhand_market`;
+
+SET NAMES utf8mb4;
+
+-- ------------------------------------------------------------
+-- 用户表
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `user`;
+CREATE TABLE `user` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+    `username`    VARCHAR(20)  NOT NULL                COMMENT '用户名（登录账号，唯一）',
+    `password`    VARCHAR(100) NOT NULL                COMMENT '密码（BCrypt 密文，固定 60 位）',
+    `phone`       VARCHAR(11)  DEFAULT NULL            COMMENT '手机号（唯一）',
+    `nickname`    VARCHAR(30)  DEFAULT NULL            COMMENT '昵称',
+    `avatar`      VARCHAR(255) DEFAULT NULL            COMMENT '头像URL',
+    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `status`      TINYINT      NOT NULL DEFAULT 1      COMMENT '状态：1正常 0禁用',
+    `role`        TINYINT      NOT NULL DEFAULT 0      COMMENT '角色：1管理员 0普通用户（仅管理员可登录管理后台）',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_username` (`username`),
+    UNIQUE KEY `uk_phone` (`phone`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户表';
+
+-- ------------------------------------------------------------
+-- 商品分类表
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `category`;
+CREATE TABLE `category` (
+    `id`          INT         NOT NULL AUTO_INCREMENT COMMENT '分类ID',
+    `name`        VARCHAR(30) NOT NULL                COMMENT '分类名称（唯一）',
+    `sort`        INT         NOT NULL DEFAULT 0      COMMENT '排序值（越小越靠前）',
+    `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_name` (`name`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品分类表';
+
+-- ------------------------------------------------------------
+-- 二手商品表
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `product`;
+CREATE TABLE `product` (
+    `id`                BIGINT        NOT NULL AUTO_INCREMENT COMMENT '商品ID',
+    `user_id`           BIGINT        NOT NULL                COMMENT '发布用户ID（卖家，关联 user 表）',
+    `title`             VARCHAR(100)  NOT NULL                COMMENT '商品标题',
+    `description`       VARCHAR(1000) DEFAULT NULL            COMMENT '商品描述',
+    `cover_image`       VARCHAR(255)  DEFAULT NULL            COMMENT '封面图URL',
+    `category_id`       INT           NOT NULL                COMMENT '分类ID（关联 category 表）',
+    `price`             DECIMAL(10,2) NOT NULL                COMMENT '商品价格（元）',
+    `product_condition` VARCHAR(10)   NOT NULL                COMMENT '成色：全新/九成新/八成新/七成新及以下',
+    `trade_type`        VARCHAR(10)   NOT NULL                COMMENT '交易方式：线上/线下',
+    `address`           VARCHAR(200)  DEFAULT NULL            COMMENT '线下交易地址（线上交易时为空）',
+    `longitude`         DECIMAL(10,6) DEFAULT NULL            COMMENT '经度（-180~180）',
+    `latitude`          DECIMAL(10,6) DEFAULT NULL            COMMENT '纬度（-90~90）',
+    `create_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `status`            TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1上架 0下架',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_category_id` (`category_id`),
+    KEY `idx_status` (`status`),
+    KEY `idx_create_time` (`create_time`),
+    KEY `idx_longitude` (`longitude`),
+    KEY `idx_status_category` (`status`, `category_id`),
+    KEY `idx_status_price` (`status`, `price`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '二手商品表';
+
+-- ------------------------------------------------------------
+-- 系统消息表（对应 com.example.message.entity.Message => @TableName("system_message")）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `system_message`;
+CREATE TABLE `system_message` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+    `receiver_id`  BIGINT       NOT NULL                COMMENT '接收者ID（关联 user 表）',
+    `message_type` TINYINT      NOT NULL                COMMENT '消息类型：1系统通知 2公告 3交易消息 4其他',
+    `title`        VARCHAR(100) NOT NULL                COMMENT '消息标题',
+    `content`      TEXT         NOT NULL                COMMENT '消息内容',
+    `is_read`      TINYINT      NOT NULL DEFAULT 0      COMMENT '是否已读：0未读 1已读',
+    `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_receiver_id` (`receiver_id`),
+    KEY `idx_is_read` (`is_read`),
+    KEY `idx_create_time` (`create_time`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '系统消息表';
+
+-- ------------------------------------------------------------
+-- 用户-商品关联表（收藏等，预留）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `user_product_relation`;
+CREATE TABLE `user_product_relation` (
+    `id`            BIGINT      NOT NULL AUTO_INCREMENT COMMENT '关联ID',
+    `user_id`       BIGINT      NOT NULL                COMMENT '用户ID',
+    `product_id`    BIGINT      NOT NULL                COMMENT '商品ID',
+    `relation_type` VARCHAR(20) NOT NULL                COMMENT '关系类型：collect-收藏',
+    `create_time`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_product` (`user_id`, `product_id`, `relation_type`),
+    KEY `idx_product_id` (`product_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户-商品关联表';
+
+-- ------------------------------------------------------------
+-- 评论表（预留）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `comment`;
+CREATE TABLE `comment` (
+    `id`          BIGINT   NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+    `user_id`     BIGINT   NOT NULL                COMMENT '评论用户ID',
+    `product_id`  BIGINT   NOT NULL                COMMENT '商品ID',
+    `content`     TEXT     NOT NULL                COMMENT '评论内容',
+    `rating`      TINYINT  NOT NULL DEFAULT 5      COMMENT '评分 1-5',
+    `status`      TINYINT  NOT NULL DEFAULT 1      COMMENT '状态：1正常 0隐藏',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_product_id` (`product_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '评论表';
+
+-- ============================================================
+-- 种子数据
+-- ============================================================
+
+-- 基础商品分类
+INSERT INTO `category` (`name`, `sort`) VALUES
+    ('手机数码', 1),
+    ('电脑办公', 2),
+    ('图书教材', 3),
+    ('家用电器', 4),
+    ('服饰鞋包', 5),
+    ('运动户外', 6),
+    ('美妆个护', 7),
+    ('其他闲置', 8);
+
+-- 默认账号
+-- admin   / admin123   （管理员，role=1，可登录管理后台）
+-- testuser1 / 123456   （普通用户，有两条在售商品）
+-- 说明：下列密文由项目同款 BCryptPasswordEncoder 生成，可直接用于登录
+INSERT INTO `user` (`id`, `username`, `password`, `phone`, `nickname`, `status`, `role`) VALUES
+    (1, 'admin',     '$2a$10$2PkmBxt2Puc3swXAd6S5Ke2Pbg3dSoaihFx1mLNL5q32Lxr.Gj0t2', '13800138000', '管理员',   1, 1),
+    (2, 'testuser1', '$2a$10$1CX3LKmt/AGGOLn6lmtb6eyG1XtMrZYi7PB.9ZdtiLRQoZwUmGvU.', '13800138001', '测试用户1', 1, 0),
+    (3, 'testuser2', '$2a$10$1CX3LKmt/AGGOLn6lmtb6eyG1XtMrZYi7PB.9ZdtiLRQoZwUmGvU.', '13800138002', '测试用户2', 1, 0);
+
+-- 示例商品（testuser1 发布）
+INSERT INTO `product` (`user_id`, `title`, `description`, `category_id`, `price`, `product_condition`, `trade_type`, `address`, `longitude`, `latitude`, `status`) VALUES
+    (2, 'iPhone 13 Pro 256G 深空灰', '95新，无拆修，原装充电器，发票齐全', 1, 6999.00, '九成新', '线下', '北京市朝阳区国贸CBD', 116.466240, 39.920800, 1),
+    (2, 'MacBook Pro 13寸 2020款',   '性能完好，轻度使用，适合办公学习',   2, 8999.00, '八成新', '线上', NULL,               NULL,       NULL,       1);
+
+-- 示例系统消息
+INSERT INTO `system_message` (`receiver_id`, `message_type`, `title`, `content`, `is_read`) VALUES
+    (2, 1, '欢迎使用二手商品交易平台', '您的账号已创建成功，祝您交易愉快！', 0),
+    (3, 1, '欢迎使用二手商品交易平台', '您的账号已创建成功，祝您交易愉快！', 0);

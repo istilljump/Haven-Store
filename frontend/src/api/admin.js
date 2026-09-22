@@ -255,3 +255,33 @@ export function backupDatabase() {
 export function getBackupList() {
   return request.get('/admin/backup/list')
 }
+
+/**
+ * 默认导出：便于以 adminApi.xxx() 的形式统一调用
+ */
+export default {
+  adminLogin,
+  getAdminDashboard,
+  getAdminUsers,
+  updateUserStatus,
+  getAdminProducts,
+  updateProductStatus,
+  getAdminCategories,
+  addCategory,
+  updateCategory,
+  deleteCategory,
+  sendSystemMessage,
+  getAdminMessages,
+  getAdminSettings,
+  updateAdminSettings,
+  getUserStats,
+  getProductStats,
+  getTradeStats,
+  exportUsers,
+  exportProducts,
+  getSystemLogs,
+  clearCache,
+  getServerInfo,
+  backupDatabase,
+  getBackupList
+}

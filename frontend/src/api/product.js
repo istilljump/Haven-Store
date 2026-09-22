@@ -131,3 +131,20 @@ export function getFavoriteProducts(queryParams) {
     params: queryParams
   })
 }
+
+/**
+ * 默认导出：便于以 productApi.xxx() 的形式统一调用
+ */
+export default {
+  addProduct,
+  getNearbyProducts,
+  estimateProductPrice,
+  getProductCategories,
+  getProductDetail,
+  searchProducts,
+  updateProduct,
+  removeProduct,
+  favoriteProduct,
+  unfavoriteProduct,
+  getFavoriteProducts
+}

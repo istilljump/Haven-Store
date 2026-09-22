@@ -29,8 +29,10 @@ services:
     networks:
       - app-network
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/secondhand_market?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
@@ -65,6 +67,12 @@ services:
       --collation-server=utf8mb4_unicode_ci
       --innodb-buffer-pool-size=512M
       --innodb-log-file-size=128M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   # Redis缓存
   redis:
@@ -81,25 +89,9 @@ services:
     # 生产环境建议启用密码保护
     # command: redis-server --requirepass yourpassword
 
-  # Nginx反向代理（可选）
-  nginx:
-    image: nginx:alpine
-    container_name: secondhand-nginx
-    restart: unless-stopped
-    ports:
-      - "443:443"
-      - "80:80"  # 如果使用80端口访问
-    networks:
-      - app-network
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-    depends_on:
-      - frontend
-      - backend
-    environment:
-      - NGINX_HOST=localhost
-      - NGINX_PORT=80
+  # 说明：不再单独起 nginx 服务。
+  # frontend 容器已基于 nginx:alpine 构建，并使用 frontend/nginx.conf（含 /api 反向代理到 backend:8080），
+  # 已能满足静态资源托管 + SPA 路由回退 + 接口代理，无需再叠加一层反向代理。
 
 volumes:
   mysql-data:

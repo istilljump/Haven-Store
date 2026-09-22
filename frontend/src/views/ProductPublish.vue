@@ -120,7 +120,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { publishProduct } from '@/api/product'
+import { addProduct } from '@/api/product'
 
 const router = useRouter()
 
@@ -217,7 +217,7 @@ const submitProduct = async () => {
     console.log('提交商品信息：', submitData)
     
     // 调用API发布商品
-    const result = await publishProduct(submitData)
+    const result = await addProduct(submitData)
     
     submitting.value = false
     ElMessage.success('商品发布成功！')

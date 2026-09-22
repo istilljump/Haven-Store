@@ -87,6 +87,8 @@ public class UserServiceImpl implements UserService {
         user.setNickname(dto.getNickname());
         user.setAvatar(UserConstant.DEFAULT_AVATAR);
         user.setStatus(UserStatusEnum.ENABLE.getCode());
+        // 注册一律为普通用户，管理员角色只能由数据库或后台赋予
+        user.setRole(UserConstant.ROLE_USER);
         // 5. 写入数据库（创建时间、更新时间由 MyBatis-Plus 自动填充）
         userMapper.insert(user);
         log.info("用户注册成功，用户ID：{}，用户名：{}", user.getId(), user.getUsername());
@@ -128,6 +130,7 @@ public class UserServiceImpl implements UserService {
                 .nickname(user.getNickname())
                 .avatar(user.getAvatar())
                 .token(token)
+                .isAdmin(UserConstant.ROLE_ADMIN.equals(user.getRole()))
                 .build();
         log.info("用户登录成功，用户ID：{}", user.getId());
         return Result.success(loginUserVO);

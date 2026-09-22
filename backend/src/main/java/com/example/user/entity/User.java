@@ -63,4 +63,8 @@ public class User implements Serializable {
     /** 账号状态：1 正常，0 禁用（取值见 UserStatusEnum） */
     @ApiModelProperty("账号状态：1正常 0禁用")
     private Integer status;
+
+    /** 角色：1 管理员，0 普通用户（取值见 UserConstant.ROLE_*） */
+    @ApiModelProperty("角色：1管理员 0普通用户")
+    private Integer role;
 }

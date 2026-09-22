@@ -1,12 +1,13 @@
 -- 二手商品交易平台数据库初始化脚本（简化版）
--- 数据库：second_hand_market（MySQL 8.0，字符集 utf8mb4）
+-- 数据库：secondhand_market（MySQL 8.0，字符集 utf8mb4）
+-- 提示：完整的建表 + 种子数据请使用 backend/scripts/01-schema.sql
 
 -- 创建数据库（若不存在）
-CREATE DATABASE IF NOT EXISTS `second_hand_market`
+CREATE DATABASE IF NOT EXISTS `secondhand_market`
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_general_ci;
 
-USE `second_hand_market`;
+USE `secondhand_market`;
 
 -- 用户表
 DROP TABLE IF EXISTS `user`;
@@ -20,6 +21,7 @@ CREATE TABLE `user` (
     `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `status`      TINYINT      NOT NULL DEFAULT 1      COMMENT '状态：1正常 0禁用',
+    `role`        TINYINT      NOT NULL DEFAULT 0      COMMENT '角色：1管理员 0普通用户',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`),
     UNIQUE KEY `uk_phone` (`phone`)
@@ -62,6 +64,22 @@ CREATE TABLE `product` (
     KEY `idx_create_time` (`create_time`),
     KEY `idx_longitude` (`longitude`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '二手商品表';
+
+-- 系统消息表（对应 com.example.message.entity.Message => @TableName("system_message")）
+DROP TABLE IF EXISTS `system_message`;
+CREATE TABLE `system_message` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+    `receiver_id`  BIGINT       NOT NULL                COMMENT '接收者ID（关联user表）',
+    `message_type` TINYINT      NOT NULL                COMMENT '消息类型：1系统通知 2公告 3交易消息 4其他',
+    `title`        VARCHAR(100) NOT NULL                COMMENT '消息标题',
+    `content`      TEXT         NOT NULL                COMMENT '消息内容',
+    `is_read`      TINYINT      NOT NULL DEFAULT 0      COMMENT '是否已读：0未读 1已读',
+    `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_receiver_id` (`receiver_id`),
+    KEY `idx_is_read` (`is_read`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '系统消息表';
 
 -- 基础分类种子数据
 INSERT INTO `category` (`name`, `sort`) VALUES

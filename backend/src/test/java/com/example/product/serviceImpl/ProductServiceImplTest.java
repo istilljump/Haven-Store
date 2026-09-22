@@ -80,12 +80,12 @@ class ProductServiceImplTest {
         // 模拟附近商品查询
         when(productMapper.selectNearbyProducts(
                 any(BigDecimal.class), any(BigDecimal.class), any(Integer.class), 
-                any(Integer.class), any(Integer.class), any(Integer.class),
+                any(Integer.class), any(Integer.class), any(Integer.class), any(Integer.class),
                 any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class)
         )).thenReturn(List.of(createTestNearbyProduct()));
         // 模拟附近商品总数查询
         when(productMapper.selectNearbyProductCount(
-                any(BigDecimal.class), any(BigDecimal.class), any(Integer.class),
+                any(BigDecimal.class), any(BigDecimal.class), any(Integer.class), any(Integer.class),
                 any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class)
         )).thenReturn(1L);
     }

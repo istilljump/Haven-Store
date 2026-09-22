@@ -1,5 +1,6 @@
 package com.example.product.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.common.Result;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductEstimateDTO;
@@ -35,6 +36,9 @@ public class ProductController {
 
     /** 商品模块业务逻辑对象 */
     private final ProductService productService;
+
+    /** 商品AI估价业务逻辑对象 */
+    private final ProductAIService productAIService;
 
     /**
      * 发布二手商品

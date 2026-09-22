@@ -4,6 +4,7 @@ import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
 import com.example.product.dto.ProductNearbyQueryDTO;
 import com.example.product.vo.ProductNearbyVO;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

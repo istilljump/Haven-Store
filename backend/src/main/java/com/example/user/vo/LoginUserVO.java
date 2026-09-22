@@ -43,4 +43,8 @@ public class LoginUserVO implements Serializable {
     /** JWT Token（后续请求放入请求头：Authorization: Bearer {token}） */
     @ApiModelProperty("登录令牌Token")
     private String token;
+
+    /** 是否管理员：管理后台据此判断能否进入（前端 store 的 isAdmin 直接读该字段） */
+    @ApiModelProperty("是否管理员")
+    private Boolean isAdmin;
 }

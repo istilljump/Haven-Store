@@ -177,3 +177,25 @@ export function cancelOrder(orderId, reason) {
 export function confirmOrder(orderId) {
   return request.put(`/user/orders/${orderId}/confirm`)
 }
+
+/**
+ * 默认导出：便于以 userApi.xxx() 的形式统一调用
+ */
+export default {
+  register,
+  login,
+  getCurrentUserInfo,
+  updateUserInfo,
+  changePassword,
+  uploadAvatar,
+  getUserProducts,
+  getUserFavorites,
+  getUserMessages,
+  markMessageAsRead,
+  markAllMessagesAsRead,
+  deleteMessage,
+  getUserOrders,
+  getOrderDetail,
+  cancelOrder,
+  confirmOrder
+}

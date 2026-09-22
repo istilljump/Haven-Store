@@ -20,7 +20,7 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 连接串说明：utf8mb4 字符集（Connector/J 8 自动协商为 utf8mb4）、关闭 SSL、时区 Asia/Shanghai
-    url: jdbc:mysql://localhost:3306/second_hand_market?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/secondhand_market?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     # 数据库账号（请按本地环境修改）
     username: root
     # 数据库密码（请按本地环境修改）

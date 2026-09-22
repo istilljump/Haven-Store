@@ -1,5 +1,6 @@
 package com.example.config;
 
+import com.example.admin.interceptor.AdminAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +23,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     /** JWT 鉴权拦截器 */
     private final JwtInterceptor jwtInterceptor;
+
+    /** 管理后台权限拦截器：/admin/** 下接口统一校验管理员角色 */
+    private final AdminAuthInterceptor adminAuthInterceptor;
 
     /** 允许跨域的前端来源（从配置文件读取，支持配置多个，逗号分隔） */
     @Value("${cors.origin-patterns}")
@@ -66,6 +70,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         // 用户模块：登录、注册接口放行
                         "/user/login",
                         "/user/register",
+                        // 管理后台：登录接口必须放行，否则没有 Token 就永远登不进去
+                        "/admin/login",
+                        // 健康检查放行：供 Docker HEALTHCHECK 与部署脚本在未登录时探测
+                        "/health",
                         // 系统默认错误跳转路径放行，避免异常信息被鉴权拦截器覆盖
                         "/error",
                         // Knife4j 接口文档页面与静态资源放行
@@ -76,5 +84,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/v2/api-docs/**",
                         "/favicon.ico"
                 );
+        // 管理后台权限拦截：/admin/** 统一校验管理员角色，/admin/login 已在上层放行
+        // 放在 JWT 拦截器之后注册（先登录态解析、再角色校验）
+        registry.addInterceptor(adminAuthInterceptor)
+                .addPathPatterns("/admin/**")
+                .excludePathPatterns("/admin/login");
     }
 }

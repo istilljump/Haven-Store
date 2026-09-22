@@ -58,11 +58,7 @@ build_images() {
     # 构建后端镜像
     print_info "构建后端镜像..."
     cd "$PROJECT_DIR/backend"
-    if [ ! -f "target/secondhand-market-*.jar" ]; then
-        print_error "后端jar文件不存在，请先执行mvn clean package"
-        exit 1
-    fi
-    
+    # jar 由后端 Dockerfile 内部的 Maven 阶段编译产出，宿主机无需预先 mvn package
     if docker build -t secondhand-backend .; then
         print_success "后端镜像构建成功"
     else
@@ -172,11 +168,17 @@ health_check() {
     fi
 }
 
-# 数据库迁移
+# 数据库初始化（在 MySQL 容器内执行 backend/scripts/01-schema.sql）
 migrate_database() {
-    print_info "执行数据库迁移..."
-    cd "$PROJECT_DIR/backend"
-    java -jar target/secondhand-market-*..jar --spring.profiles.active=prod --spring.datasource.initialize=true
+    print_info "执行数据库初始化..."
+    echo -e "${RED}注意：该脚本含 DROP TABLE，会清空并重建所有表！${NC}"
+    cd "$PROJECT_DIR"
+    if docker exec -i secondhand-mysql mysql -uroot -p123456 --default-character-set=utf8mb4 < backend/scripts/01-schema.sql; then
+        print_success "数据库初始化完成"
+    else
+        print_error "数据库初始化失败"
+        exit 1
+    fi
 }
 
 # 备份数据库

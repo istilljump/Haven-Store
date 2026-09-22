@@ -280,7 +280,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Check, uploadFilled } from '@element-plus/icons-vue'
+import { Refresh, Check, UploadFilled } from '@element-plus/icons-vue'
 import adminApi from '@/api/admin'
 import { validateEmail, validatePhone } from '@/utils/validate'
 

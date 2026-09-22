@@ -52,7 +52,7 @@
         </el-form-item>
         
         <div class="login-footer">
-          <a href="/login" class="switch-to-user">返回用户登录</a>
+          <a href="/auth/login" class="switch-to-user">返回用户登录</a>
         </div>
       </el-form>
     </div>
@@ -74,7 +74,7 @@ const loading = ref(false)
 // 登录表单数据
 const loginForm = reactive({
   username: 'admin',
-  password: '123456'
+  password: 'admin123'
 })
 
 // 表单验证规则
@@ -98,17 +98,18 @@ const handleLogin = async () => {
     loading.value = true
     
     // 调用登录API
+    // 后端 /admin/login 复用了 /user/login 的逻辑，返回结构完全一致：
+    // { userId, username, nickname, avatar, token, isAdmin }
     const response = await adminApi.adminLogin(loginForm)
     
-    // 保存Token和用户信息
+    // 保存Token和用户信息（结构统一，管理端与用户端共用同一份存储）
     setToken(response.token)
     setUserInfo({
-      userId: response.adminInfo.adminId,
-      username: response.adminInfo.username,
-      nickname: response.adminInfo.nickname,
-      phone: response.adminInfo.phone,
-      isAdmin: true,
-      create_time: response.adminInfo.createTime
+      userId: response.userId,
+      username: response.username,
+      nickname: response.nickname,
+      avatar: response.avatar,
+      isAdmin: response.isAdmin
     })
     
     ElMessage.success('管理员登录成功')
@@ -117,8 +118,8 @@ const handleLogin = async () => {
     router.push('/admin/dashboard')
     
   } catch (error) {
+    // 具体错误提示已由请求拦截器统一弹出，这里只兜底
     console.error('管理员登录失败:', error)
-    ElMessage.error(error.message || '管理员登录失败，请检查账号和密码')
   } finally {
     loading.value = false
   }

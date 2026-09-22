@@ -1,12 +1,12 @@
 # 二手商品交易市场
 
-基于Spring Boot + Vue.js的全栈二手交易平台，支持商品发布、搜索、智能估价、即时聊天、系统消息等功能。
+基于Spring Boot + Vue.js的全栈二手交易平台，支持商品发布、附近商品搜索、AI智能估价、系统消息等功能。
 
 ## 🚀 快速开始
 
 ### 环境要求
 
-- JDK 17+
+- JDK 8+（推荐 17；Docker 镜像基于 JDK 17）
 - Node.js 18+
 - MySQL 8.0+
 - Redis 7+
@@ -16,8 +16,8 @@
 
 1. **克隆项目**
 ```bash
-git clone <repository-url>
-cd secondhand-market
+git clone https://github.com/istilljump/Haven-Store.git
+cd Haven-Store
 ```
 
 2. **构建并启动服务**
@@ -35,7 +35,23 @@ chmod +x deploy.sh
 - 后端API：http://localhost:8080
 - 管理后台：http://localhost/admin
 
+4. **默认账号**（由 `backend/scripts/01-schema.sql` 初始化）
+
+| 用户名 | 密码 | 说明 |
+|---|---|---|
+| `admin` | `admin123` | 管理员 |
+| `testuser1` | `123456` | 普通用户（含 2 条示例商品） |
+| `testuser2` | `123456` | 普通用户 |
+
 ### 方式二：本地部署
+
+#### 前置：初始化数据库
+
+先启动 MySQL，然后执行建表脚本：
+
+```bash
+mysql -uroot -p < backend/scripts/01-schema.sql
+```
 
 #### 1. 后端部署
 
@@ -44,13 +60,17 @@ cd backend
 mvn clean package
 java -jar target/secondhand-market-*.jar
 ```
+> 后端默认连接 `localhost:3306/secondhand_market` 与 `localhost:6379`，
+> 账号密码在 `backend/src/main/resources/application.yml` 中按本地环境修改。
+> 启动后接口地址带 `/api` 前缀，例如 `http://localhost:8080/api/user/login`。
 
 #### 2. 前端部署
 
 ```bash
 cd frontend
 npm install
-npm run serve
+npm run dev      # 开发模式，访问 http://localhost:3000
+npm run build    # 生产构建，产物在 dist/
 ```
 
 ### 方式三：开发模式
@@ -85,8 +105,8 @@ npm run dev
 ### API管理
 
 ```bash
-# 查看API文档
-http://localhost:8080/swagger-ui/index.html
+# 查看API文档（Knife4j，基于 Swagger2）
+http://localhost:8080/api/doc.html
 
 # 健康检查
 curl http://localhost:8080/api/health
@@ -103,8 +123,8 @@ node stress_test.js
 # 自定义参数测试
 node stress_test.js -t 20 -r 100 -u http://localhost:8080/api/health
 
-# 测试API登录接口
-node stress_test.js -t 5 -r 50 -u http://localhost:8080/api/auth/login -m POST -p '{"username":"admin","password":"123456"}'
+# 测试登录接口
+node stress_test.js -t 5 -r 50 -u http://localhost:8080/api/user/login -m POST -p '{"username":"testuser1","password":"123456"}'
 ```
 
 ## 🔧 部署脚本使用
@@ -138,24 +158,27 @@ node stress_test.js -t 5 -r 50 -u http://localhost:8080/api/auth/login -m POST -
 ## 📁 项目结构
 
 ```
-secondhand-market/
+Haven-Store/
 ├── backend/                 # Spring Boot后端
 │   ├── src/
 │   │   ├── main/
-│   │   │   ├── java/com/market/
+│   │   │   ├── java/com/example/
 │   │   │   └── resources/
 │   │   └── test/
+│   ├── scripts/01-schema.sql # MySQL 建表 + 种子数据
 │   ├── pom.xml
 │   └── Dockerfile
 ├── frontend/                # Vue.js前端
 │   ├── src/
-│   │   ├── components/
+│   │   ├── api/
+│   │   ├── layouts/
 │   │   ├── views/
 │   │   ├── router/
 │   │   ├── store/
 │   │   └── utils/
-│   ├── public/
-│   └── package.json
+│   ├── package.json
+│   ├── nginx.conf
+│   └── Dockerfile
 ├── docker-compose.yml       # Docker Compose配置
 ├── deploy.sh               # Linux/Mac部署脚本
 ├── deploy.ps1              # Windows部署脚本

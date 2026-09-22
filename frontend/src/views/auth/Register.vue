@@ -74,13 +74,13 @@ export default {
         if (valid) {
           // TODO: 实现注册逻辑
           console.log('注册表单提交:', form)
-          router.push('/login')
+          router.push('/auth/login')
         }
       })
     }
     
     const goToLogin = () => {
-      router.push('/login')
+      router.push('/auth/login')
     }
     
     return {

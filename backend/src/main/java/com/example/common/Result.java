@@ -77,6 +77,17 @@ public class Result<T> implements Serializable {
     }
 
     /**
+     * 判断本次返回是否为成功状态
+     * <p>
+     * 便于业务代码与测试断言直接书写 {@code result.isSuccess()}，无需硬编码状态码 200
+     *
+     * @return true 表示状态码为 SUCCESS
+     */
+    public boolean isSuccess() {
+        return ResultCodeEnum.SUCCESS.getCode().equals(code);
+    }
+
+    /**
      * 构建统一返回结果的私有工具方法
      *
      * @param <T>  数据泛型
