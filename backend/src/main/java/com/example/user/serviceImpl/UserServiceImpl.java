@@ -126,7 +126,8 @@ public class UserServiceImpl implements UserService {
         // 4. 生成 JWT Token
         String token = jwtUtil.generateToken(user.getId());
         // 5. 缓存用户信息到 Redis，过期时间与 Token 有效期保持一致（后续可用于强制下线等场景）
-        redisUtil.set(RedisKeyConst.USER_INFO_KEY + user.getId(), user, tokenExpiration, TimeUnit.MILLISECONDS);
+        //    用安全版本写入：Redis 只是缓存，不可用时登录流程必须照常完成
+        redisUtil.setQuietly(RedisKeyConst.USER_INFO_KEY + user.getId(), user, tokenExpiration, TimeUnit.MILLISECONDS);
         // 6. 封装脱敏的登录返回信息（不含密码、手机号等敏感字段）
         LoginUserVO loginUserVO = LoginUserVO.builder()
                 .userId(user.getId())
@@ -153,8 +154,8 @@ public class UserServiceImpl implements UserService {
         if (userId == null) {
             throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
         }
-        // 2. 优先读取 Redis 缓存
-        User user = redisUtil.get(RedisKeyConst.USER_INFO_KEY + userId);
+        // 2. 优先读取 Redis 缓存（缓存不可用时返回 null，下面会回源数据库）
+        User user = redisUtil.getQuietly(RedisKeyConst.USER_INFO_KEY + userId);
         if (user == null) {
             // 3. 缓存未命中，回源数据库查询
             user = userMapper.selectById(userId);
@@ -165,7 +166,7 @@ public class UserServiceImpl implements UserService {
                 throw new BusinessException("账号已被禁用，请联系管理员");
             }
             // 4. 重建缓存，过期时间与 Token 有效期保持一致
-            redisUtil.set(RedisKeyConst.USER_INFO_KEY + userId, user, tokenExpiration, TimeUnit.MILLISECONDS);
+            redisUtil.setQuietly(RedisKeyConst.USER_INFO_KEY + userId, user, tokenExpiration, TimeUnit.MILLISECONDS);
         }
         // 5. 密码脱敏：任何返回结果都不允许出现密码字段
         user.setPassword(null);
@@ -197,7 +198,7 @@ public class UserServiceImpl implements UserService {
         userMapper.updateById(update);
 
         // 资料变更后清掉缓存，避免个人中心读到旧数据
-        redisUtil.delete(RedisKeyConst.USER_INFO_KEY + userId);
+        redisUtil.deleteQuietly(RedisKeyConst.USER_INFO_KEY + userId);
         log.info("用户资料已更新，用户ID：{}", userId);
     }
 
@@ -229,7 +230,7 @@ public class UserServiceImpl implements UserService {
         update.setPassword(passwordUtil.encode(dto.getNewPassword()));
         userMapper.updateById(update);
 
-        redisUtil.delete(RedisKeyConst.USER_INFO_KEY + userId);
+        redisUtil.deleteQuietly(RedisKeyConst.USER_INFO_KEY + userId);
         log.info("用户密码已修改，用户ID：{}", userId);
     }
 
@@ -247,7 +248,7 @@ public class UserServiceImpl implements UserService {
         update.setAvatar(avatarUrl);
         userMapper.updateById(update);
 
-        redisUtil.delete(RedisKeyConst.USER_INFO_KEY + userId);
+        redisUtil.deleteQuietly(RedisKeyConst.USER_INFO_KEY + userId);
         log.info("用户头像已更新，用户ID：{}", userId);
     }
 

@@ -14,6 +14,7 @@ import com.example.admin.vo.DashboardVO;
 import com.example.category.entity.Category;
 import com.example.category.mapper.CategoryMapper;
 import com.example.common.BusinessException;
+import com.example.common.ResultCodeEnum;
 import com.example.common.RedisKeyConst;
 import com.example.message.entity.Message;
 import com.example.message.enums.MessageReceiverTypeEnum;
@@ -184,7 +185,7 @@ public class AdminServiceImpl implements AdminService {
 
         // 账号被禁用后需要立即失效：清除其登录态缓存，避免仍凭旧 Token 访问
         if (UserStatusEnum.DISABLE.getCode().equals(status)) {
-            redisUtil.delete(RedisKeyConst.USER_INFO_KEY + userId);
+            redisUtil.deleteQuietly(RedisKeyConst.USER_INFO_KEY + userId);
         }
         log.info("管理员变更用户状态，用户ID：{}，新状态：{}", userId, status);
     }
@@ -475,12 +476,23 @@ public class AdminServiceImpl implements AdminService {
 
     // ==================== 系统设置 ====================
 
+    /**
+     * 读取系统设置
+     * <p>
+     * 设置以 Redis 作为存储，Redis 不可用时返回默认值并记警告——
+     * 让「系统设置」页面仍能打开，而不是整页报错
+     */
     @Override
     public SystemSettingDTO getSettings() {
-        SystemSettingDTO cached = redisUtil.get(RedisKeyConst.SYSTEM_SETTINGS_KEY);
+        SystemSettingDTO cached = redisUtil.getQuietly(RedisKeyConst.SYSTEM_SETTINGS_KEY);
         return cached == null ? SystemSettingDTO.defaults() : cached;
     }
 
+    /**
+     * 保存系统设置
+     * <p>
+     * 这里是写入而非缓存，Redis 不可用意味着无法持久化，必须明确报错而不是静默成功
+     */
     @Override
     public void updateSettings(SystemSettingDTO dto) {
         if (dto == null) {
@@ -490,7 +502,13 @@ public class AdminServiceImpl implements AdminService {
         if (dto.getSite() == null || !StringUtils.hasText(dto.getSite().getName())) {
             throw new BusinessException("站点名称不能为空");
         }
-        redisUtil.set(RedisKeyConst.SYSTEM_SETTINGS_KEY, dto);
+        try {
+            redisUtil.set(RedisKeyConst.SYSTEM_SETTINGS_KEY, dto);
+        } catch (Exception e) {
+            log.error("系统设置保存失败，Redis 不可用", e);
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
+                    "系统设置存储暂不可用，请确认 Redis 服务已启动");
+        }
         log.info("管理员更新系统设置，站点名称：{}", dto.getSite().getName());
     }
 

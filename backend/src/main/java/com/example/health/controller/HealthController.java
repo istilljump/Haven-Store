@@ -1,8 +1,12 @@
 package com.example.health.controller;
 
 import com.example.common.Result;
+import com.example.user.mapper.UserMapper;
+import com.example.utils.RedisUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,7 +22,15 @@ import org.springframework.web.bind.annotation.RestController;
 @Api(tags = "系统健康检查接口")
 @RestController
 @RequestMapping("/health")
+@Slf4j
+@RequiredArgsConstructor
 public class HealthController {
+
+    /** 用户模块数据访问对象（用于探测数据库连通性） */
+    private final UserMapper userMapper;
+
+    /** Redis 操作工具（用于探测缓存连通性） */
+    private final RedisUtil redisUtil;
 
     /**
      * 基础健康检查
@@ -49,11 +61,27 @@ public class HealthController {
         detail.setApp("haven-store-backend");
         detail.setVersion("1.0.0");
         
-        // TODO: 实现数据库连接检查、Redis连接检查等
-        // detail.setDatabaseStatus("UP");
-        // detail.setCacheStatus("UP");
+        // 依赖状态实测：数据库与 Redis 任一不可用都会导致部分功能异常，
+        // 健康检查直接暴露出来，省去翻日志排查
+        detail.setDatabaseStatus(checkDatabase());
+        detail.setCacheStatus(redisUtil.isAvailable() ? "UP" : "DOWN");
         
         return Result.success(detail);
+    }
+
+    /**
+     * 探测数据库连通性
+     *
+     * @return UP 表示可执行查询，DOWN 表示连接异常
+     */
+    private String checkDatabase() {
+        try {
+            userMapper.selectCount(null);
+            return "UP";
+        } catch (Exception e) {
+            log.warn("数据库健康检查失败：{}", e.getMessage());
+            return "DOWN";
+        }
     }
 
     /**

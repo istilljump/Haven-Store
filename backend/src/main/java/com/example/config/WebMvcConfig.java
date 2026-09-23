@@ -3,11 +3,17 @@ package com.example.config;
 import com.example.admin.interceptor.AdminAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * SpringMVC 配置类：全局跨域配置 + JWT 鉴权拦截器注册
@@ -18,6 +24,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * @author ZCode
  * @date 2026/09/21
  */
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -46,7 +53,18 @@ public class WebMvcConfig implements WebMvcConfigurer {
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String location = java.nio.file.Paths.get(uploadDir).toAbsolutePath().normalize().toUri().toString();
+        Path dir = Paths.get(uploadDir).toAbsolutePath().normalize();
+        try {
+            // 启动时确保目录存在：Path.toUri() 只在路径已存在时才补结尾的 "/"，
+            // 而 Spring 的资源路径必须以 "/" 结尾才会被当成目录，否则图片一律 404
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            log.warn("创建上传目录失败（上传功能可能不可用）：{}", dir, e);
+        }
+        String location = dir.toUri().toString();
+        if (!location.endsWith("/")) {
+            location = location + "/";
+        }
         registry.addResourceHandler("/uploads/**").addResourceLocations(location);
     }
 
