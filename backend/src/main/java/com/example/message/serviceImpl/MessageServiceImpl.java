@@ -3,12 +3,15 @@ package com.example.message.serviceImpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.example.common.BusinessException;
+import com.example.common.ResultCodeEnum;
 import com.example.message.dto.SendMessageDTO;
 import com.example.message.entity.Message;
 import com.example.message.mapper.MessageMapper;
 import com.example.message.service.MessageService;
 import com.example.user.entity.User;
 import com.example.user.mapper.UserMapper;
+import com.example.utils.UserHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -112,11 +115,15 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     /**
      * 获取当前登录用户ID
-     * TODO: 实现从JWT Token中获取用户ID
+     * <p>
+     * 登录态由 JWT 拦截器写入 UserHolder，这里统一从线程上下文读取。
+     * 此前这里写死返回 1L，导致任何登录用户看到的都是 1 号用户的系统消息
      */
     private Long getCurrentUserId() {
-        // 这里应该从JWT Token中解析出用户ID
-        // 暂时返回一个默认值
-        return 1L;
+        Long userId = UserHolder.getUserId();
+        if (userId == null) {
+            throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
+        }
+        return userId;
     }
 }

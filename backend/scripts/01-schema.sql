@@ -125,14 +125,14 @@ CREATE TABLE `product_image` (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品图片表';
 
 -- ------------------------------------------------------------
--- 用户-商品关联表（收藏等，预留）
+-- 用户-商品关联表（收藏、购物车共用；同表不同 relation_type，可一键互转）
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS `user_product_relation`;
 CREATE TABLE `user_product_relation` (
     `id`            BIGINT      NOT NULL AUTO_INCREMENT COMMENT '关联ID',
     `user_id`       BIGINT      NOT NULL                COMMENT '用户ID',
     `product_id`    BIGINT      NOT NULL                COMMENT '商品ID',
-    `relation_type` VARCHAR(20) NOT NULL                COMMENT '关系类型：collect-收藏',
+    `relation_type` VARCHAR(20) NOT NULL                COMMENT '关系类型：collect-收藏 cart-购物车',
     `create_time`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -157,6 +157,74 @@ CREATE TABLE `comment` (
     KEY `idx_user_id` (`user_id`),
     KEY `idx_product_id` (`product_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '评论表';
+
+-- ------------------------------------------------------------
+-- 私信表（同时承载「商品咨询」：product_id 非空即为针对该商品的咨询）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `private_message`;
+CREATE TABLE `private_message` (
+    `id`               BIGINT       NOT NULL AUTO_INCREMENT COMMENT '私信ID',
+    `conversation_key` VARCHAR(64)  NOT NULL                COMMENT '会话键：由双方用户ID与商品ID拼成，相同即同一会话，用于按会话聚合',
+    `from_user_id`     BIGINT       NOT NULL                COMMENT '发送者ID',
+    `to_user_id`       BIGINT       NOT NULL                COMMENT '接收者ID',
+    `product_id`       BIGINT       DEFAULT NULL            COMMENT '关联商品ID：商品咨询填写，普通私信为空',
+    `content`          VARCHAR(500) NOT NULL                COMMENT '私信内容',
+    `is_read`          TINYINT      NOT NULL DEFAULT 0      COMMENT '接收方是否已读：0未读 1已读',
+    `create_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_conversation_key` (`conversation_key`),
+    KEY `idx_from_user_id` (`from_user_id`),
+    KEY `idx_to_user_id` (`to_user_id`),
+    KEY `idx_product_id` (`product_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '私信表（含商品咨询）';
+
+-- ------------------------------------------------------------
+-- 订单表
+-- 生命周期：待支付 →（模拟支付）已支付 →（买家确认）已完成；待支付可取消
+-- 说明：下单即把商品置为「已售出」锁定，避免同一件二手商品被多人买走；
+--       订单取消时回滚为「在售」
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `product_order`;
+CREATE TABLE `product_order` (
+    `id`           BIGINT        NOT NULL AUTO_INCREMENT COMMENT '订单ID',
+    `order_no`     VARCHAR(32)   NOT NULL                COMMENT '订单号（对外展示，唯一）',
+    `buyer_id`     BIGINT        NOT NULL                COMMENT '买家ID',
+    `total_amount` DECIMAL(10,2) NOT NULL                COMMENT '订单总金额',
+    `item_count`   INT           NOT NULL DEFAULT 1      COMMENT '商品件数',
+    `status`       TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1待支付 2已支付 3已取消 4已完成',
+    `remark`       VARCHAR(255)  DEFAULT NULL            COMMENT '买家留言',
+    `pay_time`     DATETIME      DEFAULT NULL            COMMENT '支付时间',
+    `finish_time`  DATETIME      DEFAULT NULL            COMMENT '完成时间',
+    `cancel_time`  DATETIME      DEFAULT NULL            COMMENT '取消时间',
+    `create_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_order_no` (`order_no`),
+    KEY `idx_buyer_id` (`buyer_id`),
+    KEY `idx_status` (`status`),
+    KEY `idx_create_time` (`create_time`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '商品订单表';
+
+-- ------------------------------------------------------------
+-- 订单明细表
+-- 标题、封面、价格均为下单时的快照：商品之后被编辑或删除，历史订单仍然准确
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `order_item`;
+CREATE TABLE `order_item` (
+    `id`          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '订单明细ID',
+    `order_id`    BIGINT        NOT NULL                COMMENT '订单ID',
+    `product_id`  BIGINT        NOT NULL                COMMENT '商品ID',
+    `seller_id`   BIGINT        NOT NULL                COMMENT '卖家ID',
+    `title`       VARCHAR(100)  NOT NULL                COMMENT '商品标题（下单时快照）',
+    `cover_image` VARCHAR(255)  DEFAULT NULL            COMMENT '商品封面（下单时快照）',
+    `price`       DECIMAL(10,2) NOT NULL                COMMENT '成交单价（下单时快照）',
+    `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_order_id` (`order_id`),
+    KEY `idx_product_id` (`product_id`),
+    KEY `idx_seller_id` (`seller_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '订单明细表';
 
 -- ============================================================
 -- 种子数据

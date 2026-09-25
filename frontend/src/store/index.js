@@ -47,6 +47,12 @@ export const useUserStore = defineStore('user', () => {
   const token = ref(getToken())
   const loading = ref(false)
   const error = ref(null)
+  // 未读私信数：头部角标与私信中心页共用这一份状态。
+  // 谁拿到最新值谁写入，这样在私信中心读完消息后角标能立即消失，不必等下一轮轮询。
+  // 这里只存状态、不引入 API 调用，避免 store -> api -> utils/request -> store 的循环依赖。
+  const unreadMessageCount = ref(0)
+  // 购物车件数：与未读私信同理，头部角标与购物车页共用这一份状态
+  const cartItemCount = ref(0)
 
   // 计算属性
   const isLoggedIn = computed(() => !!userInfo.value)
@@ -71,8 +77,19 @@ export const useUserStore = defineStore('user', () => {
   const clearUser = () => {
     userInfo.value = null
     token.value = null
+    // 退出登录后角标必须清零，否则下一个登录的人会看到上一个人的未读数
+    unreadMessageCount.value = 0
+    cartItemCount.value = 0
     removeToken()
     removeUserInfo()
+  }
+
+  const setUnreadMessageCount = (count) => {
+    unreadMessageCount.value = Number(count) || 0
+  }
+
+  const setCartItemCount = (count) => {
+    cartItemCount.value = Number(count) || 0
   }
 
   const setLoading = (isLoading) => {
@@ -229,6 +246,10 @@ export const useUserStore = defineStore('user', () => {
     token,
     loading,
     error,
+    unreadMessageCount,
+    setUnreadMessageCount,
+    cartItemCount,
+    setCartItemCount,
     
     // 计算属性
     isLoggedIn,

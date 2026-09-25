@@ -15,6 +15,8 @@ import homeRoutes from './modules/home'
 import authRoutes from './modules/auth'
 import productRoutes from './modules/product'
 import userRoutes from './modules/user'
+import messageRoutes from './modules/message'
+import tradeRoutes from './modules/trade'
 
 // 管理员路由
 import adminRoutes from './admin'
@@ -30,7 +32,9 @@ const routes = [
     children: [
       ...homeRoutes,
       ...productRoutes,
-      ...userRoutes
+      ...userRoutes,
+      ...messageRoutes,
+      ...tradeRoutes
     ]
   },
   {

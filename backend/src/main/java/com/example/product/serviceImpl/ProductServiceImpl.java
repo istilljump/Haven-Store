@@ -9,6 +9,7 @@ import com.example.common.BusinessException;
 import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
 import com.example.product.constant.ProductConstant;
+import com.example.product.constant.RelationTypeConstant;
 import com.example.product.dto.CommentAddDTO;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
@@ -88,8 +89,8 @@ public class ProductServiceImpl implements ProductService {
     /** 排序方式：价格降序 */
     private static final String SORT_PRICE_DESC = "priceDesc";
 
-    /** 关联类型：收藏 */
-    private static final String RELATION_TYPE_COLLECT = "collect";
+    /** 关联类型：收藏（与购物车共用一张关联表，取值统一放在 RelationTypeConstant） */
+    private static final String RELATION_TYPE_COLLECT = RelationTypeConstant.COLLECT;
 
     /** 评论状态：正常（0 为隐藏） */
     private static final int COMMENT_STATUS_NORMAL = 1;

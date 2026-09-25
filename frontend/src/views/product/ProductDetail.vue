@@ -103,6 +103,14 @@
           <div class="product-actions">
             <h3>商品操作</h3>
             <div class="action-buttons">
+              <el-button
+                type="warning"
+                :disabled="product.status !== 1 || isOwner"
+                :loading="addingToCart"
+                @click="addToCart"
+              >
+                加入购物车
+              </el-button>
               <el-button 
                 type="danger" 
                 :disabled="product.status !== 1"
@@ -275,6 +283,29 @@
         </el-tabs>
       </div>
     </div>
+
+    <!-- 联系卖家：private 为普通私信，consult 为针对该商品的咨询 -->
+    <el-dialog
+      v-model="messageDialogVisible"
+      :title="messageDialogConfig.title"
+      width="480px"
+    >
+      <p class="message-dialog-tip">{{ messageDialogConfig.tip }}</p>
+      <el-input
+        v-model="messageDraft"
+        type="textarea"
+        :rows="4"
+        maxlength="500"
+        show-word-limit
+        :placeholder="messageDialogConfig.placeholder"
+      />
+      <template #footer>
+        <el-button @click="messageDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="messageSending" @click="submitMessage">
+          发送
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -284,7 +315,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import productApi from '@/api/product'
+import messageApi from '@/api/message'
+import cartApi from '@/api/cart'
 import { useAuthStore } from '@/store/auth'
+import { useUserStore } from '@/store/index'
 
 export default {
   name: 'ProductDetail',
@@ -296,6 +330,8 @@ export default {
     const router = useRouter()
     const route = useRoute()
     const authStore = useAuthStore()
+    // 加入购物车后要同步头部角标，因此需要 user store
+    const userStore = useUserStore()
 
     // 当前登录用户是否为该商品的发布者（决定是否展示「编辑」入口）
     const isOwner = computed(() => {
@@ -503,9 +539,106 @@ export default {
       }
     }
     
-    const contactSeller = () => {
-      // TODO: 实现私信功能
-      ElMessage.info('私信功能开发中')
+    /** 私信/咨询对话框文案：两种入口共用同一套发送逻辑，只有文案与是否带商品上下文不同 */
+    const MESSAGE_DIALOG_TEXT = {
+      private: {
+        title: '私信卖家',
+        tip: '消息会直接发给卖家，之后可在「我的私信」里继续沟通。',
+        placeholder: '想和卖家说点什么…'
+      },
+      consult: {
+        title: '咨询该商品',
+        tip: '这是针对该商品的咨询，卖家会在「我的私信」里看到商品信息。',
+        placeholder: '想咨询这个商品的什么？'
+      }
+    }
+
+    /** 对话框模式：private 普通私信 / consult 商品咨询 */
+    const messageDialogMode = ref('private')
+    const messageDialogVisible = ref(false)
+    const messageDraft = ref('')
+    const messageSending = ref(false)
+    const messageDialogConfig = computed(() => MESSAGE_DIALOG_TEXT[messageDialogMode.value])
+
+    const openMessageDialog = (mode) => {
+      if (!authStore.isLoggedIn) {
+        ElMessage.warning('请先登录后再联系卖家')
+        router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+        return
+      }
+      // 商品详情对自家商品也展示按钮，这里拦住自己给自己发消息
+      if (isOwner.value) {
+        ElMessage.warning('这是你自己发布的商品，无需联系自己')
+        return
+      }
+      if (!product.seller || !product.seller.id) {
+        ElMessage.warning('暂时拿不到卖家信息，请稍后重试')
+        return
+      }
+      messageDialogMode.value = mode
+      messageDraft.value = mode === 'consult'
+        ? `你好，我想咨询「${product.title}」这个商品，请问还在吗？`
+        : ''
+      messageDialogVisible.value = true
+    }
+
+    const contactSeller = () => openMessageDialog('private')
+
+    const inquiry = () => openMessageDialog('consult')
+
+    /** 加入购物车：后端幂等，重复加入时提示"已在购物车中"而不是报错 */
+    const addingToCart = ref(false)
+    const addToCart = async () => {
+      if (!authStore.isLoggedIn) {
+        ElMessage.warning('请先登录后再加入购物车')
+        router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+        return
+      }
+      if (isOwner.value) {
+        ElMessage.warning('这是你自己发布的商品，无需加入购物车')
+        return
+      }
+      addingToCart.value = true
+      try {
+        const added = await cartApi.addToCart(product.id)
+        ElMessage.success(added ? '已加入购物车' : '该商品已在购物车中')
+        // 同步头部购物车角标
+        userStore.setCartItemCount(await cartApi.getCartCount())
+      } catch (error) {
+        console.error('加入购物车失败:', error)
+      } finally {
+        addingToCart.value = false
+      }
+    }
+
+    /** 发送私信/咨询，成功后跳到私信中心对应的会话 */
+    const submitMessage = async () => {
+      const content = messageDraft.value.trim()
+      if (!content) {
+        ElMessage.warning('请输入要发送的内容')
+        return
+      }
+      messageSending.value = true
+      try {
+        const payload = { toUserId: product.seller.id, content }
+        // 咨询带上商品 ID，这样会话列表里能区分出咨询的是哪件商品
+        if (messageDialogMode.value === 'consult') {
+          payload.productId = product.id
+        }
+        await messageApi.sendPrivateMessage(payload)
+        messageDialogVisible.value = false
+        ElMessage.success(messageDialogMode.value === 'consult' ? '咨询已发送' : '私信已发送')
+
+        const query = { peerId: product.seller.id }
+        if (payload.productId) {
+          query.productId = payload.productId
+        }
+        router.push({ path: '/messages', query })
+      } catch (error) {
+        console.error('发送私信失败:', error)
+      } finally {
+        messageSending.value = false
+      }
     }
     
     // 电话联系：使用商品上填写的联系电话（未登录时后端不返回，这里给出提示）
@@ -524,11 +657,6 @@ export default {
         '联系方式',
         { confirmButtonText: '知道了' }
       ).catch(() => {})
-    }
-    
-    const inquiry = () => {
-      // TODO: 实现咨询功能
-      ElMessage.info('咨询功能开发中')
     }
     
     const goBack = () => {
@@ -579,6 +707,13 @@ export default {
       contactSeller,
       callSeller,
       inquiry,
+      addToCart,
+      addingToCart,
+      messageDialogVisible,
+      messageDraft,
+      messageSending,
+      messageDialogConfig,
+      submitMessage,
       goBack,
       goToHome,
       goToProducts,
@@ -607,6 +742,13 @@ export default {
 
 .breadcrumb {
   margin-bottom: 20px;
+}
+
+.message-dialog-tip {
+  margin: 0 0 12px;
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .product-detail {

@@ -16,6 +16,23 @@
           >
             <el-menu-item index="/home">首页</el-menu-item>
             <el-menu-item index="/products">商品</el-menu-item>
+            <!-- 购物车与私信都需要登录，未登录时不展示入口（路由守卫也有一层兜底） -->
+            <el-menu-item v-if="isLoggedIn" index="/cart">
+              购物车
+              <el-badge
+                v-if="cartCount > 0"
+                :value="cartCount > 99 ? '99+' : cartCount"
+                class="nav-badge"
+              />
+            </el-menu-item>
+            <el-menu-item v-if="isLoggedIn" index="/messages">
+              私信
+              <el-badge
+                v-if="unreadCount > 0"
+                :value="unreadCount > 99 ? '99+' : unreadCount"
+                class="nav-badge"
+              />
+            </el-menu-item>
           </el-menu>
         </div>
 
@@ -34,6 +51,9 @@
                   </el-dropdown-item>
                   <el-dropdown-item command="profile">
                     个人资料
+                  </el-dropdown-item>
+                  <el-dropdown-item command="orders">
+                    我的订单
                   </el-dropdown-item>
                   <el-dropdown-item divided command="logout">
                     退出登录
@@ -69,10 +89,15 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useAuthStore } from '@/store/auth'
-import { useConfigStore } from '@/store/index'
-import { useRouter } from 'vue-router'
+import { useConfigStore, useUserStore } from '@/store/index'
+import { useRoute, useRouter } from 'vue-router'
+import messageApi from '@/api/message'
+import cartApi from '@/api/cart'
+
+/** 头部角标（未读私信、购物车件数）的刷新间隔：登录态变化与路由切换时也会立即刷新 */
+const BADGE_POLL_INTERVAL_MS = 30000
 
 export default {
   name: 'MainLayout',
@@ -80,7 +105,10 @@ export default {
     const authStore = useAuthStore()
     // 站点配置来自 config store（此前误用 user store，且缺少 import，会抛 ReferenceError 导致白屏）
     const configStore = useConfigStore()
+    // 未读私信数挂在 user store 上（auth store 只做登录态封装，没有这部分状态）
+    const userStore = useUserStore()
     const router = useRouter()
+    const route = useRoute()
 
     const config = computed(() => configStore.config)
     const isLoggedIn = computed(() => authStore.isLoggedIn)
@@ -89,6 +117,51 @@ export default {
     const isAdmin = computed(() => authStore.user?.isAdmin === true
       || authStore.user?.role === 'admin'
       || authStore.user?.role === 'super_admin')
+
+    // 头部角标：直接读 store（私信中心页/购物车页改动后会写入新值，角标即时更新）
+    const unreadCount = computed(() => userStore.unreadMessageCount)
+    const cartCount = computed(() => userStore.cartItemCount)
+    let badgeTimer = null
+
+    const loadBadges = async () => {
+      if (!authStore.isLoggedIn) {
+        userStore.setUnreadMessageCount(0)
+        userStore.setCartItemCount(0)
+        return
+      }
+      // 两个角标互不影响：任一个取不到就保留旧值，不因为一个失败让另一个也不更新
+      try {
+        userStore.setUnreadMessageCount(await messageApi.getUnreadCount())
+      } catch (error) {
+        console.error('获取未读私信数失败:', error)
+      }
+      try {
+        userStore.setCartItemCount(await cartApi.getCartCount())
+      } catch (error) {
+        console.error('获取购物车件数失败:', error)
+      }
+    }
+
+    onMounted(() => {
+      loadBadges()
+      badgeTimer = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          loadBadges()
+        }
+      }, BADGE_POLL_INTERVAL_MS)
+    })
+
+    onBeforeUnmount(() => {
+      if (badgeTimer) {
+        clearInterval(badgeTimer)
+        badgeTimer = null
+      }
+    })
+
+    // 路由切换时刷新一次：登录/退出登录与读过消息、改过购物车后角标都能及时跟上
+    watch(() => route.path, () => {
+      loadBadges()
+    })
 
     const handleLogout = () => {
       authStore.logout()
@@ -104,6 +177,9 @@ export default {
         case 'profile':
           router.push('/profile')
           break
+        case 'orders':
+          router.push('/orders')
+          break
         case 'logout':
           handleLogout()
           break
@@ -115,6 +191,8 @@ export default {
       isLoggedIn,
       user,
       isAdmin,
+      unreadCount,
+      cartCount,
       handleLogout,
       handleCommand
     }
@@ -157,6 +235,12 @@ export default {
 
 .nav-menu-inner {
   border-bottom: none;
+}
+
+/* 私信未读角标：往上抬一点，避免撑高横向菜单挤动布局 */
+.nav-badge {
+  margin-left: 6px;
+  margin-top: -8px;
 }
 
 .user-menu {
