@@ -14,10 +14,26 @@ echo ==================================================
 echo.
 
 echo [检查 1/3] 数据库与缓存服务...
-netstat -ano | findstr ":3306" >nul
-if errorlevel 1 (echo    [警告] MySQL 没在运行，请先启动 MySQL 服务) else (echo    MySQL 正常)
-netstat -ano | findstr ":6379" >nul
-if errorlevel 1 (echo    [警告] Redis 没在运行，请先启动 Redis) else (echo    Redis 正常)
+set "NEED_SERVICES="
+netstat -ano | findstr ":3306" | findstr "LISTENING" >nul
+if errorlevel 1 (set "NEED_SERVICES=1") else (echo    MySQL 正常)
+netstat -ano | findstr ":6379" | findstr "LISTENING" >nul
+if errorlevel 1 (set "NEED_SERVICES=1") else (echo    Redis 正常)
+
+if defined NEED_SERVICES (
+    if defined CHECKONLY (
+        echo    [警告] MySQL / Redis 没在运行（检查模式不自动启动）
+    ) else (
+        echo    MySQL / Redis 没在运行，正在自动启动依赖服务...
+        call "%ROOT%\scripts\start-dev-services.bat"
+        if errorlevel 1 (
+            echo.
+            echo    [错误] 依赖服务启动失败，请把上面的报错内容发给技术人员。
+            pause
+            exit /b 1
+        )
+    )
+)
 echo.
 
 echo [检查 2/3] 后端程序包...
@@ -61,7 +77,8 @@ echo     管理后台 http://localhost:3000/admin/login
 echo.
 echo  账号：admin / admin123        普通用户：testuser1 / 123456
 echo.
-echo  关闭项目：把弹出的两个黑窗口都关掉即可。
+echo  关闭项目：把弹出的所有黑窗口（后端、前端、MySQL、Redis）
+echo            都关掉即可；MySQL / Redis 窗口关掉就是停掉对应服务。
 echo ==================================================
 echo.
 pause

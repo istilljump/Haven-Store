@@ -113,10 +113,36 @@ def upload_png(path, token):
         return e.code, json.loads(e.read().decode("utf-8", "replace") or "{}")
 
 
+def upload_sized_png(path, token, size_bytes, filename="smoke-sized.png"):
+    """上传指定体积的伪 PNG，用于验证图片大小上限。
+
+    后端只按扩展名与体积判断，不解析图片内容，所以这里不必生成真实 PNG。
+    """
+    payload = b"\x89PNG\r\n\x1a\n" + b"\x00" * max(0, size_bytes - 8)
+    boundary = "----smokeboundary" + uuid.uuid4().hex
+    body = (
+        ("--" + boundary + "\r\n"
+         'Content-Disposition: form-data; name="file"; filename="' + filename + '"\r\n'
+         "Content-Type: image/png\r\n\r\n").encode("ascii")
+        + payload
+        + ("\r\n--" + boundary + "--\r\n").encode("ascii")
+    )
+    headers = {"Content-Type": "multipart/form-data; boundary=" + boundary}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    req = urllib.request.Request(BASE + path, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return resp.status, json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read().decode("utf-8", "replace") or "{}")
+
+
 # 测试数据的标题标记：脚本开头与结尾都会据此清理，保证可重复执行
 TEST_TITLE_MARKERS = ("冒烟商品", "扩展字段商品", "待删除商品", "UPLOAD-TEST",
                       "NO-COVER-ITEM", "DELETE-TEST", "VERIFY-ITEM",
-                      "评价测试商品", "多图测试商品", "单图兼容商品", "超限图片")
+                      "评价测试商品", "多图测试商品", "单图兼容商品", "超限图片",
+                      "冒烟购物车商品")
 
 
 def cleanup_test_products(token):
@@ -838,6 +864,262 @@ def main():
                         "productCondition": "全新", "tradeType": "线上",
                         "images": [img1] * 10}, token=admin_token)
         check("超过 9 张被拒", r, "最多上传 9 张图片")
+
+    # ---------- 26. 上传大小限制 ----------
+    section("26. 图片上传大小限制")
+    # 回归点：application.yml 漏配 spring.servlet.multipart 时，Spring 默认只放行 1MB，
+    # 超过 1MB 的图片会在进入 Controller 之前被拒，之前表现为"上传失败 + 系统内部错误"
+    _, r = upload_sized_png("/product/upload", me_token, 900 * 1024)
+    check("900KB 图片可上传", r, '"code":200')
+    _, r = upload_sized_png("/product/upload", me_token, 3 * 1024 * 1024)
+    check("3MB 图片可上传", r, '"code":200')
+    _, r = upload_sized_png("/product/upload", me_token, 6 * 1024 * 1024)
+    check("6MB 图片被拒并给出明确提示", r, "单张不能超过 5MB")
+
+    # ---------- 27. 私信与商品咨询 ----------
+    section("27. 私信与商品咨询")
+    _, _, r = call("GET", "/user/info", token=me_token)
+    me_id = ((r.get("data") or {}).get("id") if isinstance(r, dict) else None)
+    check("取得 testuser1 的用户ID", me_id, None)
+
+    _, _, r = call("POST", "/user/login", {"username": "testuser2", "password": "123456"})
+    peer_token = (r.get("data") or {}).get("token") if isinstance(r, dict) else None
+    peer_id = ((r.get("data") or {}).get("userId") if isinstance(r, dict) else None)
+    check("testuser2 登录成功", peer_token, None)
+
+    # 先清空这两个账号之间的历史会话（含普通私信与商品咨询两个会话），保证断言确定
+    call("DELETE", "/message/private/chat?peerId=%d" % peer_id, token=me_token)
+    call("DELETE", "/message/private/chat?peerId=%d&productId=1" % peer_id, token=me_token)
+    _, _, r = call("GET", "/message/private/conversations", token=me_token)
+    check("清理后会话列表为空", {"n": len(r.get("data") or [])}, '"n":0')
+
+    # 鉴权：私信接口不允许游客访问
+    _, _, r = call("GET", "/message/private/conversations")
+    check("未登录看会话列表被拒（401）", r, '"code":401')
+    _, _, r = call("POST", "/message/private/send", {"toUserId": peer_id, "content": "hi"})
+    check("未登录发私信被拒（401）", r, '"code":401')
+    _, _, r = call("GET", "/message/private/chat?peerId=%d" % peer_id)
+    check("未登录拉聊天记录被拒（401）", r, '"code":401')
+
+    # 参数校验
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": me_id, "content": "自己发自己"}, token=me_token)
+    check("不能给自己发私信", r, "不能给自己发私信")
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": 999999, "content": "你好"}, token=me_token)
+    check("接收者不存在被拒", r, "接收者不存在")
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "content": "   "}, token=me_token)
+    check("空白内容被拒（400）", r, '"code":400')
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "content": "x" * 501}, token=me_token)
+    check("超长内容被拒（400）", r, '"code":400')
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "productId": 999999, "content": "在吗"}, token=me_token)
+    check("咨询不存在的商品被拒", r, "咨询的商品不存在")
+    # 商品 1 由 testuser1 发布，自己不能咨询自己的商品
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "productId": 1, "content": "咨询"}, token=me_token)
+    check("不能咨询自己发布的商品", r, "不能咨询自己发布的商品")
+
+    # 普通私信：不带商品上下文
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "content": "冒烟私信内容"}, token=me_token)
+    check("发送普通私信", r, '"code":200')
+    _, _, r = call("GET", "/message/private/unread/count", token=peer_token)
+    check("接收方未读数为 1", {"n": (r.get("data") if isinstance(r, dict) else None)}, '"n":1')
+
+    _, _, r = call("GET", "/message/private/conversations", token=me_token)
+    check("会话列表含对方昵称", r, '"peerName"')
+    first_conv = (r.get("data") or [{}])[0] if isinstance(r, dict) else {}
+    check("普通私信会话 productId 为空", {"productId": first_conv.get("productId")},
+          '"productId":null')
+    check("发送方自己未读数为 0", {"unread": first_conv.get("unreadCount")}, '"unread":0')
+
+    _, _, r = call("GET", "/message/private/chat?peerId=%d" % me_id, token=peer_token)
+    check("接收方拉到聊天记录", r, "冒烟私信内容")
+    check("他人消息 self 为 false", r, '"self":false')
+    _, _, r = call("GET", "/message/private/unread/count", token=peer_token)
+    check("读过之后未读数归零", {"n": (r.get("data") if isinstance(r, dict) else None)}, '"n":0')
+
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": me_id, "content": "冒烟私信回复"}, token=peer_token)
+    check("接收方回复成功", r, '"code":200')
+    _, _, r = call("GET", "/message/private/chat?peerId=%d" % peer_id, token=me_token)
+    check("会话累计 2 条", {"n": len(r.get("data") or [])}, '"n":2')
+    check("自己的消息 self 为 true", r, '"self":true')
+
+    # 商品咨询：同一对用户、不同商品，应与上面的普通私信分成两个会话
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": me_id, "productId": 1, "content": "冒烟咨询内容"},
+                   token=peer_token)
+    check("发起商品咨询", r, '"code":200')
+    _, _, r = call("GET", "/message/private/conversations", token=peer_token)
+    check("同一对用户分成两个会话（普通私信 + 咨询）",
+          {"n": len(r.get("data") or [])}, '"n":2')
+    check("咨询会话带回商品标题", r, "二手iPhone 12")
+    _, _, r = call("GET", "/message/private/chat?peerId=%d&productId=1" % me_id,
+                   token=peer_token)
+    check("按商品拉咨询记录", r, "冒烟咨询内容")
+    _, _, r = call("GET", "/message/private/chat?peerId=%d" % me_id, token=peer_token)
+    check("不带商品ID拉不到咨询消息", r, "冒烟私信内容")
+
+    # 删除会话：双向删除，且只删掉被指定的那个会话
+    _, _, r = call("DELETE", "/message/private/chat?peerId=%d&productId=1" % me_id,
+                   token=peer_token)
+    check("删除咨询会话", r, '"code":200')
+    _, _, r = call("GET", "/message/private/conversations", token=me_token)
+    check("咨询会话删除后对方也看不到", {"n": len(r.get("data") or [])}, '"n":1')
+    check("普通私信会话未被误删", r, "冒烟私信回复")
+
+    # 收尾：清空本次测试留下的会话，保证脚本可重复执行
+    call("DELETE", "/message/private/chat?peerId=%d" % peer_id, token=me_token)
+    _, _, r = call("GET", "/message/private/conversations", token=me_token)
+    check("测试会话已清理干净", {"n": len(r.get("data") or [])}, '"n":0')
+
+    # ---------- 28. 购物车 ----------
+    section("28. 购物车")
+    cart_pids = []
+    for suffix in ("A", "B"):
+        _, _, r = call("POST", "/product/add",
+                       {"title": "冒烟购物车商品" + suffix, "description": "购物车与订单链路验证用",
+                        "categoryId": 1, "price": 100.00, "productCondition": "全新",
+                        "tradeType": "线上"}, token=me_token)
+        cart_pids.append((r.get("data") or {}).get("productId"))
+    pid_a, pid_b = cart_pids
+    check("创建购物车测试商品 A", pid_a, None)
+    check("创建购物车测试商品 B", pid_b, None)
+
+    # 鉴权：购物车相关接口都不允许游客访问
+    _, _, r = call("GET", "/cart/list")
+    check("未登录看购物车被拒（401）", r, '"code":401')
+    _, _, r = call("POST", "/cart/%d" % pid_a)
+    check("未登录加入购物车被拒（401）", r, '"code":401')
+
+    _, _, r = call("POST", "/cart/%d" % pid_a, token=me_token)
+    check("加购自己发布的商品被拒", r, "不能把自己发布的商品加入购物车")
+    _, _, r = call("POST", "/cart/999999", token=peer_token)
+    check("加购不存在的商品被拒", r, "商品不存在或已被删除")
+
+    _, _, r = call("POST", "/cart/%d" % pid_a, token=peer_token)
+    check("加入购物车成功（新加入返回 true）", r, '"data":true')
+    _, _, r = call("POST", "/cart/%d" % pid_a, token=peer_token)
+    check("重复加入返回 false 且不报错（幂等）", r, '"data":false')
+
+    _, _, r = call("GET", "/cart/count", token=peer_token)
+    check("购物车件数为 1", r, '"data":1')
+    _, _, r = call("GET", "/cart/list", token=peer_token)
+    check("购物车带回商品标题", r, "冒烟购物车商品A")
+    check("购物车带回卖家昵称", r, '"sellerName":"测试用户1"')
+    check("在售商品标记为可结算", r, '"available":true')
+
+    _, _, r = call("POST", "/cart/%d/move-to-favorite" % pid_a, token=peer_token)
+    check("购物车移入收藏", r, '"code":200')
+    _, _, r = call("GET", "/cart/list", token=peer_token)
+    check("移入收藏后购物车为空", {"n": len(r.get("data") or [])}, '"n":0')
+    _, _, r = call("GET", "/product/favorites?page=1&pageSize=50", token=peer_token)
+    check("收藏里能看到该商品", r, "冒烟购物车商品A")
+
+    _, _, r = call("POST", "/cart/favorites/add-all", token=peer_token)
+    check("收藏批量加入购物车", r, '"code":200')
+    _, _, r = call("GET", "/cart/list", token=peer_token)
+    check("批量加入后购物车里有该商品", r, "冒烟购物车商品A")
+
+    # ---------- 29. 订单与模拟支付 ----------
+    section("29. 订单与模拟支付")
+    _, _, r = call("POST", "/order/create", {"productIds": []})
+    check("未登录下单被拒（401）", r, '"code":401')
+    _, _, r = call("POST", "/order/create", {"productIds": []}, token=peer_token)
+    check("空商品列表被参数校验拦下（400）", r, '"code":400')
+    _, _, r = call("POST", "/order/create", {"productIds": [pid_a]}, token=me_token)
+    check("购买自己发布的商品被拒", r, "是你自己发布的商品，不能购买")
+    _, _, r = call("POST", "/order/create", {"productIds": [999999]}, token=peer_token)
+    check("购买不存在的商品被拒", r, "部分商品已不存在")
+
+    _, _, r = call("POST", "/order/create",
+                   {"productIds": [pid_a], "remark": "冒烟测试留言"}, token=peer_token)
+    check("下单成功", r, '"code":200')
+    order_no = ((r.get("data") or {}).get("orderNo") if isinstance(r, dict) else None)
+    check("订单号以 HM 开头", order_no, None)
+    check("初始状态为待支付", r, '"status":1')
+    # 金额比较用数值而不是字符串：BigDecimal 序列化后 100.00 会写成 100.0
+    check("订单金额等于商品价格",
+          {"v": float((r.get("data") or {}).get("totalAmount"))}, '"v":100.0')
+    check("买家昵称已回填", r, '"buyerName":"测试用户2"')
+    check("订单明细为下单时的标题快照", r, "冒烟购物车商品A")
+    check("买家留言已保存", r, "冒烟测试留言")
+
+    _, _, r = call("GET", "/product/detail/%d" % pid_a)
+    check("下单后商品被锁定为已售出", r, '"status":2')
+    _, _, r = call("GET", "/cart/list", token=peer_token)
+    check("已下单商品自动移出购物车", {"n": len(r.get("data") or [])}, '"n":0')
+
+    _, _, r = call("POST", "/order/create", {"productIds": [pid_a]}, token=peer_token)
+    check("已售出商品无法再次下单", r, "已售出")
+    _, _, r = call("POST", "/cart/%d" % pid_a, token=peer_token)
+    check("已售出商品无法加入购物车", r, "无法加入购物车")
+
+    _, _, r = call("GET", "/order/list?page=1&pageSize=50", token=peer_token)
+    check("我的订单里能查到该订单", r, order_no)
+    _, _, r = call("GET", "/order/list?status=1&page=1&pageSize=50", token=peer_token)
+    check("可按待支付筛选到它", r, order_no)
+    _, _, r = call("GET", "/order/sold?page=1&pageSize=50", token=me_token)
+    check("卖家视角能看到这笔订单", r, order_no)
+    check("卖家视角带回买家昵称", r, '"buyerName":"测试用户2"')
+
+    _, _, r = call("POST", "/order/%s/pay" % order_no, token=me_token)
+    check("他人不能支付我的订单（403）", r, '"code":403')
+    _, _, r = call("POST", "/order/HM000000000000000000/pay", token=peer_token)
+    check("订单不存在被拒", r, "订单不存在")
+    _, _, r = call("POST", "/order/%s/pay" % order_no, token=peer_token)
+    check("模拟支付成功", r, '"code":200')
+    _, _, r = call("POST", "/order/%s/pay" % order_no, token=peer_token)
+    check("重复支付被拒", r, "不能支付")
+    _, _, r = call("GET", "/order/%s" % order_no, token=peer_token)
+    check("支付后状态为已支付并记录支付时间", r, '"status":2')
+    check("支付时间已写入", r, '"payTime"')
+    _, _, r = call("GET", "/order/%s" % order_no, token=me_token)
+    check("他人不能查看我的订单（403）", r, '"code":403')
+
+    _, _, r = call("POST", "/order/%s/confirm" % order_no, token=peer_token)
+    check("确认收货成功", r, '"code":200')
+    _, _, r = call("GET", "/order/%s" % order_no, token=peer_token)
+    check("确认后状态为已完成", r, '"statusDesc":"已完成"')
+    _, _, r = call("POST", "/order/%s/confirm" % order_no, token=peer_token)
+    check("已完成订单不能重复确认", r, "只有已支付")
+
+    # 取消订单：商品应释放回在售
+    _, _, r = call("POST", "/order/create", {"productIds": [pid_b]}, token=peer_token)
+    cancel_no = ((r.get("data") or {}).get("orderNo") if isinstance(r, dict) else None)
+    check("用商品 B 下单", cancel_no, None)
+    _, _, r = call("GET", "/product/detail/%d" % pid_b)
+    check("下单后 B 被锁定为已售出", r, '"status":2')
+    _, _, r = call("POST", "/order/%s/cancel" % cancel_no, token=peer_token)
+    check("取消订单成功", r, '"code":200')
+    _, _, r = call("GET", "/product/detail/%d" % pid_b)
+    check("取消后 B 回到在售", r, '"status":1')
+    _, _, r = call("GET", "/order/%s" % cancel_no, token=peer_token)
+    check("订单状态为已取消并记录取消时间", r, '"statusDesc":"已取消"')
+    check("取消时间已写入", r, '"cancelTime"')
+    _, _, r = call("POST", "/order/%s/pay" % cancel_no, token=peer_token)
+    check("已取消订单不能支付", r, "不能支付")
+    _, _, r = call("POST", "/order/%s/cancel" % cancel_no, token=peer_token)
+    check("已取消订单不能重复取消", r, "不能取消")
+
+    # 商品删除后订单快照仍然完整（订单明细存的是下单时的标题与封面）
+    _, _, r = call("POST", "/order/create", {"productIds": [pid_b]}, token=peer_token)
+    snap_no = ((r.get("data") or {}).get("orderNo") if isinstance(r, dict) else None)
+    call("POST", "/order/%s/pay" % snap_no, token=peer_token)
+    _, _, r = call("DELETE", "/admin/products/%d" % pid_b, token=admin_token)
+    check("管理员删除商品 B", r, '"code":200')
+    _, _, r = call("GET", "/order/%s" % snap_no, token=peer_token)
+    check("商品删除后订单标题快照仍在", r, "冒烟购物车商品B")
+    check("订单明细标记商品已被删除", r, '"productDeleted":true')
+    # 说明：订单没有删除接口，这里不清理订单记录；订单明细存的是快照，
+    #       商品被删除也不影响历史订单展示，重复执行不会产生错误数据
+
+    # 收尾：把购物车测试商品 A 也删掉，避免残留（B 已在上一步删除）
+    call("DELETE", "/admin/products/%d" % pid_a, token=admin_token)
 
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)

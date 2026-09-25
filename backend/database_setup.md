@@ -4,7 +4,7 @@
 
 ## 唯一正确的建表脚本
 
-**`backend/scripts/01-schema.sql`**（6 张表 + 种子数据）
+**`backend/scripts/01-schema.sql`**（10 张表 + 种子数据）
 
 > 历史遗留的 `backend/legacy/init.sql` 与 `backend/legacy/init_database.sql` **请勿使用**：
 > 前者建的是 `message` 表（字段为 `from_user_id`/`to_user_id`），
@@ -34,7 +34,7 @@ mysql -uroot -p < backend/scripts/01-schema.sql
 
 脚本会创建数据库 `secondhand_market`（**注意不是 `second_hand_market`**，
 名称必须与 `backend/src/main/resources/application.yml` 的 JDBC URL 一致），
-建 6 张表并写入种子数据。
+建 10 张表并写入种子数据。
 
 > 脚本开头是 `DROP TABLE IF EXISTS`，重复执行会**清空表内数据**，请勿在生产库执行。
 

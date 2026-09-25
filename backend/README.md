@@ -14,7 +14,7 @@
 
 ## 快速启动
 
-1. 初始化数据库：执行 `scripts/01-schema.sql`，它会建库 `secondhand_market`、建 6 张表（`user`、`category`、`product`、`system_message`、`user_product_relation`、`comment`）并写入种子数据；
+1. 初始化数据库：执行 `scripts/01-schema.sql`，它会建库 `secondhand_market`、建 10 张表（`user`、`category`、`product`、`product_image`、`system_message`、`user_product_relation`、`comment`、`private_message`、`product_order`、`order_item`）并写入种子数据；
 2. 修改 `src/main/resources/application.yml` 中的 MySQL 账号密码、Redis 地址为本机环境；
 3. 启动应用：运行 `SecondHandMarketApplication` 主类，或执行 `mvn spring-boot:run`；
 4. 打开接口文档：<http://localhost:8080/api/doc.html>。

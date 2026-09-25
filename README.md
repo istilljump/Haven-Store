@@ -1,6 +1,6 @@
 # 二手商品交易市场
 
-基于Spring Boot + Vue.js的全栈二手交易平台，支持商品发布、附近商品搜索、AI智能估价、系统消息等功能。
+基于Spring Boot + Vue.js的全栈二手交易平台，支持商品发布、附近商品搜索、AI智能估价、商品评价、收藏与购物车、下单支付、私信与商品咨询、系统消息等功能。
 
 ## 🚀 快速开始
 
@@ -47,15 +47,24 @@ chmod +x scripts/deploy.sh
 
 #### Windows 一键启动（推荐给不熟悉命令行的同学）
 
-`scripts/` 目录下提供了三个双击即可运行的脚本（已按 GBK 编码，中文显示正常）：
+`scripts/` 目录下提供了四个双击即可运行的脚本（已按 GBK 编码，中文显示正常）：
 
 | 脚本 | 用途 |
 |---|---|
-| `scripts/start-project.bat` | 一键启动：检查 MySQL/Redis → 起后端 → 起前端。之后浏览器打开 http://localhost:3000 |
+| `scripts/start-project.bat` | 一键启动：检查 MySQL/Redis（没运行会自动拉起）→ 起后端 → 起前端。之后浏览器打开 http://localhost:3000 |
+| `scripts/start-dev-services.bat` | 单独启动本机 MySQL 与 Redis（start-project.bat 会自动调用，也可单独双击） |
 | `scripts/rebuild-backend.bat` | 改过 Java 代码后重新编译打包（本机专用路径） |
 | `scripts/init-database.bat` | 初始化/重置数据库（会清空数据，慎用） |
 
-> 关掉项目：把弹出的两个黑窗口都关掉即可。窗口在运行期间**不要关闭**。
+> 关掉项目：把弹出的所有黑窗口（后端、前端、MySQL、Redis）都关掉即可。
+> 窗口在运行期间**不要关闭**；MySQL / Redis 的窗口关掉就等于停掉对应服务。
+
+> **关于 MySQL 的启动方式**：本机 MySQL 是以 Windows 服务（服务名 `MySQL80`）方式安装的，
+> 且启动类型是「手动」，不会开机自启。若你的账号有管理员权限，用管理员身份执行
+> `net start MySQL80` 即可；若没有（`net start` 报「拒绝访问」），
+> 双击 `scripts/start-dev-services.bat`——它会在**不需要管理员权限**的前提下，
+> 用已安装的 `mysqld.exe` 加一个独立数据目录（`.tools\mysql-data`，已加入 .gitignore）
+> 把 MySQL 跑起来，首次运行会自动建库并导入种子数据。
 
 #### 前置：初始化数据库
 
@@ -69,7 +78,7 @@ mysql -uroot -p < backend/scripts/01-schema.sql
 > 改用完整路径即可（或直接双击 `scripts/init-database.bat`）：
 > `"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p < backend\scripts\01-schema.sql`
 >
-> 脚本会创建数据库 `secondhand_market`（6 张表 + 种子数据），并写入默认账号：
+> 脚本会创建数据库 `secondhand_market`（10 张表 + 种子数据），并写入默认账号：
 > `admin/admin123`（管理员）、`testuser1/123456`、`testuser2/123456`。
 > 库名必须与 `application.yml` 中的 JDBC URL 一致。
 
@@ -133,6 +142,87 @@ http://localhost:8080/api/doc.html
 # 健康检查
 curl http://localhost:8080/api/health
 ```
+
+## 🛒 购物车与订单
+
+### 通行的设计：收藏与购物车是同一张表
+
+两者都落在 `user_product_relation` 表（`relation_type` 分别是 `collect` 与 `cart`），
+所以「购物车 ↔ 收藏」的互转就是删一条关系再加一条，不需要两套表两套接口。
+购物车页因此做成双 Tab：**购物车** 与 **我的收藏**，任意一边都能一键移到另一边，
+「全部加入购物车」也会分别告诉你成功几件、因已售出/已下架跳过几件。
+
+二手商品都是单件，购物车**不做数量加减**，一件商品就是一条记录
+（`(user_id, product_id, relation_type)` 唯一索引天然防重，重复加购不报错）。
+
+### 下单与支付
+
+订单生命周期：**待支付 → 已支付 → 已完成**，待支付可取消。
+
+- **下单即锁定商品**：创建订单时把商品置为「已售出」，并采用
+  `UPDATE ... WHERE status = 1` 的条件更新——更新影响行数为 0 说明刚被别人买走，
+  整个下单事务回滚并明确提示。这样同一件二手商品不会被两个人买走。
+- **取消即释放**：取消待支付订单时把商品恢复为「在售」（只恢复仍处于「已售出」的，
+  不会覆盖卖家的下架操作）。
+- **订单明细存快照**：`order_item` 保存下单时的标题、封面与成交价，
+  商品之后被改价、改名、甚至删除，历史订单展示的仍是当时的成交信息。
+- ⚠️ **支付是模拟支付**：项目**未接入任何真实支付渠道**，点「去支付」只推进订单状态、
+  写入支付时间，**不产生任何真实扣款**。界面与接口文档都做了明确标注，
+  接入真实支付需要另外对接支付网关。
+- 买卖双方都能看到订单：买家在「我的订单 → 我买到的」，卖家切到「我卖出的」
+  可以看到包含自己商品的订单与买家昵称。
+
+主要接口（全部需要登录，归属取自登录态）：
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/cart/{productId}` | 加入购物车（幂等，返回 false 表示已在购物车中） |
+| DELETE | `/cart/{productId}` | 移出购物车 |
+| GET | `/cart/list` | 购物车列表（含是否可结算与不可结算原因） |
+| GET | `/cart/count` | 购物车件数（头部角标） |
+| POST | `/cart/{productId}/move-to-favorite` | 移入收藏 |
+| POST | `/cart/favorites/add-all` | 收藏批量加入购物车 |
+| POST | `/order/create` | 用勾选的商品下单（支持买家留言） |
+| GET | `/order/list?status=` | 我的订单（买家视角，可按状态筛选） |
+| GET | `/order/sold` | 我卖出的（卖家视角） |
+| GET | `/order/{orderNo}` | 订单详情（仅买家本人可见） |
+| POST | `/order/{orderNo}/pay` | 支付订单（**模拟**） |
+| POST | `/order/{orderNo}/cancel` | 取消订单（商品回到在售） |
+| POST | `/order/{orderNo}/confirm` | 确认收货 |
+
+### 失效商品的处理
+
+购物车里的商品可能在加购之后被下架、被别人买走，甚至是自己发布的。
+这些条目不会等到点结算才报错：列表里就置灰并写明原因（「商品已售出」「这是你自己发布的商品」
+「商品已被删除」），复选框自动禁用，并提供「清理失效商品」一键清掉。
+收藏列表同理，失效的收藏会禁用「加入购物车」。
+
+## 💬 私信与商品咨询
+
+两者是同一条消息链路的两种用法，共用 `private_message` 一张表：
+
+| 能力 | 入口 | 是否带商品上下文 |
+|---|---|---|
+| **商品咨询** | 商品详情页「我要购买」 | 带，会话里会显示被咨询的商品 |
+| **私信** | 商品详情页「私信联系」、头部「私信」菜单 | 不带，纯用户间私聊 |
+
+- **会话归属**：会话键由「双方用户 ID 排序后拼接 + 商品 ID」生成，因此
+  「a 找 b 问商品 1」「b 找 a 问商品 1」「a 和 b 的普通私聊」是三个互不混淆的会话；
+  也正因为只有会话双方能算出同一个键，天然杜绝越权读取他人会话。
+- **消息中心**：头部「私信」菜单带未读角标，点进去是「左侧会话列表 + 右侧聊天窗口」。
+  打开某个会话即把对方发来的消息标记为已读（同时刷新角标）。
+- **实时性**：项目未引入 WebSocket，聊天页与角标用轮询刷新（聊天页 10 秒、角标 30 秒），
+  发消息与读消息是即时的；需要真正推送时可在此基础上替换为 SSE 或 WebSocket。
+
+主要接口（全部需要登录，请求方身份取自登录态，不接受前端传入的发送者 ID）：
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/message/private/send` | 发送私信/咨询，带 `productId` 即为咨询 |
+| GET | `/message/private/conversations` | 会话列表（对方昵称头像、关联商品、未读条数） |
+| GET | `/message/private/chat?peerId=&productId=` | 聊天记录，顺带标记已读 |
+| GET | `/message/private/unread/count` | 未读总数（头部角标） |
+| DELETE | `/message/private/chat?peerId=&productId=` | 删除会话（双方均不再可见） |
 
 ## 📊 压力测试
 
@@ -298,6 +388,31 @@ jwt:
 MIT License
 
 ## 🆘 常见问题
+
+### 0. 页面弹「系统内部错误」（接口返回 `code: 501`）
+
+含义：后端抛了未预期的异常，最常见的原因就是**连不上数据库**——MySQL 没启动，
+所有读写库的接口（登录、商品列表、分类等）都会返回 501，而 `/api/health` 仍然正常。
+因为健康检查不查库，很容易误判成「后端没问题」。
+
+排查与修复：
+
+```bash
+# 1. 看两个依赖端口在不在监听（没有输出就是没起来）
+netstat -ano | findstr ":3306"   # MySQL
+netstat -ano | findstr ":6379"   # Redis
+
+# 2. 起依赖服务（无需管理员权限）
+scripts\start-dev-services.bat
+
+# 3. 验证（应返回 {"code":200,...}）
+curl http://localhost:8080/api/health
+curl -X POST http://localhost:8080/api/user/login -H "Content-Type: application/json" -d "{\"username\":\"testuser1\",\"password\":\"123456\"}"
+```
+
+MySQL 起来后后端会自动重连，**不需要重启 jar**。
+若接口改报 500 且提示 `Table 'secondhand_market.user' doesn't exist`，说明库没建，
+再执行一次 `scripts\init-database.bat`（或直接跑 `scripts\start-dev-services.bat`，它会自动建库）。
 
 ### 1. 端口冲突
 - 修改 `docker-compose.yml` 中的端口映射
