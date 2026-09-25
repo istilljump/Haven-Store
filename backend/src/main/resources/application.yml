@@ -17,18 +17,21 @@ spring:
   application:
     name: second-hand-market
   # MySQL 8.0 数据源配置
+  # 说明：以下 ${VAR:默认值} 的写法表示「优先读环境变量，读不到才用冒号后的默认值」。
+  #      默认值只为本机开发方便（README 与建表脚本都按 root/1234 描述），
+  #      部署到公网/服务器时必须用环境变量覆盖，否则等于把数据库口令写在了仓库里
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 连接串说明：utf8mb4 字符集（Connector/J 8 自动协商为 utf8mb4）、关闭 SSL、时区 Asia/Shanghai
-    url: jdbc:mysql://localhost:3306/secondhand_market?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    # 数据库账号（请按本地环境修改）
-    username: root
-    # 数据库密码（请按本地环境修改）
-    password: 1234
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:secondhand_market}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    # 数据库账号
+    username: ${DB_USERNAME:root}
+    # 数据库密码
+    password: ${DB_PASSWORD:1234}
   # Redis 单机配置
   redis:
-    host: localhost
-    port: 6379
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
     # 使用 0 号数据库
     database: 0
     # 连接超时时间：5 秒
@@ -72,10 +75,12 @@ mybatis-plus:
 jwt:
   # 存放 Token 的请求头名称
   header: Authorization
-  # 签名密钥（HS256 算法要求不少于 32 字节；生产环境请通过环境变量注入并定期更换）
-  secret: SecondHandMarket@Jwt$Secret$Key$2026$Competition
+  # 签名密钥（HS256 算法要求不少于 32 字节）
+  # 安全提示：默认值等同于公开密钥——拿到它就能伪造任意用户的 Token。
+  #         部署到公网前必须用环境变量 JWT_SECRET 覆盖，并定期更换。
+  secret: "${JWT_SECRET:SecondHandMarket@Jwt$Secret$Key$2026$Competition}"
   # Token 有效期：7 天（单位毫秒）
-  expiration: 604800000
+  expiration: ${JWT_EXPIRATION:604800000}
   # 公开路径：允许游客访问；携带有效 Token 时仍会解析登录态
   # 说明：这里写成逗号分隔的单行字符串——@Value 无法绑定 YAML 列表（列表会展开成
   #      public-paths[0] 这类键名，导致读到空值），逗号分隔由 Spring 自动转成数组

@@ -309,16 +309,51 @@ Haven-Store/
 
 ## 🛠️ 配置说明
 
+`application.yml` 里凡是带 `${VAR:默认值}` 的配置项，都支持**环境变量注入**：
+优先读环境变量，读不到才用冒号后的默认值。默认值是为本机开发提供的，
+克隆下来不改任何配置就能直接跑（与下面的建表脚本、启动脚本保持一致）。
+
+> ⚠️ **部署到公网/服务器前，必须用环境变量覆盖下表中的敏感项。**
+> 否则仓库里的默认 JWT 密钥等同于公开密钥——拿到它就能伪造任意用户的 Token。
+
+| 环境变量 | 默认值 | 说明 |
+|---|---|---|
+| `DB_HOST` | `localhost` | MySQL 主机 |
+| `DB_PORT` | `3306` | MySQL 端口 |
+| `DB_NAME` | `secondhand_market` | 数据库名 |
+| `DB_USERNAME` | `root` | 数据库账号 |
+| `DB_PASSWORD` | `1234` | **数据库密码（部署必改）** |
+| `REDIS_HOST` | `localhost` | Redis 主机 |
+| `REDIS_PORT` | `6379` | Redis 端口 |
+| `JWT_SECRET` | 内置默认串 | **Token 签名密钥（部署必改，HS256 要求 ≥ 32 字节）** |
+| `JWT_EXPIRATION` | `604800000` | Token 有效期，毫秒（默认 7 天） |
+
+用法示例：
+
+```bash
+# Linux / Mac
+export DB_PASSWORD='your-strong-password'
+export JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
+java -jar backend/target/second-hand-market-1.0.0.jar
+
+# Windows PowerShell
+$env:DB_PASSWORD='your-strong-password'
+$env:JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
+java -jar backend\target\second-hand-market-1.0.0.jar
+
+# Docker Compose：docker-compose.yml 的 backend.environment 里同样支持这些变量
+```
+
 ### 数据库配置
 
-在 `backend/src/main/resources/application.yml` 中修改：
+对应的配置项（`backend/src/main/resources/application.yml`）：
 
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/secondhand_market
-    username: root
-    password: your_password
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:secondhand_market}?...
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
 ```
 
@@ -327,8 +362,8 @@ spring:
 ```yaml
 spring:
   redis:
-    host: localhost
-    port: 6379
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
     database: 0
     password: # 如果设置了密码
 ```
@@ -337,13 +372,14 @@ spring:
 
 ```yaml
 jwt:
-  secret: your-secret-key
-  expiration: 86400000 # 24小时
+  secret: "${JWT_SECRET:内置默认串}"
+  expiration: ${JWT_EXPIRATION:604800000} # 默认 7 天
 ```
 
 ## 🚨 注意事项
 
 1. **安全配置**
+   - 部署前用环境变量覆盖 `DB_PASSWORD` 与 `JWT_SECRET`（见上表）
    - 生产环境请修改默认密码
    - 配置HTTPS证书
    - 设置强密码策略

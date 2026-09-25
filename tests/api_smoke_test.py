@@ -181,6 +181,22 @@ def section(title):
     print("\n===== " + title + " =====")
 
 
+def conversation_keys(payload):
+    """把会话列表响应转成 {(对方用户ID, 商品ID)} 集合。
+
+    断言只针对本脚本自己造出来的会话：会话说到底是用户数据，
+    手工用过的账号里本来就可能有会话，不能假设列表是空的。
+    """
+    data = payload.get("data") if isinstance(payload, dict) else None
+    return set((item.get("peerId"), item.get("productId")) for item in (data or []))
+
+
+def cart_product_ids(payload):
+    """把购物车列表响应转成 {商品ID} 集合（同理，不能假设购物车恰好只有测试商品）"""
+    data = payload.get("data") if isinstance(payload, dict) else None
+    return set(item.get("productId") for item in (data or []))
+
+
 def main():
     # ---------- 1. 健康检查 ----------
     section("1. 健康检查")
@@ -887,11 +903,15 @@ def main():
     peer_id = ((r.get("data") or {}).get("userId") if isinstance(r, dict) else None)
     check("testuser2 登录成功", peer_token, None)
 
-    # 先清空这两个账号之间的历史会话（含普通私信与商品咨询两个会话），保证断言确定
+    # 先清掉本脚本自己要用的两个会话（与 testuser2 的普通私信、以及针对商品 1 的咨询），
+    # 断言随后只针对这两个会话，不去假设账号里没有别人手工产生的会话
     call("DELETE", "/message/private/chat?peerId=%d" % peer_id, token=me_token)
     call("DELETE", "/message/private/chat?peerId=%d&productId=1" % peer_id, token=me_token)
     _, _, r = call("GET", "/message/private/conversations", token=me_token)
-    check("清理后会话列表为空", {"n": len(r.get("data") or [])}, '"n":0')
+    _keys = conversation_keys(r)
+    check("清理后本脚本要用的两个会话均不存在",
+          {"plain": (peer_id, None) in _keys, "consult": (peer_id, 1) in _keys},
+          '{"plain":false,"consult":false}')
 
     # 鉴权：私信接口不允许游客访问
     _, _, r = call("GET", "/message/private/conversations")
@@ -955,8 +975,10 @@ def main():
                    token=peer_token)
     check("发起商品咨询", r, '"code":200')
     _, _, r = call("GET", "/message/private/conversations", token=peer_token)
-    check("同一对用户分成两个会话（普通私信 + 咨询）",
-          {"n": len(r.get("data") or [])}, '"n":2')
+    _keys = conversation_keys(r)
+    check("同一对用户拆成普通私信与咨询两个会话",
+          {"plain": (me_id, None) in _keys, "consult": (me_id, 1) in _keys},
+          '{"plain":true,"consult":true}')
     check("咨询会话带回商品标题", r, "二手iPhone 12")
     _, _, r = call("GET", "/message/private/chat?peerId=%d&productId=1" % me_id,
                    token=peer_token)
@@ -969,13 +991,17 @@ def main():
                    token=peer_token)
     check("删除咨询会话", r, '"code":200')
     _, _, r = call("GET", "/message/private/conversations", token=me_token)
-    check("咨询会话删除后对方也看不到", {"n": len(r.get("data") or [])}, '"n":1')
+    _keys = conversation_keys(r)
+    check("咨询会话删除后对方也看不到了", {"consult": (peer_id, 1) in _keys}, '{"consult":false}')
     check("普通私信会话未被误删", r, "冒烟私信回复")
 
     # 收尾：清空本次测试留下的会话，保证脚本可重复执行
     call("DELETE", "/message/private/chat?peerId=%d" % peer_id, token=me_token)
     _, _, r = call("GET", "/message/private/conversations", token=me_token)
-    check("测试会话已清理干净", {"n": len(r.get("data") or [])}, '"n":0')
+    _keys = conversation_keys(r)
+    check("测试会话已清理干净",
+          {"plain": (peer_id, None) in _keys, "consult": (peer_id, 1) in _keys},
+          '{"plain":false,"consult":false}')
 
     # ---------- 28. 购物车 ----------
     section("28. 购物车")
@@ -1007,8 +1033,11 @@ def main():
     check("重复加入返回 false 且不报错（幂等）", r, '"data":false')
 
     _, _, r = call("GET", "/cart/count", token=peer_token)
-    check("购物车件数为 1", r, '"data":1')
+    _count = r.get("data") if isinstance(r, dict) else None
+    check("购物车件数接口返回正整数", {"positive": isinstance(_count, int) and _count >= 1},
+          '"positive":true')
     _, _, r = call("GET", "/cart/list", token=peer_token)
+    check("购物车里有该商品", {"has": pid_a in cart_product_ids(r)}, '{"has":true}')
     check("购物车带回商品标题", r, "冒烟购物车商品A")
     check("购物车带回卖家昵称", r, '"sellerName":"测试用户1"')
     check("在售商品标记为可结算", r, '"available":true')
@@ -1016,7 +1045,7 @@ def main():
     _, _, r = call("POST", "/cart/%d/move-to-favorite" % pid_a, token=peer_token)
     check("购物车移入收藏", r, '"code":200')
     _, _, r = call("GET", "/cart/list", token=peer_token)
-    check("移入收藏后购物车为空", {"n": len(r.get("data") or [])}, '"n":0')
+    check("移入收藏后该商品已不在购物车", {"has": pid_a in cart_product_ids(r)}, '{"has":false}')
     _, _, r = call("GET", "/product/favorites?page=1&pageSize=50", token=peer_token)
     check("收藏里能看到该商品", r, "冒烟购物车商品A")
 
@@ -1052,7 +1081,7 @@ def main():
     _, _, r = call("GET", "/product/detail/%d" % pid_a)
     check("下单后商品被锁定为已售出", r, '"status":2')
     _, _, r = call("GET", "/cart/list", token=peer_token)
-    check("已下单商品自动移出购物车", {"n": len(r.get("data") or [])}, '"n":0')
+    check("已下单商品已从购物车移除", {"has": pid_a in cart_product_ids(r)}, '{"has":false}')
 
     _, _, r = call("POST", "/order/create", {"productIds": [pid_a]}, token=peer_token)
     check("已售出商品无法再次下单", r, "已售出")
