@@ -6,6 +6,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
@@ -65,6 +66,21 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("；"));
         log.warn("方法参数校验失败：{}", errorMsg);
         return Result.fail(ResultCodeEnum.PARAM_ERROR.getCode(), errorMsg);
+    }
+
+    /**
+     * 处理上传文件超过大小限制异常
+     * <p>
+     * 该异常由 Spring 在进入 Controller 之前抛出，若不单独处理会被兜底成
+     * 501「系统内部错误」，前端只能提示一句无从下手的"上传失败"
+     *
+     * @param e 文件超限异常
+     * @return 统一返回结果（400，提示单张图片的大小上限）
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result<Void> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("上传文件超过大小限制：{}", e.getMessage());
+        return Result.fail(ResultCodeEnum.PARAM_ERROR.getCode(), "图片大小超过限制，单张不能超过 5MB");
     }
 
     /**

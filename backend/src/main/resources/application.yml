@@ -33,6 +33,14 @@ spring:
     database: 0
     # 连接超时时间：5 秒
     timeout: 5000ms
+  servlet:
+    multipart:
+      # 单个文件大小上限。必须 ≥ FileStorageUtil 里的 5MB 校验值：
+      # Spring Boot 默认只有 1MB，且超限发生在进入 Controller 之前，
+      # 会被全局异常处理器兜底成 501「系统内部错误」，现象是"图片上传失败"
+      max-file-size: 5MB
+      # 单次请求总大小上限（当前每次只传一张图，留出表单开销即可）
+      max-request-size: 10MB
   mvc:
     pathmatch:
       # SpringBoot 2.6 起默认使用 PathPatternParser，与 springfox 不兼容，必须切回 Ant 路径匹配
