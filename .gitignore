@@ -116,6 +116,8 @@ logs/
 *.ppt
 *.pptx
 *.pdf
+# 例外：技术文档是交付物，需要入库
+!reports/Haven-Store技术文档.pdf
 
 # Image files (large)
 *.psd
