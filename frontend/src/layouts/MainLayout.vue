@@ -60,35 +60,21 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <!-- 说明：el-dropdown-item 的 index 属性不会触发导航，必须用 command + @command 处理 -->
-                  <el-dropdown-item v-if="isAdmin" command="admin">
-                    管理后台
-                  </el-dropdown-item>
-                  <el-dropdown-item command="profile">
-                    个人资料
-                  </el-dropdown-item>
-                  <el-dropdown-item command="myProducts">
-                    我的发布
-                  </el-dropdown-item>
-                  <el-dropdown-item command="orders">
-                    我的订单
-                  </el-dropdown-item>
-                  <el-dropdown-item divided command="logout">
-                    退出登录
-                  </el-dropdown-item>
+                  <el-dropdown-item v-if="isAdmin" command="admin"> 管理后台 </el-dropdown-item>
+                  <el-dropdown-item command="profile"> 个人资料 </el-dropdown-item>
+                  <el-dropdown-item command="myProducts"> 我的发布 </el-dropdown-item>
+                  <el-dropdown-item command="orders"> 我的订单 </el-dropdown-item>
+                  <el-dropdown-item divided command="logout"> 退出登录 </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
           </template>
           <template v-else>
-            <el-button type="primary" @click="$router.push('/auth/login')">
-              登录
-            </el-button>
-            <el-button @click="$router.push('/auth/register')">
-              注册
-            </el-button>
+            <el-button type="primary" @click="$router.push('/auth/login')"> 登录 </el-button>
+            <el-button @click="$router.push('/auth/register')"> 注册 </el-button>
           </template>
           <!-- 移动端汉堡按钮：768px 以下显示，展开抽屉导航 -->
-          <el-icon class="hamburger" @click="drawerVisible = true"><Menu /></el-icon>
+          <el-icon class="hamburger" @click="drawerVisible = true"><MenuIcon /></el-icon>
         </div>
       </div>
     </el-header>
@@ -128,7 +114,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useAuthStore } from '@/store/auth'
 import { useConfigStore, useUserStore } from '@/store/index'
 import { useRoute, useRouter } from 'vue-router'
-import { Menu } from '@element-plus/icons-vue'
+import { Menu as MenuIcon } from '@element-plus/icons-vue'
 import messageApi from '@/api/message'
 import cartApi from '@/api/cart'
 
@@ -137,7 +123,7 @@ const BADGE_POLL_INTERVAL_MS = 30000
 
 export default {
   name: 'MainLayout',
-  components: { Menu },
+  components: { MenuIcon },
   setup() {
     const authStore = useAuthStore()
     // 站点配置来自 config store（此前误用 user store，且缺少 import，会抛 ReferenceError 导致白屏）
@@ -151,9 +137,12 @@ export default {
     const isLoggedIn = computed(() => authStore.isLoggedIn)
     const user = computed(() => authStore.user)
     // 后端登录态返回的是布尔值 isAdmin，这里同时兼容角色字符串写法
-    const isAdmin = computed(() => authStore.user?.isAdmin === true
-      || authStore.user?.role === 'admin'
-      || authStore.user?.role === 'super_admin')
+    const isAdmin = computed(
+      () =>
+        authStore.user?.isAdmin === true ||
+        authStore.user?.role === 'admin' ||
+        authStore.user?.role === 'super_admin'
+    )
 
     // 头部角标：直接读 store（私信中心页/通知中心页/购物车页改动后会写入新值，角标即时更新）
     const unreadCount = computed(() => userStore.unreadMessageCount)
@@ -207,9 +196,12 @@ export default {
     })
 
     // 路由切换时刷新一次：登录/退出登录与读过消息、改过购物车后角标都能及时跟上
-    watch(() => route.path, () => {
-      loadBadges()
-    })
+    watch(
+      () => route.path,
+      () => {
+        loadBadges()
+      }
+    )
 
     const handleLogout = () => {
       authStore.logout()

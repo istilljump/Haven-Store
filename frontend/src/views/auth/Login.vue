@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-form">
       <h2>用户登录</h2>
-      
+
       <el-form
         ref="loginFormRef"
         :model="loginForm"
@@ -11,13 +11,9 @@
         size="large"
       >
         <el-form-item label="用户名" prop="username">
-          <el-input
-            v-model="loginForm.username"
-            placeholder="请输入用户名"
-            prefix-icon="User"
-          />
+          <el-input v-model="loginForm.username" placeholder="请输入用户名" prefix-icon="User" />
         </el-form-item>
-        
+
         <el-form-item label="密码" prop="password">
           <el-input
             v-model="loginForm.password"
@@ -27,24 +23,17 @@
             show-password
           />
         </el-form-item>
-        
+
         <el-form-item>
-          <el-button
-            type="primary"
-            :loading="loading"
-            @click="handleLogin"
-            class="login-button"
-          >
+          <el-button type="primary" :loading="loading" @click="handleLogin" class="login-button">
             登录
           </el-button>
         </el-form-item>
       </el-form>
-      
+
       <div class="form-footer">
         <span>还没有账号？</span>
-        <el-button link @click="$router.push('/auth/register')">
-          立即注册
-        </el-button>
+        <el-button link @click="$router.push('/auth/register')"> 立即注册 </el-button>
       </div>
     </div>
   </div>

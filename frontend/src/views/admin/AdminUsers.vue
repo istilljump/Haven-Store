@@ -68,17 +68,16 @@
           </div>
         </template>
 
-        <el-table
-          v-loading="loading"
-          :data="userList"
-          stripe
-          style="width: 100%"
-        >
+        <el-table v-loading="loading" :data="userList" stripe style="width: 100%">
           <el-table-column prop="id" label="用户ID" width="80" align="center" />
           <el-table-column prop="username" label="用户名" min-width="120">
             <template #default="{ row }">
               <div class="user-info">
-                <el-avatar :size="24" :src="row.avatar || '/default-avatar.png'" class="user-avatar" />
+                <el-avatar
+                  :size="24"
+                  :src="row.avatar || '/default-avatar.png'"
+                  class="user-avatar"
+                />
                 <span class="username">{{ row.username }}</span>
               </div>
             </template>
@@ -87,20 +86,14 @@
           <el-table-column prop="phone" label="手机号" min-width="120" />
           <el-table-column label="状态" width="100" align="center">
             <template #default="{ row }">
-              <el-tag 
-                :type="row.status === 1 ? 'success' : 'danger'" 
-                size="small"
-              >
+              <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
                 {{ row.status === 1 ? '正常' : '禁用' }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="isAdmin" label="角色" width="80" align="center">
             <template #default="{ row }">
-              <el-tag 
-                :type="row.isAdmin ? 'warning' : 'info'" 
-                size="small"
-              >
+              <el-tag :type="row.isAdmin ? 'warning' : 'info'" size="small">
                 {{ row.isAdmin ? '管理员' : '普通用户' }}
               </el-tag>
             </template>
@@ -112,19 +105,8 @@
           </el-table-column>
           <el-table-column label="操作" width="290" align="center">
             <template #default="{ row }">
-              <el-button
-                type="primary"
-                size="small"
-                @click="openEditDialog(row)"
-              >
-                编辑
-              </el-button>
-              <el-button
-                type="warning"
-                size="small"
-                plain
-                @click="openResetPasswordDialog(row)"
-              >
+              <el-button type="primary" size="small" @click="openEditDialog(row)"> 编辑 </el-button>
+              <el-button type="warning" size="small" plain @click="openResetPasswordDialog(row)">
                 重置密码
               </el-button>
               <el-button
@@ -163,12 +145,7 @@
     </div>
 
     <!-- 用户详情对话框 -->
-    <el-dialog
-      v-model="userDetailDialog"
-      title="用户详情"
-      width="500px"
-      @close="closeUserDetail"
-    >
+    <el-dialog v-model="userDetailDialog" title="用户详情" width="500px" @close="closeUserDetail">
       <div v-if="selectedUser" class="user-detail">
         <div class="detail-item">
           <label>用户ID:</label>
@@ -210,24 +187,10 @@
     </el-dialog>
 
     <!-- 新增用户对话框 -->
-    <el-dialog
-      v-model="createDialog"
-      title="新增用户"
-      width="520px"
-      @close="resetCreateForm"
-    >
-      <el-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="createRules"
-        label-width="90px"
-      >
+    <el-dialog v-model="createDialog" title="新增用户" width="520px" @close="resetCreateForm">
+      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="90px">
         <el-form-item label="用户名" prop="username">
-          <el-input
-            v-model="createForm.username"
-            placeholder="3-20 个字符，登录时使用"
-            clearable
-          />
+          <el-input v-model="createForm.username" placeholder="3-20 个字符，登录时使用" clearable />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input
@@ -272,7 +235,12 @@
           <el-input :model-value="editForm.username" disabled />
         </el-form-item>
         <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="editForm.nickname" maxlength="30" placeholder="用户展示的昵称" clearable />
+          <el-input
+            v-model="editForm.nickname"
+            maxlength="30"
+            placeholder="用户展示的昵称"
+            clearable
+          />
         </el-form-item>
         <el-form-item label="手机号" prop="phone">
           <el-input v-model="editForm.phone" placeholder="留空表示清空手机号" clearable />
@@ -299,7 +267,12 @@
       width="420px"
       @close="resetPasswordFormRef?.clearValidate()"
     >
-      <el-form ref="resetPasswordFormRef" :model="resetPasswordForm" :rules="resetPasswordRules" label-width="90px">
+      <el-form
+        ref="resetPasswordFormRef"
+        :model="resetPasswordForm"
+        :rules="resetPasswordRules"
+        label-width="90px"
+      >
         <el-form-item label="新密码" prop="password">
           <el-input
             v-model="resetPasswordForm.password"
@@ -320,11 +293,7 @@
     </el-dialog>
 
     <!-- 确认对话框 -->
-    <el-dialog
-      v-model="confirmDialog"
-      :title="confirmTitle"
-      width="400px"
-    >
+    <el-dialog v-model="confirmDialog" :title="confirmTitle" width="400px">
       <div class="confirm-content">
         {{ confirmMessage }}
       </div>
@@ -378,9 +347,7 @@ const createRules = {
     { min: 6, max: 20, message: '密码长度须为 6-20 个字符', trigger: 'blur' }
   ],
   // 手机号可留空，填了才校验格式（与后端 AdminUserCreateDTO 的校验规则保持一致）
-  phone: [
-    { pattern: /^$|^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }
-  ]
+  phone: [{ pattern: /^$|^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }]
 }
 
 // 选中的用户
@@ -398,12 +365,8 @@ const editForm = reactive({
   isAdmin: false
 })
 const editRules = {
-  nickname: [
-    { max: 30, message: '昵称不能超过 30 个字符', trigger: 'blur' }
-  ],
-  phone: [
-    { pattern: /^$|^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }
-  ]
+  nickname: [{ max: 30, message: '昵称不能超过 30 个字符', trigger: 'blur' }],
+  phone: [{ pattern: /^$|^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }]
 }
 
 const openEditDialog = (user) => {
@@ -465,7 +428,9 @@ const submitResetPassword = async () => {
   }
   resetPasswordLoading.value = true
   try {
-    await adminApi.resetUserPassword(resetPasswordUser.value.id, { password: resetPasswordForm.password })
+    await adminApi.resetUserPassword(resetPasswordUser.value.id, {
+      password: resetPasswordForm.password
+    })
     ElMessage.success(`已重置 "${resetPasswordUser.value.username}" 的密码`)
     resetPasswordDialog.value = false
   } catch (error) {
@@ -491,15 +456,15 @@ const searchForm = reactive({
 const loadUsers = async () => {
   try {
     loading.value = true
-    
+
     const params = {
       page: currentPage.value,
       pageSize: pageSize.value,
       ...searchForm
     }
-    
+
     const response = await adminApi.getAdminUsers(params)
-    
+
     userList.value = response.records
     total.value = response.total
   } catch (error) {
@@ -518,7 +483,7 @@ const handleSearch = () => {
 
 // 重置搜索
 const resetSearch = () => {
-  Object.keys(searchForm).forEach(key => {
+  Object.keys(searchForm).forEach((key) => {
     searchForm[key] = ''
   })
   currentPage.value = 1
@@ -778,17 +743,17 @@ onMounted(() => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .search-form {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .search-form .el-form-item {
     margin-bottom: 12px;
   }

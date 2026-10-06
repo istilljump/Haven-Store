@@ -12,6 +12,11 @@ from datetime import datetime, timedelta
 import bcrypt
 import random
 
+# 模拟数据生成统一使用系统级随机源（SystemRandom）：
+# 这些随机数仅用于造演示数据（模拟距离/估价波动/置信度），非安全用途，
+# 但统一走密码学级随机源可避免安全扫描对 MT19937 的弱随机告警
+rng = random.SystemRandom()
+
 app = Flask(__name__)
 
 # 模拟数据库数据
@@ -284,7 +289,7 @@ def find_nearby_products():
     for product in mock_db['products']:
         if product['longitude'] and product['latitude']:
             # 简单距离计算（实际应该使用Haversine公式）
-            distance = random.uniform(100, 5000)  # 模拟距离
+            distance = rng.uniform(100, 5000)  # 模拟距离
             
             if distance <= radius:
                 product_data = {
@@ -341,14 +346,14 @@ def estimate_price():
     
     # 模拟估价逻辑
     base_prices = {
-        1: random.uniform(1000, 8000),   # 手机数码
-        2: random.uniform(2000, 15000),  # 电脑办公
-        3: random.uniform(50, 500),       # 图书教材
-        4: random.uniform(500, 5000),    # 家用电器
-        5: random.uniform(200, 2000),    # 服饰鞋包
-        6: random.uniform(300, 3000),    # 运动户外
-        7: random.uniform(100, 1000),    # 美妆个护
-        8: random.uniform(50, 1000)      # 其他闲置
+        1: rng.uniform(1000, 8000),   # 手机数码
+        2: rng.uniform(2000, 15000),  # 电脑办公
+        3: rng.uniform(50, 500),       # 图书教材
+        4: rng.uniform(500, 5000),    # 家用电器
+        5: rng.uniform(200, 2000),    # 服饰鞋包
+        6: rng.uniform(300, 3000),    # 运动户外
+        7: rng.uniform(100, 1000),    # 美妆个护
+        8: rng.uniform(50, 1000)      # 其他闲置
     }
     
     base_price = base_prices.get(category_id, 500)
@@ -366,11 +371,11 @@ def estimate_price():
     estimated_price = round(base_price * multiplier, 2)
     
     # 添加随机波动
-    price_variation = random.uniform(0.9, 1.1)
+    price_variation = rng.uniform(0.9, 1.1)
     final_price = round(estimated_price * price_variation, 2)
     
     # 模拟置信度
-    confidence = random.randint(70, 95)
+    confidence = rng.randint(70, 95)
     
     return success_response({
         'estimatedPrice': final_price,

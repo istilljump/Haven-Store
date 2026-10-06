@@ -3,7 +3,7 @@
 本目录存放项目早期版本遗留、**当前代码已不再使用**的文件。
 保留它们只是为了留档，避免有人从旧文档或旧习惯里翻出来误用。
 
-**当前唯一有效的建表脚本是 `backend/scripts/01-schema.sql`。**
+**当前唯一有效的建表脚本是 `backend/sql/01-schema.sql`。**
 
 ---
 
@@ -34,7 +34,7 @@ public class Message { private Long receiverId; ... }
 此外库名 `second_hand_market` 与 `application.yml` 里的
 `jdbc:mysql://localhost:3306/secondhand_market` 也不一致，服务连不上。
 
-**替代方案**：`backend/scripts/01-schema.sql`。
+**替代方案**：`backend/sql/01-schema.sql`。
 
 ---
 
@@ -44,7 +44,7 @@ public class Message { private Long receiverId; ... }
 （`user`、`category`、`product`、`system_message`），
 缺少 `comment` 与 `user_product_relation`，与 `01-schema.sql` 不一致。
 
-**替代方案**：`backend/scripts/01-schema.sql`。
+**替代方案**：`backend/sql/01-schema.sql`。
 
 ---
 

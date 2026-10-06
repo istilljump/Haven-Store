@@ -19,7 +19,9 @@
           </el-input>
         </div>
         <div class="hero-actions">
-          <el-button type="primary" round @click="$router.push('/products/create')">免费发布闲置</el-button>
+          <el-button type="primary" round @click="$router.push('/products/create')"
+            >免费发布闲置</el-button
+          >
           <el-button round @click="$router.push('/products?mode=nearby')">附近好物</el-button>
         </div>
       </div>

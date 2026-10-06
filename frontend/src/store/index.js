@@ -145,7 +145,7 @@ export const useUserStore = defineStore('user', () => {
       clearError()
 
       const response = await userApi.register(registrationData)
-      
+
       return response
     } catch (err) {
       setError(err.message)
@@ -192,7 +192,7 @@ export const useUserStore = defineStore('user', () => {
       const response = await userApi.updateUserInfo(userInfoData)
       // 更新本地状态（拦截器已解包，直接用返回值）
       updateUserInfo(normalizeUserInfo(response))
-      
+
       return response
     } catch (err) {
       setError(err.message)
@@ -208,7 +208,7 @@ export const useUserStore = defineStore('user', () => {
       clearError()
 
       const response = await userApi.changePassword(passwordData)
-      
+
       return response
     } catch (err) {
       setError(err.message)
@@ -233,7 +233,7 @@ export const useUserStore = defineStore('user', () => {
       if (response && response.avatar) {
         updateUserInfo({ avatar: response.avatar })
       }
-      
+
       return response
     } catch (err) {
       setError(err.message)
@@ -259,7 +259,7 @@ export const useUserStore = defineStore('user', () => {
     setSystemUnreadCount,
     cartItemCount,
     setCartItemCount,
-    
+
     // 计算属性
     isLoggedIn,
     user,
@@ -268,7 +268,7 @@ export const useUserStore = defineStore('user', () => {
     isAdmin,
     isLoading,
     errorMessage,
-    
+
     // 方法
     setToken,
     setUserInfo,
@@ -277,7 +277,7 @@ export const useUserStore = defineStore('user', () => {
     setError,
     clearError,
     updateUserInfo,
-    
+
     // Actions
     login,
     register,

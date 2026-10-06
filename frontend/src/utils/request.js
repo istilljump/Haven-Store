@@ -12,7 +12,7 @@ import { ERROR_CODES, ERROR_MESSAGES } from './constants'
 // 创建axios实例
 const service = axios.create({
   baseURL: '/api', // API基础URL
-  timeout: 10000,  // 请求超时时间
+  timeout: 10000, // 请求超时时间
   headers: {
     'Content-Type': 'application/json'
   }
@@ -20,7 +20,7 @@ const service = axios.create({
 
 // 请求拦截器
 service.interceptors.request.use(
-  config => {
+  (config) => {
     // 添加认证token
     // 直接从 localStorage 读取（utils/auth 是 Token 的唯一数据源），
     // 避免 store 实例创建在前、登录在后时读到旧 Token 导致后续请求 401
@@ -39,7 +39,7 @@ service.interceptors.request.use(
 
     return config
   },
-  error => {
+  (error) => {
     // 请求错误时关闭loading
     useUserStore().setLoading(false)
     return Promise.reject(error)
@@ -48,7 +48,7 @@ service.interceptors.request.use(
 
 // 响应拦截器
 service.interceptors.response.use(
-  response => {
+  (response) => {
     // 关闭loading
     if (response.config.loading !== false) {
       useUserStore().setLoading(false)
@@ -77,14 +77,14 @@ service.interceptors.response.use(
       return Promise.reject(new Error(res.msg || '请求失败'))
     }
   },
-  error => {
+  (error) => {
     // 关闭loading
     if (error.config?.loading !== false) {
       useUserStore().setLoading(false)
     }
 
     console.error('请求错误:', error)
-    
+
     // 重试机制
     if (error.config && !error.config.__isRetryRequest) {
       return retryRequest(error)
@@ -102,24 +102,24 @@ service.interceptors.response.use(
  */
 async function retryRequest(error) {
   const config = error.config
-  
+
   // 设置最大重试次数
   const maxRetries = 2
   config.__retryCount = config.__retryCount || 0
-  
+
   if (config.__retryCount >= maxRetries) {
     return Promise.reject(error)
   }
 
   config.__retryCount += 1
   config.__isRetryRequest = true
-  
+
   console.log(`重试请求: ${config.url}, 重试次数: ${config.__retryCount}`)
-  
+
   // 指数退避等待时间
   const delay = Math.pow(2, config.__retryCount) * 1000
-  await new Promise(resolve => setTimeout(resolve, delay))
-  
+  await new Promise((resolve) => setTimeout(resolve, delay))
+
   return service(config)
 }
 
@@ -154,15 +154,15 @@ function handleErrorResponse(response) {
       ElMessage.error(message || '登录已过期，请重新登录')
       window.location.href = '/auth/login'
       break
-      
+
     case ERROR_CODES.FORBIDDEN:
       ElMessage.error(message || ERROR_MESSAGES[ERROR_CODES.FORBIDDEN] || '权限不足')
       break
-      
+
     case ERROR_CODES.NOT_FOUND:
       ElMessage.error(message || ERROR_MESSAGES[ERROR_CODES.NOT_FOUND] || '请求的资源不存在')
       break
-      
+
     case ERROR_CODES.VALIDATION_ERROR:
       // 处理参数验证错误
       if (payload?.errors) {
@@ -172,15 +172,17 @@ function handleErrorResponse(response) {
         ElMessage.error(message || '参数验证失败')
       }
       break
-      
+
     case ERROR_CODES.INTERNAL_ERROR:
       ElMessage.error(message || ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR] || '服务器内部错误')
       break
-      
+
     case ERROR_CODES.SERVICE_UNAVAILABLE:
-      ElMessage.error(message || ERROR_MESSAGES[ERROR_CODES.SERVICE_UNAVAILABLE] || '服务暂时不可用')
+      ElMessage.error(
+        message || ERROR_MESSAGES[ERROR_CODES.SERVICE_UNAVAILABLE] || '服务暂时不可用'
+      )
       break
-      
+
     default:
       ElMessage.error(message || ERROR_MESSAGES.DEFAULT)
   }
@@ -283,10 +285,12 @@ export function upload(url, formData, onProgress = null, config = {}) {
     headers: {
       'Content-Type': 'multipart/form-data'
     },
-    onUploadProgress: onProgress ? (progressEvent) => {
-      const progress = (progressEvent.loaded / progressEvent.total) * 100
-      onProgress(Math.round(progress))
-    } : null,
+    onUploadProgress: onProgress
+      ? (progressEvent) => {
+          const progress = (progressEvent.loaded / progressEvent.total) * 100
+          onProgress(Math.round(progress))
+        }
+      : null,
     ...config
   })
 }
@@ -308,7 +312,7 @@ export function download(url, filename = 'download', config = {}) {
     url,
     responseType: 'blob',
     ...config
-  }).then(blob => {
+  }).then((blob) => {
     // 创建下载链接
     const objectUrl = window.URL.createObjectURL(new Blob([blob]))
     const link = document.createElement('a')

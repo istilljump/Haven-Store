@@ -21,7 +21,11 @@
           <div v-for="item in order.items" :key="item.productId" class="order-item">
             <AppImage class="item-cover" :src="item.coverImage" :alt="item.title" />
             <div class="item-info">
-              <div class="item-title" :class="{ deleted: item.productDeleted }" @click="goProduct(item)">
+              <div
+                class="item-title"
+                :class="{ deleted: item.productDeleted }"
+                @click="goProduct(item)"
+              >
                 {{ item.title }}<span v-if="item.productDeleted">（商品已删除）</span>
               </div>
               <div class="item-seller">卖家：{{ item.sellerName || '未知' }}</div>
@@ -40,19 +44,31 @@
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item label="买家">{{ order.buyerName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="买家留言">{{ order.remark || '无' }}</el-descriptions-item>
-            <el-descriptions-item label="下单时间">{{ order.createTime || '-' }}</el-descriptions-item>
-            <el-descriptions-item v-if="order.payTime" label="支付时间">{{ order.payTime }}</el-descriptions-item>
-            <el-descriptions-item v-if="order.finishTime" label="完成时间">{{ order.finishTime }}</el-descriptions-item>
-            <el-descriptions-item v-if="order.cancelTime" label="取消时间">{{ order.cancelTime }}</el-descriptions-item>
+            <el-descriptions-item label="下单时间">{{
+              order.createTime || '-'
+            }}</el-descriptions-item>
+            <el-descriptions-item v-if="order.payTime" label="支付时间">{{
+              order.payTime
+            }}</el-descriptions-item>
+            <el-descriptions-item v-if="order.finishTime" label="完成时间">{{
+              order.finishTime
+            }}</el-descriptions-item>
+            <el-descriptions-item v-if="order.cancelTime" label="取消时间">{{
+              order.cancelTime
+            }}</el-descriptions-item>
           </el-descriptions>
           <p class="pay-notice">本项目为模拟支付，不产生任何真实扣款。</p>
         </div>
 
         <!-- 操作区 -->
         <div class="action-bar" v-if="canPay || canCancel || canConfirm">
-          <el-button v-if="canPay" type="primary" :loading="acting" @click="payOrder">模拟支付</el-button>
+          <el-button v-if="canPay" type="primary" :loading="acting" @click="payOrder"
+            >模拟支付</el-button
+          >
           <el-button v-if="canCancel" :loading="acting" @click="cancelOrder">取消订单</el-button>
-          <el-button v-if="canConfirm" type="success" :loading="acting" @click="confirmOrder">确认收货</el-button>
+          <el-button v-if="canConfirm" type="success" :loading="acting" @click="confirmOrder"
+            >确认收货</el-button
+          >
         </div>
       </template>
     </div>
@@ -64,7 +80,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppImage from '@/components/AppImage.vue'
-import { getOrderDetail, payOrder as payOrderApi, cancelOrder as cancelOrderApi, confirmOrder as confirmOrderApi } from '@/api/order'
+import {
+  getOrderDetail,
+  payOrder as payOrderApi,
+  cancelOrder as cancelOrderApi,
+  confirmOrder as confirmOrderApi
+} from '@/api/order'
 import { formatMoney } from '@/utils/format'
 import { ORDER_STATUS } from '@/utils/constants'
 
@@ -90,11 +111,16 @@ export default {
 
     const statusHint = computed(() => {
       switch (order.value?.status) {
-        case ORDER_STATUS.PENDING_PAY: return '请在 30 分钟内完成支付，超时订单将自动取消'
-        case ORDER_STATUS.PAID: return '卖家已收款，请尽快线下交接或等待发货'
-        case ORDER_STATUS.CANCELLED: return '订单已取消，商品已回到在售'
-        case ORDER_STATUS.FINISHED: return '交易已完成，感谢使用'
-        default: return ''
+        case ORDER_STATUS.PENDING_PAY:
+          return '请在 30 分钟内完成支付，超时订单将自动取消'
+        case ORDER_STATUS.PAID:
+          return '卖家已收款，请尽快线下交接或等待发货'
+        case ORDER_STATUS.CANCELLED:
+          return '订单已取消，商品已回到在售'
+        case ORDER_STATUS.FINISHED:
+          return '交易已完成，感谢使用'
+        default:
+          return ''
       }
     })
 
@@ -118,7 +144,9 @@ export default {
     }
 
     const payOrder = () => {
-      ElMessageBox.confirm('确认为该订单支付吗？（模拟支付，不产生真实扣款）', '模拟支付', { type: 'info' })
+      ElMessageBox.confirm('确认为该订单支付吗？（模拟支付，不产生真实扣款）', '模拟支付', {
+        type: 'info'
+      })
         .then(async () => {
           acting.value = true
           try {
@@ -133,7 +161,9 @@ export default {
     }
 
     const cancelOrder = () => {
-      ElMessageBox.confirm('取消后商品将回到在售状态，确定取消该订单吗？', '取消订单', { type: 'warning' })
+      ElMessageBox.confirm('取消后商品将回到在售状态，确定取消该订单吗？', '取消订单', {
+        type: 'warning'
+      })
         .then(async () => {
           acting.value = true
           try {
@@ -148,7 +178,9 @@ export default {
     }
 
     const confirmOrder = () => {
-      ElMessageBox.confirm('请确认已收到商品并验货无误，确认后交易完成。', '确认收货', { type: 'warning' })
+      ElMessageBox.confirm('请确认已收到商品并验货无误，确认后交易完成。', '确认收货', {
+        type: 'warning'
+      })
         .then(async () => {
           acting.value = true
           try {

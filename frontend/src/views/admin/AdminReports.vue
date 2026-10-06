@@ -11,14 +11,24 @@
       <el-card class="search-card">
         <el-form :inline="true" :model="searchForm" class="search-form">
           <el-form-item label="处理状态">
-            <el-select v-model="searchForm.status" placeholder="全部状态" clearable @change="handleSearch">
+            <el-select
+              v-model="searchForm.status"
+              placeholder="全部状态"
+              clearable
+              @change="handleSearch"
+            >
               <el-option label="待处理" :value="0" />
               <el-option label="已处理" :value="1" />
               <el-option label="已驳回" :value="2" />
             </el-select>
           </el-form-item>
           <el-form-item label="对象类型">
-            <el-select v-model="searchForm.targetType" placeholder="全部类型" clearable @change="handleSearch">
+            <el-select
+              v-model="searchForm.targetType"
+              placeholder="全部类型"
+              clearable
+              @change="handleSearch"
+            >
               <el-option label="商品" value="product" />
               <el-option label="评论" value="comment" />
             </el-select>
@@ -50,7 +60,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="reason" label="原因" width="100" />
-        <el-table-column prop="description" label="补充说明" min-width="160" show-overflow-tooltip />
+        <el-table-column
+          prop="description"
+          label="补充说明"
+          min-width="160"
+          show-overflow-tooltip
+        />
         <el-table-column prop="reporterUsername" label="举报人" width="100" />
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
@@ -74,13 +89,7 @@
             >
               处理
             </el-button>
-            <el-button
-              v-else
-              type="info"
-              size="small"
-              link
-              @click="openHandleDialog(row)"
-            >
+            <el-button v-else type="info" size="small" link @click="openHandleDialog(row)">
               查看结果
             </el-button>
           </template>
@@ -101,14 +110,22 @@
     </el-card>
 
     <!-- 处理对话框 -->
-    <el-dialog v-model="handleDialog" :title="handleTarget.status === 0 ? '处理举报' : '举报处理结果'" width="460px">
+    <el-dialog
+      v-model="handleDialog"
+      :title="handleTarget.status === 0 ? '处理举报' : '举报处理结果'"
+      width="460px"
+    >
       <el-descriptions :column="1" border size="small">
         <el-descriptions-item label="被举报内容">
           {{ handleTarget.targetSummary || '（对象已删除）' }}
         </el-descriptions-item>
         <el-descriptions-item label="举报原因">{{ handleTarget.reason }}</el-descriptions-item>
-        <el-descriptions-item label="补充说明">{{ handleTarget.description || '无' }}</el-descriptions-item>
-        <el-descriptions-item label="举报人">{{ handleTarget.reporterUsername || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="补充说明">{{
+          handleTarget.description || '无'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="举报人">{{
+          handleTarget.reporterUsername || '-'
+        }}</el-descriptions-item>
         <el-descriptions-item v-if="handleTarget.handleAction" label="处理动作">
           {{ ACTION_TEXT[handleTarget.handleAction] || handleTarget.handleAction }}
         </el-descriptions-item>
@@ -121,14 +138,12 @@
         <el-form label-width="90px" style="margin-top: 14px">
           <el-form-item label="处理动作">
             <el-radio-group v-model="handleForm.action">
-              <el-radio
-                v-if="handleTarget.targetType === 'product'"
-                label="takeDownProduct"
-              >下架商品</el-radio>
-              <el-radio
-                v-if="handleTarget.targetType === 'comment'"
-                label="hideComment"
-              >隐藏评论</el-radio>
+              <el-radio v-if="handleTarget.targetType === 'product'" label="takeDownProduct"
+                >下架商品</el-radio
+              >
+              <el-radio v-if="handleTarget.targetType === 'comment'" label="hideComment"
+                >隐藏评论</el-radio
+              >
               <el-radio label="dismiss">驳回举报</el-radio>
             </el-radio-group>
           </el-form-item>
@@ -240,8 +255,12 @@ const handlePageSizeChange = (size) => {
 
 const openHandleDialog = (row) => {
   Object.assign(handleTarget, row)
-  handleForm.action = row.targetType === 'product' ? 'takeDownProduct'
-    : row.targetType === 'comment' ? 'hideComment' : 'dismiss'
+  handleForm.action =
+    row.targetType === 'product'
+      ? 'takeDownProduct'
+      : row.targetType === 'comment'
+        ? 'hideComment'
+        : 'dismiss'
   handleForm.note = ''
   handleDialog.value = true
 }

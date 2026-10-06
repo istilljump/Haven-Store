@@ -60,17 +60,18 @@
             <span class="chat-title">{{ active.peerName }}</span>
             <div v-if="active.productId" class="chat-product">
               <el-tag size="small" type="warning" effect="plain">咨询商品</el-tag>
-              <router-link
-                class="chat-product-link"
-                :to="`/products/${active.productId}`"
-              >
+              <router-link class="chat-product-link" :to="`/products/${active.productId}`">
                 {{ active.productTitle || '商品已删除' }}
               </router-link>
             </div>
           </div>
 
           <div ref="chatBodyRef" class="chat-body">
-            <el-empty v-if="!messages.length" description="还没有消息，打个招呼吧" :image-size="70" />
+            <el-empty
+              v-if="!messages.length"
+              description="还没有消息，打个招呼吧"
+              :image-size="70"
+            />
             <div
               v-for="message in messages"
               :key="message.id"
@@ -114,10 +115,8 @@ const POLL_INTERVAL_MS = 10000
 
 export default {
   name: 'MessageCenter',
-  components: {
-    Delete,
-    Refresh
-  },
+  // Delete/Refresh 仅通过 :icon 属性绑定使用，无需 components 注册
+  components: {},
   setup() {
     const route = useRoute()
     const userStore = useUserStore()
@@ -141,9 +140,10 @@ export default {
     const conversationId = (item) => `${item.peerId}-${item.productId || 0}`
 
     /** 判断某会话是否为当前打开的会话 */
-    const isActive = (item) => active.value !== null
-      && active.value.peerId === item.peerId
-      && (active.value.productId || null) === (item.productId || null)
+    const isActive = (item) =>
+      active.value !== null &&
+      active.value.peerId === item.peerId &&
+      (active.value.productId || null) === (item.productId || null)
 
     const scrollToBottom = async () => {
       await nextTick()
@@ -250,9 +250,10 @@ export default {
         await scrollToBottom()
         // 会话列表只更新本地预览，不打断滚动位置；未读角标单独刷新
         const conv = conversations.value.find(
-          (item) => isActive(item)
-            || (item.peerId === active.value.peerId
-              && (item.productId || null) === (active.value.productId || null))
+          (item) =>
+            isActive(item) ||
+            (item.peerId === active.value.peerId &&
+              (item.productId || null) === (active.value.productId || null))
         )
         if (conv) {
           conv.lastContent = content
@@ -272,20 +273,22 @@ export default {
         `确定删除与「${item.peerName}」的会话吗？删除后你们双方的聊天记录都会被清除。`,
         '删除会话',
         { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-      ).then(async () => {
-        try {
-          await messageApi.deleteConversation(item.peerId, item.productId)
-          if (isActive(item)) {
-            active.value = null
-            messages.value = []
+      )
+        .then(async () => {
+          try {
+            await messageApi.deleteConversation(item.peerId, item.productId)
+            if (isActive(item)) {
+              active.value = null
+              messages.value = []
+            }
+            await loadConversations()
+            await refreshUnreadCount()
+            ElMessage.success('会话已删除')
+          } catch (error) {
+            console.error('删除会话失败:', error)
           }
-          await loadConversations()
-          await refreshUnreadCount()
-          ElMessage.success('会话已删除')
-        } catch (error) {
-          console.error('删除会话失败:', error)
-        }
-      }).catch(() => {})
+        })
+        .catch(() => {})
     }
 
     /** 轮询刷新：页面不可见时不打扰后端 */
@@ -296,11 +299,14 @@ export default {
       }, POLL_INTERVAL_MS)
     }
 
-    watch(() => route.query, () => {
-      if (route.name === 'Messages') {
-        openFromRoute()
+    watch(
+      () => route.query,
+      () => {
+        if (route.name === 'Messages') {
+          openFromRoute()
+        }
       }
-    })
+    )
 
     onMounted(async () => {
       await loadConversations()

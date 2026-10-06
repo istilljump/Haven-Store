@@ -5,9 +5,7 @@
         <div class="header-content">
           <div class="avatar-section">
             <el-avatar :src="user?.avatar" size="large" :icon="UserFilled" />
-            <el-button type="primary" size="small" @click="showUploadDialog">
-              更换头像
-            </el-button>
+            <el-button type="primary" size="small" @click="showUploadDialog"> 更换头像 </el-button>
           </div>
           <div class="user-info">
             <h2>{{ user?.username }}</h2>
@@ -46,7 +44,12 @@
         </el-tab-pane>
 
         <el-tab-pane label="修改密码" name="password">
-          <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="100px">
+          <el-form
+            :model="passwordForm"
+            :rules="passwordRules"
+            ref="passwordFormRef"
+            label-width="100px"
+          >
             <el-form-item label="原密码" prop="oldPassword">
               <el-input v-model="passwordForm.oldPassword" type="password" show-password />
             </el-form-item>
@@ -91,13 +94,16 @@
                       <span class="time">{{ product.time }}</span>
                     </div>
                     <div class="actions">
-                      <el-button size="small" @click="router.push(`/products/${product.id}/edit`)">编辑</el-button>
+                      <el-button size="small" @click="router.push(`/products/${product.id}/edit`)"
+                        >编辑</el-button
+                      >
                       <el-button
                         v-if="product.status === 1"
                         size="small"
                         type="danger"
                         @click="offlineProduct(product.id)"
-                      >下架</el-button>
+                        >下架</el-button
+                      >
                     </div>
                   </div>
                 </div>
@@ -139,20 +145,19 @@ import userApi from '@/api/user'
 
 export default {
   name: 'UserProfile',
-  components: {
-    UserFilled
-  },
+  // UserFilled 仅通过 :icon 属性绑定使用，无需 components 注册
+  components: {},
   setup() {
     const router = useRouter()
     const authStore = useAuthStore()
     const userStore = useUserStore()
-    
+
     const activeTab = ref('basic')
     const formRef = ref(null)
     const passwordFormRef = ref(null)
-    
+
     const user = computed(() => authStore.user)
-    
+
     const form = reactive({
       username: '',
       email: '',
@@ -160,27 +165,23 @@ export default {
       nickname: '',
       bio: ''
     })
-    
+
     const rules = {
       email: [
         { required: true, message: '请输入邮箱', trigger: 'blur' },
         { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
       ],
-      phone: [
-        { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
-      ]
+      phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }]
     }
-    
+
     const passwordForm = reactive({
       oldPassword: '',
       newPassword: '',
       confirmPassword: ''
     })
-    
+
     const passwordRules = {
-      oldPassword: [
-        { required: true, message: '请输入原密码', trigger: 'blur' }
-      ],
+      oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
       newPassword: [
         { required: true, message: '请输入新密码', trigger: 'blur' },
         { min: 6, message: '密码长度不能少于6个字符', trigger: 'blur' }
@@ -199,12 +200,12 @@ export default {
         }
       ]
     }
-    
+
     const loading = ref(false)
     const products = ref([])
     const saving = ref(false)
     const avatarDialog = ref(false)
-    
+
     // 初始化表单数据
     onMounted(async () => {
       try {
@@ -223,7 +224,7 @@ export default {
         router.push('/auth/login')
       }
     })
-    
+
     const saveBasicInfo = async () => {
       try {
         await formRef.value.validate()
@@ -249,7 +250,7 @@ export default {
         saving.value = false
       }
     }
-    
+
     const changePassword = async () => {
       try {
         await passwordFormRef.value.validate()
@@ -275,7 +276,7 @@ export default {
         saving.value = false
       }
     }
-    
+
     const showUploadDialog = () => {
       avatarDialog.value = true
     }
@@ -302,13 +303,13 @@ export default {
     const handleAvatarError = () => {
       ElMessage.error('头像上传失败，请检查图片格式与大小')
     }
-    
+
     // 角色展示：登录态归一化后是 isAdmin 布尔（/user/info 的 role 数字已在 store 归一化），
     // 直接读 user.role 字符串会永远落到「普通用户」
     const getRoleTagType = (info) => (info?.isAdmin ? 'warning' : 'info')
 
     const getRoleText = (info) => (info?.isAdmin ? '管理员' : '普通用户')
-    
+
     // 我的发布：来自 GET /product/mine（当前登录用户发布的商品）
     const loadUserProducts = async () => {
       loading.value = true
@@ -322,28 +323,32 @@ export default {
         loading.value = false
       }
     }
-    
+
     // 状态取值与后端 ProductStatusEnum 一致：1 在售 / 2 已售出 / 3 已下架
     const getProductStatusText = (status) => {
       const statusMap = { 1: '在售', 2: '已售出', 3: '已下架' }
       return statusMap[status] || '未知'
     }
-    
+
     const getProductStatusType = (status) => {
       const statusMap = { 1: 'success', 2: 'warning', 3: 'info' }
       return statusMap[status] || 'info'
     }
-    
+
     const goToCreateProduct = () => {
       router.push('/products/create')
     }
-    
+
     // 下架商品（软下架：状态改为已下架，数据保留，可在管理端或重新上架恢复）
     const offlineProduct = async (id) => {
       try {
-        await ElMessageBox.confirm('确定要下架这个商品吗？下架后不会出现在商品列表中。', '确认下架', {
-          type: 'warning'
-        })
+        await ElMessageBox.confirm(
+          '确定要下架这个商品吗？下架后不会出现在商品列表中。',
+          '确认下架',
+          {
+            type: 'warning'
+          }
+        )
         await productApi.removeProduct(id)
         ElMessage.success('商品已下架')
         loadUserProducts()
@@ -353,7 +358,7 @@ export default {
         }
       }
     }
-    
+
     return {
       saving,
       avatarDialog,

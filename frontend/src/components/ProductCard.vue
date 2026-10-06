@@ -4,13 +4,19 @@
     <div class="product-card__body">
       <div class="product-card__title" :title="product.title">{{ product.title }}</div>
       <div class="product-card__meta">
-        <span v-if="product.categoryName" class="product-card__category">{{ product.categoryName }}</span>
-        <span v-if="showCondition" class="product-card__condition">{{ product.productCondition }}</span>
+        <span v-if="product.categoryName" class="product-card__category">{{
+          product.categoryName
+        }}</span>
+        <span v-if="showCondition" class="product-card__condition">{{
+          product.productCondition
+        }}</span>
       </div>
       <div class="product-card__footer">
         <div class="product-card__price">
           <span class="price-now">¥{{ formatPrice(product.price) }}</span>
-          <span v-if="product.originalPrice" class="price-origin">¥{{ formatPrice(product.originalPrice) }}</span>
+          <span v-if="product.originalPrice" class="price-origin"
+            >¥{{ formatPrice(product.originalPrice) }}</span
+          >
         </div>
         <span v-if="product.username" class="product-card__seller">{{ product.username }}</span>
       </div>
@@ -71,7 +77,9 @@ export default {
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   border: 1px solid #ebeef5;
   position: relative;
 }

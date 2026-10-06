@@ -3,13 +3,13 @@
     <div v-if="loading" class="loading">
       <el-skeleton :rows="5" animated />
     </div>
-    
+
     <div v-else-if="productNotFound" class="not-found">
       <el-empty description="商品不存在">
         <el-button type="primary" @click="goBack">返回列表</el-button>
       </el-empty>
     </div>
-    
+
     <div v-else class="product-detail">
       <div class="breadcrumb">
         <el-breadcrumb>
@@ -23,7 +23,12 @@
         <div class="product-main">
           <!-- 商品图片轮播 -->
           <div class="product-images">
-            <el-carousel v-if="product.images && product.images.length > 0" :interval="4000" type="card" height="400px">
+            <el-carousel
+              v-if="product.images && product.images.length > 0"
+              :interval="4000"
+              type="card"
+              height="400px"
+            >
               <el-carousel-item v-for="(image, index) in product.images" :key="index">
                 <img :src="image" :alt="product.title" class="carousel-image" />
               </el-carousel-item>
@@ -60,7 +65,9 @@
               </div>
               <div class="meta-item">
                 <span class="label">发布时间:</span>
-                <span class="value" :title="product.publishTime">{{ formatTime(product.publishTime) }}</span>
+                <span class="value" :title="product.publishTime">{{
+                  formatTime(product.publishTime)
+                }}</span>
               </div>
               <div class="meta-item">
                 <span class="label">浏览次数:</span>
@@ -90,12 +97,8 @@
           <div class="contact-seller">
             <h3>联系卖家</h3>
             <div class="seller-actions">
-              <el-button type="primary" size="large" @click="contactSeller">
-                私信联系
-              </el-button>
-              <el-button type="success" size="large" @click="callSeller">
-                电话联系
-              </el-button>
+              <el-button type="primary" size="large" @click="contactSeller"> 私信联系 </el-button>
+              <el-button type="success" size="large" @click="callSeller"> 电话联系 </el-button>
             </div>
           </div>
 
@@ -111,27 +114,27 @@
               >
                 加入购物车
               </el-button>
-              <el-button 
-                type="danger" 
+              <el-button
+                type="danger"
                 :disabled="product.status !== 1"
                 @click="toggleFavorite"
                 :icon="isFavorited ? StarFilled : Star"
               >
                 {{ isFavorited ? '已收藏' : '收藏' }}
               </el-button>
-              <el-button 
-                type="primary" 
-                :disabled="product.status !== 1"
-                @click="inquiry"
-              >
+              <el-button type="primary" :disabled="product.status !== 1" @click="inquiry">
                 我要购买
               </el-button>
-              <el-button v-if="isOwner" @click="goToEdit">
-                编辑商品
-              </el-button>
+              <el-button v-if="isOwner" @click="goToEdit"> 编辑商品 </el-button>
             </div>
             <div class="report-row">
-              <el-button link type="info" size="small" icon="WarningFilled" @click="openReportDialog">
+              <el-button
+                link
+                type="info"
+                size="small"
+                icon="WarningFilled"
+                @click="openReportDialog"
+              >
                 举报该商品
               </el-button>
             </div>
@@ -151,7 +154,11 @@
               </div>
               <div class="stat-item">
                 <span class="label">评分:</span>
-                <span class="value">{{ product.ratingAvg === null || product.ratingAvg === undefined ? '暂无评分' : product.ratingAvg + ' 分' }}</span>
+                <span class="value">{{
+                  product.ratingAvg === null || product.ratingAvg === undefined
+                    ? '暂无评分'
+                    : product.ratingAvg + ' 分'
+                }}</span>
               </div>
               <div class="stat-item">
                 <span class="label">评价数:</span>
@@ -170,22 +177,44 @@
               <div v-if="product.detailHtml" v-html="product.detailHtml"></div>
               <div v-else>
                 <el-descriptions title="商品描述" border>
-                  <el-descriptions-item label="分类">{{ orDash(product.category) }}</el-descriptions-item>
-                  <el-descriptions-item label="新旧程度">{{ orDash(product.condition) }}</el-descriptions-item>
-                  <el-descriptions-item label="品牌">{{ orDash(product.brand) }}</el-descriptions-item>
-                  <el-descriptions-item label="型号">{{ orDash(product.model) }}</el-descriptions-item>
-                  <el-descriptions-item label="购买时间">{{ orDash(product.purchaseTime) }}</el-descriptions-item>
-                  <el-descriptions-item label="商品特色">{{ orDash(product.features) }}</el-descriptions-item>
-                  <el-descriptions-item label="交易方式">{{ orDash(product.tradeMethod) }}</el-descriptions-item>
-                  <el-descriptions-item label="备注说明">{{ orDash(product.remarks) }}</el-descriptions-item>
-                  <el-descriptions-item label="发布时间">{{ product.publishTime || '暂无' }}</el-descriptions-item>
-                  <el-descriptions-item label="卖家">{{ orDash(product.seller.username) }}</el-descriptions-item>
-                  <el-descriptions-item label="商品描述" :span="2">{{ orDash(product.description) }}</el-descriptions-item>
+                  <el-descriptions-item label="分类">{{
+                    orDash(product.category)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="新旧程度">{{
+                    orDash(product.condition)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="品牌">{{
+                    orDash(product.brand)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="型号">{{
+                    orDash(product.model)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="购买时间">{{
+                    orDash(product.purchaseTime)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="商品特色">{{
+                    orDash(product.features)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="交易方式">{{
+                    orDash(product.tradeMethod)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="备注说明">{{
+                    orDash(product.remarks)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="发布时间">{{
+                    product.publishTime || '暂无'
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="卖家">{{
+                    orDash(product.seller.username)
+                  }}</el-descriptions-item>
+                  <el-descriptions-item label="商品描述" :span="2">{{
+                    orDash(product.description)
+                  }}</el-descriptions-item>
                 </el-descriptions>
               </div>
             </div>
           </el-tab-pane>
-          
+
           <el-tab-pane label="购买须知" name="notice">
             <div class="notice-content">
               <el-alert
@@ -195,7 +224,7 @@
                 show-icon
                 :closable="false"
               />
-              
+
               <div class="notice-list">
                 <h4>购买前请注意：</h4>
                 <ul>
@@ -204,13 +233,13 @@
                   <li>建议选择安全的交易方式</li>
                   <li>保留相关交易凭证</li>
                 </ul>
-                
+
                 <h4>退款政策：</h4>
                 <p>本平台不支持退款，请在购买前确认商品状况。</p>
               </div>
             </div>
           </el-tab-pane>
-          
+
           <el-tab-pane :label="`评价记录 (${commentTotal})`" name="reviews">
             <div class="reviews-content">
               <!-- 发表评价：仅登录用户、非商品发布者、且尚未评价过时可写 -->
@@ -261,7 +290,13 @@
                     <div class="review-user">
                       <div class="username">
                         {{ review.username }}
-                        <el-tag v-if="review.verifiedBuyer" size="mini" type="success" class="verified-tag">已验证购买</el-tag>
+                        <el-tag
+                          v-if="review.verifiedBuyer"
+                          size="mini"
+                          type="success"
+                          class="verified-tag"
+                          >已验证购买</el-tag
+                        >
                       </div>
                       <div class="review-time">{{ formatTime(review.createTime) }}</div>
                     </div>
@@ -293,11 +328,7 @@
     </div>
 
     <!-- 联系卖家：private 为普通私信，consult 为针对该商品的咨询 -->
-    <el-dialog
-      v-model="messageDialogVisible"
-      :title="messageDialogConfig.title"
-      width="480px"
-    >
+    <el-dialog v-model="messageDialogVisible" :title="messageDialogConfig.title" width="480px">
       <p class="message-dialog-tip">{{ messageDialogConfig.tip }}</p>
       <el-input
         v-model="messageDraft"
@@ -321,7 +352,12 @@
       <el-form label-position="top">
         <el-form-item label="举报原因" required>
           <el-select v-model="reportForm.reason" placeholder="请选择举报原因" style="width: 100%">
-            <el-option v-for="reason in reportReasons" :key="reason" :label="reason" :value="reason" />
+            <el-option
+              v-for="reason in reportReasons"
+              :key="reason"
+              :label="reason"
+              :value="reason"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="补充说明">
@@ -337,7 +373,9 @@
       </el-form>
       <template #footer>
         <el-button @click="reportDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="reportSubmitting" @click="submitReport">提交举报</el-button>
+        <el-button type="danger" :loading="reportSubmitting" @click="submitReport"
+          >提交举报</el-button
+        >
       </template>
     </el-dialog>
   </div>
@@ -359,10 +397,8 @@ import { formatRelativeTime } from '@/utils/format'
 
 export default {
   name: 'ProductDetail',
-  components: {
-    Star,
-    StarFilled
-  },
+  // Star/StarFilled 仅通过 :icon 属性绑定使用，无需 components 注册（注册了反而触发 no-unused-components）
+  components: {},
   setup() {
     const router = useRouter()
     const route = useRoute()
@@ -376,7 +412,7 @@ export default {
       const sellerId = product.seller && product.seller.id
       return myId != null && sellerId != null && Number(myId) === Number(sellerId)
     })
-    
+
     const loading = ref(true)
     const productNotFound = ref(false)
     // 评价列表（独立分页，与商品详情分开请求）
@@ -388,7 +424,7 @@ export default {
     const commentForm = reactive({ content: '', rating: 5 })
     const activeTab = ref('detail')
     const isFavorited = ref(false)
-    
+
     const product = reactive({
       id: null,
       title: '',
@@ -423,9 +459,9 @@ export default {
       tradeMethod: '',
       remarks: ''
     })
-    
+
     const productId = computed(() => route.params.id)
-    
+
     // 详情数据来自后端 GET /product/detail/{id}（游客可访问）
     const fetchProductDetail = async () => {
       loading.value = true
@@ -469,8 +505,10 @@ export default {
           // 联系电话仅登录后由后端返回，未登录时为 null
           contactPhone: data.contactPhone || '',
           // 线下交易展示交易地址，线上交易无地址可展示
-          tradeMethod: data.tradeType === '线下' && data.address
-            ? `${data.tradeType}（${data.address}）` : (data.tradeType || '')
+          tradeMethod:
+            data.tradeType === '线下' && data.address
+              ? `${data.tradeType}（${data.address}）`
+              : data.tradeType || ''
         })
         // 收藏状态由后端返回，未登录固定为 false
         isFavorited.value = data.favorited === true
@@ -481,7 +519,7 @@ export default {
         loading.value = false
       }
     }
-    
+
     // 同一路由下切换商品 id（如从商品 1 跳到商品 2）不会重新挂载组件，
     // 需要监听参数变化重新拉取，否则会一直显示上一个商品
     watch(productId, (id) => {
@@ -493,10 +531,11 @@ export default {
         loadComments()
       }
     })
-    
+
     // 展示占位：后端没有该字段时显示「暂无」，避免出现空白或 undefined
-    const orDash = (value) => (value === null || value === undefined || value === '') ? '暂无' : value
-    
+    const orDash = (value) =>
+      value === null || value === undefined || value === '' ? '暂无' : value
+
     // 状态取值与后端 ProductStatusEnum 一致：1 在售 / 2 已售出 / 3 已下架
     // 是否可发表评价：登录 + 非发布者 + 尚未评价过
     const canComment = computed(() => {
@@ -548,12 +587,12 @@ export default {
       const statusMap = { 1: 'success', 2: 'warning', 3: 'info' }
       return statusMap[status] || 'info'
     }
-    
+
     const getStatusText = (status) => {
       const statusMap = { 1: '在售', 2: '已售出', 3: '已下架' }
       return statusMap[status] || '未知'
     }
-    
+
     const toggleFavorite = async () => {
       if (!authStore.isLoggedIn) {
         ElMessage.warning('请先登录后再收藏')
@@ -570,12 +609,15 @@ export default {
         }
         isFavorited.value = !isFavorited.value
         // 收藏次数同步刷新，避免只改状态不更新计数
-        product.favoriteCount = Math.max(0, (product.favoriteCount || 0) + (isFavorited.value ? 1 : -1))
+        product.favoriteCount = Math.max(
+          0,
+          (product.favoriteCount || 0) + (isFavorited.value ? 1 : -1)
+        )
       } catch (error) {
         console.error('收藏操作失败:', error)
       }
     }
-    
+
     /** 私信/咨询对话框文案：两种入口共用同一套发送逻辑，只有文案与是否带商品上下文不同 */
     const MESSAGE_DIALOG_TEXT = {
       private: {
@@ -613,9 +655,8 @@ export default {
         return
       }
       messageDialogMode.value = mode
-      messageDraft.value = mode === 'consult'
-        ? `你好，我想咨询「${product.title}」这个商品，请问还在吗？`
-        : ''
+      messageDraft.value =
+        mode === 'consult' ? `你好，我想咨询「${product.title}」这个商品，请问还在吗？` : ''
       messageDialogVisible.value = true
     }
 
@@ -677,7 +718,7 @@ export default {
         messageSending.value = false
       }
     }
-    
+
     // 电话联系：使用商品上填写的联系电话（未登录时后端不返回，这里给出提示）
     const callSeller = () => {
       if (!authStore.isLoggedIn) {
@@ -695,15 +736,15 @@ export default {
         { confirmButtonText: '知道了' }
       ).catch(() => {})
     }
-    
+
     const goBack = () => {
       router.go(-1)
     }
-    
+
     const goToHome = () => {
       router.push('/')
     }
-    
+
     const goToEdit = () => {
       router.push(`/products/${product.id}/edit`)
     }
@@ -753,7 +794,7 @@ export default {
         reportSubmitting.value = false
       }
     }
-    
+
     onMounted(() => {
       if (productId.value) {
         fetchProductDetail()
@@ -763,7 +804,7 @@ export default {
         loading.value = false
       }
     })
-    
+
     return {
       loading,
       productNotFound,
@@ -1109,11 +1150,11 @@ export default {
   .product-content {
     grid-template-columns: 1fr;
   }
-  
+
   .price-section .price {
     font-size: 24px;
   }
-  
+
   .title-section h1 {
     font-size: 20px;
   }

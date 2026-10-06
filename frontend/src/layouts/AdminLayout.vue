@@ -2,7 +2,7 @@
   <div class="admin-layout">
     <!-- 登录页面 -->
     <router-view v-if="$route.path === '/admin/login'" />
-    
+
     <!-- 管理后台布局 -->
     <el-container v-else>
       <!-- 顶部导航 -->
@@ -22,7 +22,7 @@
             <el-breadcrumb-item>{{ currentRouteTitle }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        
+
         <div class="header-right">
           <el-dropdown @command="handleCommand">
             <div class="user-info">
@@ -55,59 +55,59 @@
         <!-- 侧边栏：移动端通过 .open 类滑入 -->
         <el-aside width="240px" class="admin-sidebar" :class="{ open: sidebarOpen }">
           <div class="sidebar-mask" @click="sidebarOpen = false" />
-            <el-menu
-              :default-active="activeMenu"
-              :router="true"
-              class="admin-menu"
-              background-color="#001529"
-              text-color="#fff"
-              active-text-color="#409eff"
-            >
-              <el-menu-item index="/admin/dashboard">
-                <el-icon><Odometer /></el-icon>
-                <span>数据概览</span>
-              </el-menu-item>
+          <el-menu
+            :default-active="activeMenu"
+            :router="true"
+            class="admin-menu"
+            background-color="#001529"
+            text-color="#fff"
+            active-text-color="#409eff"
+          >
+            <el-menu-item index="/admin/dashboard">
+              <el-icon><Odometer /></el-icon>
+              <span>数据概览</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/users">
-                <el-icon><User /></el-icon>
-                <span>用户管理</span>
-              </el-menu-item>
+            <el-menu-item index="/admin/users">
+              <el-icon><User /></el-icon>
+              <span>用户管理</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/products">
-                <el-icon><Goods /></el-icon>
-                <span>商品管理</span>
-              </el-menu-item>
+            <el-menu-item index="/admin/products">
+              <el-icon><Goods /></el-icon>
+              <span>商品管理</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/orders">
-                <el-icon><Tickets /></el-icon>
-                <span>订单管理</span>
-              </el-menu-item>
+            <el-menu-item index="/admin/orders">
+              <el-icon><Tickets /></el-icon>
+              <span>订单管理</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/categories">
-                <el-icon><Collection /></el-icon>
-                <span>分类管理</span>
-              </el-menu-item>
+            <el-menu-item index="/admin/categories">
+              <el-icon><Collection /></el-icon>
+              <span>分类管理</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/comments">
-                <el-icon><ChatLineSquare /></el-icon>
-                <span>评论管理</span>
-              </el-menu-item>
+            <el-menu-item index="/admin/comments">
+              <el-icon><ChatLineSquare /></el-icon>
+              <span>评论管理</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/reports">
-                <el-icon><WarningFilled /></el-icon>
-                <span>举报处理</span>
-              </el-menu-item>
+            <el-menu-item index="/admin/reports">
+              <el-icon><WarningFilled /></el-icon>
+              <span>举报处理</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/messages">
-                <el-icon><Bell /></el-icon>
-                <span>系统消息</span>
-              </el-menu-item>
+            <el-menu-item index="/admin/messages">
+              <el-icon><Bell /></el-icon>
+              <span>系统消息</span>
+            </el-menu-item>
 
-              <el-menu-item index="/admin/settings">
-                <el-icon><Setting /></el-icon>
-                <span>系统设置</span>
-              </el-menu-item>
-            </el-menu>
+            <el-menu-item index="/admin/settings">
+              <el-icon><Setting /></el-icon>
+              <span>系统设置</span>
+            </el-menu-item>
+          </el-menu>
         </el-aside>
 
         <!-- 主内容区域 -->
@@ -200,12 +200,14 @@ const handleLogout = () => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    removeToken()
-    removeUserInfo()
-    ElMessage.success('退出成功')
-    router.push('/admin/login')
-  }).catch(() => {})
+  })
+    .then(() => {
+      removeToken()
+      removeUserInfo()
+      ElMessage.success('退出成功')
+      router.push('/admin/login')
+    })
+    .catch(() => {})
 }
 
 // 说明：/admin/** 的登录态与管理员角色校验已统一收敛到 router/index.js 的全局守卫，
@@ -377,15 +379,15 @@ onMounted(() => {
   .admin-sidebar.open .sidebar-mask {
     display: block;
   }
-  
+
   .logo span {
     display: none;
   }
-  
+
   .username {
     font-size: 12px;
   }
-  
+
   .admin-sidebar {
     position: fixed;
     top: 64px;
@@ -396,7 +398,7 @@ onMounted(() => {
     transition: transform 0.3s;
     z-index: 1000;
   }
-  
+
   .admin-sidebar.open {
     transform: translateX(0);
   }

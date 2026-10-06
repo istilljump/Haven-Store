@@ -1,5 +1,7 @@
 # 二手商品交易市场
 
+[![CI](https://github.com/istilljump/Haven-Store/actions/workflows/ci.yml/badge.svg)](https://github.com/istilljump/Haven-Store/actions/workflows/ci.yml)
+
 基于Spring Boot + Vue.js的全栈二手交易平台，支持商品发布、附近商品搜索、AI智能估价、商品评价、收藏与购物车、下单支付、私信与商品咨询、系统消息等功能。
 
 ## 🔄 复现性声明与 10 分钟极速复现指南
@@ -8,7 +10,7 @@
 
 本项目承诺：**在满足下述环境要求的前提下，任何人从仓库零起步，都能在 10 分钟内将系统完整跑起来，并通过 336 项自动化冒烟断言验证功能与预期一致。** 为此我们做了四件事：
 
-1. **环境即代码**：数据库结构（12 张表）与种子数据全部由 `backend/scripts/01-schema.sql` 一个脚本确定，不依赖任何手工建库步骤；后端/前端依赖版本分别由 `pom.xml` 与 `package-lock.json` 锁定。
+1. **环境即代码**：数据库结构（12 张表）与种子数据全部由 `backend/sql/01-schema.sql` 一个脚本确定，不依赖任何手工建库步骤；后端/前端依赖版本分别由 `pom.xml` 与 `package-lock.json` 锁定。
 2. **配置有默认值、可被环境变量覆盖**：所有敏感或环境相关配置（数据库口令、JWT 密钥等）都写成 `${VAR:默认值}` 形式——默认值保证零配置即可在本机跑通，部署时用环境变量覆盖即可，无需改动任何代码或配置文件。
 3. **行为有断言**：`tests/api_smoke_test.py` 覆盖 336 项断言（注册、发布、下单支付、私信、举报闭环、管理端全部页面、导出、设置生效等），`mvn test` 另有 66 项单元测试。复现是否成功不看"页面能打开"的感觉，看这两组测试是否全绿。
 4. **无外部服务依赖**：不依赖任何真实支付网关、短信/邮件服务或付费 AI 接口（AI 估值为本地规则模拟），MySQL 8 与 Redis 7 是仅有的两个外部依赖，且仓库附带免管理员一键拉起脚本。
@@ -31,7 +33,7 @@
 
 **验收账号**（由种子数据写入）：管理员 `admin / admin123`（后台 http://localhost:3000/admin），普通用户 `testuser1 / 123456`、`testuser2 / 123456`。种子数据自带 2 件在售商品（二手 iPhone 12、编程书籍套装）与 8 个分类。
 
-**Linux/Mac 路线**：`docker compose up -d`（仓库根目录的 `docker-compose.yml` 会自动建库导种子），随后后端 `mvn clean package -DskipTests && java -jar backend/target/*.jar`、前端 `npm install && npm run dev`，其余相同。
+**Linux/Mac 路线**：`docker compose -f config/docker-compose.yml up -d`（`config/docker-compose.yml` 会自动建库导种子），随后后端 `mvn clean package -DskipTests && java -jar backend/target/*.jar`、前端 `npm install && npm run dev`，其余相同。
 
 ### 📦 依赖清单
 
@@ -40,7 +42,7 @@
 | JDK | 8+（推荐 17/22，Docker 镜像基于 17） | 后端编译运行 | `mvn` 需在 PATH |
 | Maven | 3.6+ | 后端构建 | 仓库 `.tools/` 内自带 3.9.16 可用 |
 | Node.js | 18+（含 npm） | 前端构建与开发 | 前端版本锁定见 `frontend/package-lock.json` |
-| MySQL | 8.0+ | 业务数据库 | 建库脚本见 `backend/scripts/` |
+| MySQL | 8.0+ | 业务数据库 | 建库脚本见 `backend/sql/` |
 | Redis | 7+（6.x 可用） | 登录缓存/登录锁定/设置 | |
 | Python | 3.8+（仅测试用） | 运行冒烟测试 | 无第三方依赖，纯标准库 |
 
@@ -81,7 +83,7 @@ export JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
 $env:DB_PASSWORD='your-strong-password'
 $env:JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
 
-# Docker Compose：写入 backend.environment（见 docker-compose.yml）
+# Docker Compose：写入 backend.environment（见 config/docker-compose.yml）
 ```
 
 ### ✅ 复现成功的判定标准
@@ -132,8 +134,8 @@ $env:JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
 - 分类列表 Redis 缓存（管理端变更自动驱逐）；评分改 SQL AVG
 
 ### 数据库升级
-- 全新安装直接执行 `backend/scripts/01-schema.sql`（已含全部 12 张表）
-- **老库升级执行一次 `backend/scripts/02-upgrade.sql`**：`system_message` 加群发批次号 `batch_no`，新增 `report`（举报）与 `system_setting`（系统设置）两张表
+- 全新安装直接执行 `backend/sql/01-schema.sql`（已含全部 12 张表）
+- **老库升级执行一次 `backend/sql/02-upgrade.sql`**：`system_message` 加群发批次号 `batch_no`，新增 `report`（举报）与 `system_setting`（系统设置）两张表
 
 ### 测试
 - 冒烟测试 `tests/api_smoke_test.py` 扩至 336 项断言，覆盖注册、举报闭环、管理端订单/评论、看板趋势、设置生效等新能力
@@ -172,7 +174,7 @@ chmod +x scripts/deploy.sh
 - 后端API：http://localhost:8080
 - 管理后台：http://localhost/admin
 
-4. **默认账号**（由 `backend/scripts/01-schema.sql` 初始化）
+4. **默认账号**（由 `backend/sql/01-schema.sql` 初始化）
 
 | 用户名 | 密码 | 说明 |
 |---|---|---|
@@ -208,12 +210,12 @@ chmod +x scripts/deploy.sh
 先启动 MySQL，然后执行建表脚本：
 
 ```bash
-mysql -uroot -p < backend/scripts/01-schema.sql
+mysql -uroot -p < backend/sql/01-schema.sql
 ```
 
 > Windows 若提示 `'mysql' 不是内部或外部命令`，说明 MySQL 的 bin 目录没加入 PATH，
 > 改用完整路径即可（或直接双击 `scripts/init-database.bat`）：
-> `"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p < backend\scripts\01-schema.sql`
+> `"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -uroot -p < backend\sql\01-schema.sql`
 >
 > 脚本会创建数据库 `secondhand_market`（10 张表 + 种子数据），并写入默认账号：
 > `admin/admin123`（管理员）、`testuser1/123456`、`testuser2/123456`。
@@ -376,6 +378,8 @@ node tests/stress_test.js -t 20 -r 100 -u http://localhost:8080/api/health
 node tests/stress_test.js -t 5 -r 50 -u http://localhost:8080/api/user/login -m POST -p '{"username":"testuser1","password":"123456"}'
 ```
 
+测试报告自动写入 `reports/stress/`（以脚本所在位置定位，与执行时的工作目录无关）。
+
 ## 🔧 部署脚本使用
 
 ### Linux/Mac
@@ -414,16 +418,22 @@ Haven-Store/
 │   │   │   ├── java/com/example/
 │   │   │   └── resources/
 │   │   └── test/
-│   ├── scripts/01-schema.sql # MySQL 建表 + 种子数据
+│   ├── sql/                 # MySQL 建表脚本（01-schema.sql 建表+种子，02-upgrade.sql 老库升级）
+│   ├── legacy/              # 已废弃 SQL 归档（勿用，见其 README）
 │   ├── pom.xml
 │   └── Dockerfile
 ├── frontend/                # Vue.js前端
 │   ├── src/
+│   ├── public/              # 静态资源与图片
 │   ├── package.json
-│   ├── nginx.conf
+│   ├── nginx.conf           # 容器内 nginx（SPA 回退 + /api 反代）
 │   └── Dockerfile
-├── docs/                    # 开发过程记录
+├── config/                  # 部署与编排配置
+│   ├── docker-compose.yml   # Docker Compose配置（build 上下文指向 ../backend、../frontend）
+│   └── nginx.conf           # 独立反向代理配置（可选，默认不启用）
+├── docs/                    # 开发过程记录与数据库说明
 ├── reports/                 # 测试报告与项目文档
+│   └── stress/              # 压力测试报告输出目录
 ├── scripts/                 # 部署与运维脚本
 │   ├── deploy.sh            # Linux/Mac 部署脚本
 │   ├── deploy.ps1           # Windows 部署脚本
@@ -437,8 +447,6 @@ Haven-Store/
 │   ├── stress_test.js
 │   ├── test_db_connection.py
 │   └── mock_server.py
-├── docker-compose.yml       # Docker Compose配置
-├── nginx.conf               # 反向代理配置（可选）
 ├── README.md
 ├── CONTRIBUTING.md
 └── LICENSE
@@ -478,7 +486,7 @@ $env:DB_PASSWORD='your-strong-password'
 $env:JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
 java -jar backend\target\second-hand-market-1.0.0.jar
 
-# Docker Compose：docker-compose.yml 的 backend.environment 里同样支持这些变量
+# Docker Compose：config/docker-compose.yml 的 backend.environment 里同样支持这些变量
 ```
 
 ### 数据库配置
@@ -588,7 +596,7 @@ MySQL 起来后后端会自动重连，**不需要重启 jar**。
 再执行一次 `scripts\init-database.bat`（或直接跑 `scripts\start-dev-services.bat`，它会自动建库）。
 
 ### 1. 端口冲突
-- 修改 `docker-compose.yml` 中的端口映射
+- 修改 `config/docker-compose.yml` 中的端口映射
 - 检查端口是否被占用
 
 ### 2. 数据库连接失败

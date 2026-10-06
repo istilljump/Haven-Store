@@ -8,7 +8,7 @@
         </div>
         <p>请使用管理员账号登录</p>
       </div>
-      
+
       <el-form
         ref="loginFormRef"
         :model="loginForm"
@@ -25,7 +25,7 @@
             size="large"
           />
         </el-form-item>
-        
+
         <el-form-item prop="password">
           <el-input
             v-model="loginForm.password"
@@ -38,7 +38,7 @@
             @keyup.enter="handleLogin"
           />
         </el-form-item>
-        
+
         <el-form-item>
           <el-button
             type="primary"
@@ -50,7 +50,7 @@
             {{ loading ? '登录中...' : '登录' }}
           </el-button>
         </el-form-item>
-        
+
         <div class="login-footer">
           <a href="/auth/login" class="switch-to-user">返回用户登录</a>
         </div>
@@ -95,14 +95,14 @@ const handleLogin = async () => {
   try {
     // 表单验证
     await loginFormRef.value.validate()
-    
+
     loading.value = true
-    
+
     // 调用登录API
     // 后端 /admin/login 复用了 /user/login 的逻辑，返回结构完全一致：
     // { userId, username, nickname, avatar, token, isAdmin }
     const response = await adminApi.adminLogin(loginForm)
-    
+
     // 保存Token和用户信息（结构统一，管理端与用户端共用同一份存储）
     setToken(response.token)
     setUserInfo({
@@ -112,12 +112,11 @@ const handleLogin = async () => {
       avatar: response.avatar,
       isAdmin: response.isAdmin
     })
-    
+
     ElMessage.success('管理员登录成功')
-    
+
     // 跳转到管理后台首页
     router.push('/admin/dashboard')
-    
   } catch (error) {
     // 具体错误提示已由请求拦截器统一弹出，这里只兜底
   } finally {
@@ -211,7 +210,7 @@ const handleLogin = async () => {
     margin: 0 20px;
     padding: 30px 25px;
   }
-  
+
   .logo h1 {
     font-size: 24px;
   }

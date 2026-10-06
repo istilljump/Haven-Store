@@ -2,7 +2,13 @@
   <div class="register-page">
     <h2 class="register-title">创建账号</h2>
     <p class="register-subtitle">加入 Haven-Store，让闲置好物流转起来</p>
-    <el-form :model="form" :rules="rules" ref="formRef" label-position="top" @submit.prevent="handleSubmit">
+    <el-form
+      :model="form"
+      :rules="rules"
+      ref="formRef"
+      label-position="top"
+      @submit.prevent="handleSubmit"
+    >
       <el-form-item label="用户名" prop="username">
         <el-input
           v-model="form.username"
@@ -13,10 +19,20 @@
         />
       </el-form-item>
       <el-form-item label="昵称" prop="nickname">
-        <el-input v-model="form.nickname" placeholder="展示给其他用户的名字" maxlength="30" clearable />
+        <el-input
+          v-model="form.nickname"
+          placeholder="展示给其他用户的名字"
+          maxlength="30"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="手机号" prop="phone">
-        <el-input v-model="form.phone" placeholder="11 位手机号，用于线下交易联系" maxlength="11" clearable />
+        <el-input
+          v-model="form.phone"
+          placeholder="11 位手机号，用于线下交易联系"
+          maxlength="11"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="密码" prop="password">
         <el-input

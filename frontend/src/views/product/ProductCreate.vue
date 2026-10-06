@@ -18,7 +18,12 @@
         <div v-if="currentStep === 0" class="step-content">
           <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
             <el-form-item label="商品标题" prop="title">
-              <el-input v-model="form.title" placeholder="请输入商品标题" maxlength="100" show-word-limit />
+              <el-input
+                v-model="form.title"
+                placeholder="请输入商品标题"
+                maxlength="100"
+                show-word-limit
+              />
             </el-form-item>
 
             <el-form-item label="商品分类" prop="categoryId">
@@ -102,9 +107,11 @@
                   使用当前位置
                 </el-button>
                 <span class="coordinate-hint">
-                  {{ form.longitude && form.latitude
-                    ? `已获取：${form.longitude}, ${form.latitude}`
-                    : '未获取（线下交易需要经纬度，用于「附近商品」查询）' }}
+                  {{
+                    form.longitude && form.latitude
+                      ? `已获取：${form.longitude}, ${form.latitude}`
+                      : '未获取（线下交易需要经纬度，用于「附近商品」查询）'
+                  }}
                 </span>
               </el-form-item>
             </template>
@@ -177,7 +184,11 @@
             </el-form-item>
 
             <el-form-item label="品牌型号">
-              <el-input v-model="form.brand" placeholder="品牌" style="width: 200px; margin-right: 20px" />
+              <el-input
+                v-model="form.brand"
+                placeholder="品牌"
+                style="width: 200px; margin-right: 20px"
+              />
               <el-input v-model="form.model" placeholder="型号" style="width: 200px" />
             </el-form-item>
 
@@ -308,7 +319,7 @@ export default {
 
     // el-upload 走的是自己的 XHR，不会经过 axios 拦截器，需要手动带上 Token
     const uploadHeaders = computed(() => ({ Authorization: 'Bearer ' + (getToken() || '') }))
-    
+
     const currentStep = ref(0)
     const imageList = ref([])
     const uploading = ref(false)
@@ -322,7 +333,7 @@ export default {
     // 上传限制（管理后台「上传设置」驱动，取不到时用默认值）
     const uploadMaxImages = ref(9)
     const uploadMaxFileSizeMB = ref(5)
-    
+
     const form = reactive({
       title: '',
       categoryId: null,
@@ -344,25 +355,19 @@ export default {
       // 已上传成功的图片地址列表（第一张作为封面）
       images: []
     })
-    
+
     const rules = {
       title: [
         { required: true, message: '请输入商品标题', trigger: 'blur' },
         { min: 2, max: 100, message: '标题长度在 2 到 100 个字符', trigger: 'blur' }
       ],
-      categoryId: [
-        { required: true, message: '请选择商品分类', trigger: 'change' }
-      ],
+      categoryId: [{ required: true, message: '请选择商品分类', trigger: 'change' }],
       price: [
         { required: true, message: '请输入商品价格', trigger: 'blur' },
         { type: 'number', min: 0.01, message: '价格必须大于0', trigger: 'blur' }
       ],
-      condition: [
-        { required: true, message: '请选择新旧程度', trigger: 'change' }
-      ],
-      tradeType: [
-        { required: true, message: '请选择交易方式', trigger: 'change' }
-      ],
+      condition: [{ required: true, message: '请选择新旧程度', trigger: 'change' }],
+      tradeType: [{ required: true, message: '请选择交易方式', trigger: 'change' }],
       address: [
         // 仅线下交易需要地址，线上时该字段不展示也不校验
         {
@@ -389,7 +394,7 @@ export default {
         { min: 10, max: 1000, message: '描述长度在 10 到 1000 个字符', trigger: 'blur' }
       ]
     }
-    
+
     const nextStep = async () => {
       if (currentStep.value === 0) {
         try {
@@ -407,7 +412,7 @@ export default {
         currentStep.value = 3
       }
     }
-    
+
     const prevStep = () => {
       if (currentStep.value > 0) {
         currentStep.value--
@@ -428,7 +433,9 @@ export default {
         })
         if (result && result.estimatedPrice) {
           form.price = Number(result.estimatedPrice)
-          ElMessage.success(`AI 建议价约 ${result.estimatedPrice} 元（${result.suggestion || '仅供参考'}）`)
+          ElMessage.success(
+            `AI 建议价约 ${result.estimatedPrice} 元（${result.suggestion || '仅供参考'}）`
+          )
         } else {
           ElMessage.warning('暂时拿不到估价建议，请手动定价')
         }
@@ -468,9 +475,9 @@ export default {
       // 与 imageList 保持同步（新增文件还没有 url，上传成功后回填）
       imageList.value = fileList
     }
-    
+
     const handleImageRemove = (file) => {
-      const index = imageList.value.findIndex(item => item.uid === file.uid)
+      const index = imageList.value.findIndex((item) => item.uid === file.uid)
       if (index === -1) {
         return
       }
@@ -483,7 +490,7 @@ export default {
         }
       }
     }
-    
+
     const handleUploadSuccess = (response, file) => {
       // 后端统一返回 {code, msg, data}，图片可访问地址在 data 中
       const url = response && response.data
@@ -491,7 +498,7 @@ export default {
         ElMessage.error('图片上传失败')
         return
       }
-      const index = imageList.value.findIndex(item => item.uid === file.uid)
+      const index = imageList.value.findIndex((item) => item.uid === file.uid)
       if (index !== -1) {
         imageList.value[index].url = url
       }
@@ -499,33 +506,33 @@ export default {
         form.images.push(url)
       }
     }
-    
+
     const handleUploadError = (error, file) => {
       ElMessage.error('图片上传失败')
     }
-    
+
     const getCategoryText = (categoryId) => {
-      const matched = categoryOptions.value.find(item => item.id === categoryId)
+      const matched = categoryOptions.value.find((item) => item.id === categoryId)
       return matched ? matched.name : '-'
     }
-    
+
     // 取值已与后端对齐（成色直接用中文值），这里保留映射函数以便展示时统一兜底
     const CONDITION_TEXT = {
-      '全新': '全新',
-      '九成新': '九成新',
-      '八成新': '八成新',
-      '七成新及以下': '七成新及以下'
+      全新: '全新',
+      九成新: '九成新',
+      八成新: '八成新',
+      七成新及以下: '七成新及以下'
     }
-    
+
     const TRADE_TYPE_TEXT = {
-      '线上': '线上交易',
-      '线下': '线下交易'
+      线上: '线上交易',
+      线下: '线下交易'
     }
-    
+
     const getConditionText = (condition) => CONDITION_TEXT[condition] || condition || '-'
-    
+
     const getTradeMethodText = (method) => TRADE_TYPE_TEXT[method] || method || '-'
-    
+
     // 加载可用的商品分类（后端只返回启用状态的分类）
     const loadCategories = async () => {
       try {
@@ -537,7 +544,7 @@ export default {
         categoryLoading.value = false
       }
     }
-    
+
     // 获取当前定位（线下交易需要经纬度，用于「附近商品」检索）
     const locateCurrentPosition = () => {
       if (!navigator.geolocation) {
@@ -561,7 +568,7 @@ export default {
         { enableHighAccuracy: true, timeout: 10000 }
       )
     }
-    
+
     const submitProduct = async () => {
       // 线下交易必须拿到坐标，否则后端会拒绝（这里提前拦截，给出更明确的提示）
       if (form.tradeType === '线下' && (!form.longitude || !form.latitude)) {
@@ -570,9 +577,13 @@ export default {
       }
 
       try {
-        await ElMessageBox.confirm(isEdit.value ? '确认保存修改吗？' : '确认发布该商品吗？', '确认', {
-          type: 'warning'
-        })
+        await ElMessageBox.confirm(
+          isEdit.value ? '确认保存修改吗？' : '确认发布该商品吗？',
+          '确认',
+          {
+            type: 'warning'
+          }
+        )
 
         uploading.value = true
 
@@ -615,7 +626,6 @@ export default {
             router.push('/products')
           }
         }
-
       } catch (error) {
         if (error !== 'cancel') {
           console.error(isEdit.value ? '保存商品失败:' : '发布商品失败:', error)
@@ -628,7 +638,7 @@ export default {
     const goBack = () => {
       router.go(-1)
     }
-    
+
     // 检查用户登录状态（未登录直接引导到登录页，不再渲染表单）
     if (!authStore.isLoggedIn) {
       ElMessage.warning('请先登录')
@@ -643,13 +653,17 @@ export default {
         form.title = data.title || ''
         form.categoryId = data.categoryId
         form.price = data.price === null || data.price === undefined ? 0 : Number(data.price)
-        form.originalPrice = data.originalPrice === null || data.originalPrice === undefined
-          ? null : Number(data.originalPrice)
+        form.originalPrice =
+          data.originalPrice === null || data.originalPrice === undefined
+            ? null
+            : Number(data.originalPrice)
         form.condition = data.productCondition || ''
         form.tradeType = data.tradeType || ''
         form.address = data.address || ''
-        form.longitude = data.longitude === null || data.longitude === undefined ? null : Number(data.longitude)
-        form.latitude = data.latitude === null || data.latitude === undefined ? null : Number(data.latitude)
+        form.longitude =
+          data.longitude === null || data.longitude === undefined ? null : Number(data.longitude)
+        form.latitude =
+          data.latitude === null || data.latitude === undefined ? null : Number(data.latitude)
         form.brand = data.brand || ''
         form.model = data.model || ''
         form.purchaseTime = data.purchaseTime || ''
@@ -689,7 +703,10 @@ export default {
             uploadMaxImages.value = Number(settings.uploadMaxImages)
           }
           if (settings.uploadMaxFileSizeKB) {
-            uploadMaxFileSizeMB.value = Math.max(1, Math.round(Number(settings.uploadMaxFileSizeKB) / 1024))
+            uploadMaxFileSizeMB.value = Math.max(
+              1,
+              Math.round(Number(settings.uploadMaxFileSizeKB) / 1024)
+            )
           }
           if (settings.autoEstimate === false) {
             autoEstimateEnabled.value = false
@@ -699,7 +716,7 @@ export default {
         // 公开配置拿不到就用默认值
       }
     })
-    
+
     return {
       isEdit,
       uploadHeaders,
@@ -857,16 +874,16 @@ export default {
   .product-create-container {
     padding: 10px;
   }
-  
+
   .create-form {
     padding: 20px;
   }
-  
+
   .info-item {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .info-item .label {
     min-width: auto;
     margin-right: 0;

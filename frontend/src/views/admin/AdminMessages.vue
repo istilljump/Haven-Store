@@ -63,12 +63,7 @@
           </div>
         </template>
 
-        <el-table
-          v-loading="loading"
-          :data="messageList"
-          stripe
-          style="width: 100%"
-        >
+        <el-table v-loading="loading" :data="messageList" stripe style="width: 100%">
           <el-table-column prop="id" label="消息ID" width="80" align="center" />
           <el-table-column prop="title" label="消息标题" min-width="200">
             <template #default="{ row }">
@@ -101,20 +96,10 @@
           </el-table-column>
           <el-table-column label="操作" width="170" align="center">
             <template #default="{ row }">
-              <el-button 
-                type="primary" 
-                size="small" 
-                link
-                @click="viewMessageDetail(row)"
-              >
+              <el-button type="primary" size="small" link @click="viewMessageDetail(row)">
                 查看
               </el-button>
-              <el-button
-                type="danger"
-                size="small"
-                link
-                @click="handleDeleteMessage(row)"
-              >
+              <el-button type="danger" size="small" link @click="handleDeleteMessage(row)">
                 删除
               </el-button>
             </template>
@@ -137,21 +122,11 @@
     </div>
 
     <!-- 发送消息对话框 -->
-    <el-dialog
-      v-model="sendDialog"
-      title="发送系统消息"
-      width="500px"
-      @close="closeSendDialog"
-    >
-      <el-form
-        ref="sendFormRef"
-        :model="sendForm"
-        :rules="sendRules"
-        label-width="80px"
-      >
+    <el-dialog v-model="sendDialog" title="发送系统消息" width="500px" @close="closeSendDialog">
+      <el-form ref="sendFormRef" :model="sendForm" :rules="sendRules" label-width="80px">
         <el-form-item label="消息标题" prop="title">
-          <el-input 
-            v-model="sendForm.title" 
+          <el-input
+            v-model="sendForm.title"
             placeholder="请输入消息标题"
             maxlength="50"
             show-word-limit
@@ -178,9 +153,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="sendDialog = false">取消</el-button>
-          <el-button type="primary" @click="sendMessage">
-            发送消息
-          </el-button>
+          <el-button type="primary" @click="sendMessage"> 发送消息 </el-button>
         </span>
       </template>
     </el-dialog>
@@ -328,9 +301,7 @@ const sendRules = {
     { required: true, message: '请输入消息内容', trigger: 'blur' },
     { min: 10, max: 500, message: '消息内容长度为 10-500 个字符', trigger: 'blur' }
   ],
-  userType: [
-    { required: true, message: '请选择接收用户', trigger: 'change' }
-  ]
+  userType: [{ required: true, message: '请选择接收用户', trigger: 'change' }]
 }
 
 // 统计卡片：单独拉一次大分页（公告为聚合后的列表，量级很小），
@@ -346,9 +317,9 @@ const loadStats = async () => {
     const response = await adminApi.getAdminMessages({ page: 1, pageSize: 200 })
     const records = response.records || []
     const today = new Date().toDateString()
-    stats.today = records.filter(m => new Date(m.createTime).toDateString() === today).length
-    stats.allCount = records.filter(m => m.userType === 'all').length
-    stats.userCount = records.filter(m => m.userType === 'user').length
+    stats.today = records.filter((m) => new Date(m.createTime).toDateString() === today).length
+    stats.allCount = records.filter((m) => m.userType === 'all').length
+    stats.userCount = records.filter((m) => m.userType === 'user').length
   } catch (error) {
     // 统计失败不影响列表
   }
@@ -358,15 +329,15 @@ const loadStats = async () => {
 const loadMessages = async () => {
   try {
     loading.value = true
-    
+
     const params = {
       page: currentPage.value,
       pageSize: pageSize.value,
       ...searchForm
     }
-    
+
     const response = await adminApi.getAdminMessages(params)
-    
+
     messageList.value = response.records
     total.value = response.total
   } catch (error) {
@@ -379,7 +350,7 @@ const loadMessages = async () => {
 
 // 显示发送消息对话框
 const showSendDialog = () => {
-  Object.keys(sendForm).forEach(key => {
+  Object.keys(sendForm).forEach((key) => {
     sendForm[key] = key === 'userType' ? 'all' : ''
   })
   sendDialog.value = true
@@ -389,9 +360,9 @@ const showSendDialog = () => {
 const sendMessage = async () => {
   try {
     await sendFormRef.value.validate()
-    
+
     loading.value = true
-    
+
     await adminApi.sendSystemMessage(sendForm)
     ElMessage.success('消息发送成功')
     sendDialog.value = false
@@ -446,9 +417,9 @@ const handleDeleteMessage = async (message) => {
 // 获取用户类型样式类
 const getUserTypeClass = (userType) => {
   const typeMap = {
-    'all': 'primary',
-    'admin': 'warning',
-    'user': 'success'
+    all: 'primary',
+    admin: 'warning',
+    user: 'success'
   }
   return typeMap[userType] || 'info'
 }
@@ -456,9 +427,9 @@ const getUserTypeClass = (userType) => {
 // 获取用户类型文本
 const getUserTypeName = (userType) => {
   const typeMap = {
-    'all': '所有用户',
-    'admin': '仅管理员',
-    'user': '仅普通用户'
+    all: '所有用户',
+    admin: '仅管理员',
+    user: '仅普通用户'
   }
   return typeMap[userType] || '未知'
 }
@@ -489,7 +460,7 @@ const handleSearch = () => {
 
 // 重置搜索
 const resetSearch = () => {
-  Object.keys(searchForm).forEach(key => {
+  Object.keys(searchForm).forEach((key) => {
     searchForm[key] = ''
   })
   currentPage.value = 1
@@ -678,21 +649,21 @@ onMounted(() => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .search-form {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .search-form .el-form-item {
     margin-bottom: 12px;
   }
-  
+
   .message-stats .el-col {
     margin-bottom: 16px;
   }

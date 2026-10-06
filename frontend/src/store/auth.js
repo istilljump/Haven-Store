@@ -9,7 +9,7 @@ import { useUserStore } from './index'
 
 export const useAuthStore = defineStore('auth', () => {
   const userStore = useUserStore()
-  
+
   const token = ref(getToken())
   const user = computed(() => userStore.user)
   const isLoggedIn = computed(() => userStore.isLoggedIn)
@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) {
       return false
     }
-    
+
     try {
       await userStore.getUserInfo()
       return true

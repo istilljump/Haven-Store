@@ -28,16 +28,16 @@
               <h3>基本信息</h3>
               <el-form :model="settings.site" label-width="120px">
                 <el-form-item label="站点名称">
-                  <el-input 
-                    v-model="settings.site.name" 
+                  <el-input
+                    v-model="settings.site.name"
                     placeholder="请输入站点名称"
                     maxlength="50"
                     show-word-limit
                   />
                 </el-form-item>
                 <el-form-item label="站点描述">
-                  <el-input 
-                    v-model="settings.site.description" 
+                  <el-input
+                    v-model="settings.site.description"
                     type="textarea"
                     :rows="3"
                     placeholder="请输入站点描述"
@@ -58,9 +58,7 @@
                     :on-error="handleLogoError"
                   >
                     <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-                    <div class="el-upload__text">
-                      将文件拖到此处，或<em>点击上传</em>
-                    </div>
+                    <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
                     <template #tip>
                       <div class="el-upload__tip">
                         支持jpg/png/gif/webp，不超过5MB；上传后立即生效为可访问地址
@@ -69,19 +67,14 @@
                   </el-upload>
                   <div v-if="settings.site.logo" class="logo-preview">
                     <img :src="settings.site.logo" alt="Logo预览" />
-                    <el-button
-                      type="danger"
-                      size="small"
-                      link
-                      @click="removeLogo"
-                    >
+                    <el-button type="danger" size="small" link @click="removeLogo">
                       删除
                     </el-button>
                   </div>
                 </el-form-item>
                 <el-form-item label="备案号">
-                  <el-input 
-                    v-model="settings.site.icp" 
+                  <el-input
+                    v-model="settings.site.icp"
                     placeholder="请输入ICP备案号"
                     maxlength="50"
                   />
@@ -96,9 +89,9 @@
               <h3>文件上传</h3>
               <el-form :model="settings.upload" label-width="120px">
                 <el-form-item label="文件大小限制">
-                  <el-input-number 
-                    v-model="settings.upload.maxFileSize" 
-                    :min="1024" 
+                  <el-input-number
+                    v-model="settings.upload.maxFileSize"
+                    :min="1024"
                     :max="10240"
                     controls-position="right"
                   >
@@ -116,9 +109,9 @@
                   </el-checkbox-group>
                 </el-form-item>
                 <el-form-item label="最大图片数量">
-                  <el-input-number 
-                    v-model="settings.upload.maxImages" 
-                    :min="1" 
+                  <el-input-number
+                    v-model="settings.upload.maxImages"
+                    :min="1"
                     :max="20"
                     controls-position="right"
                   />
@@ -138,19 +131,19 @@
                   <span class="form-tip">（启用AI智能估价功能）</span>
                 </el-form-item>
                 <el-form-item label="估价置信度">
-                  <el-slider 
-                    v-model="settings.trade.estimateConfidence" 
-                    :min="0" 
+                  <el-slider
+                    v-model="settings.trade.estimateConfidence"
+                    :min="0"
                     :max="100"
                     :step="5"
-                    :format-tooltip="value => `${value}%`"
+                    :format-tooltip="(value) => `${value}%`"
                   />
                   <span class="form-tip">（AI估价结果的置信度阈值）</span>
                 </el-form-item>
                 <el-form-item label="商品价格上限">
-                  <el-input-number 
-                    v-model="settings.trade.maxPrice" 
-                    :min="1000" 
+                  <el-input-number
+                    v-model="settings.trade.maxPrice"
+                    :min="1000"
                     :max="10000000"
                     :precision="2"
                     controls-position="right"
@@ -160,9 +153,9 @@
                   <span class="form-tip">（单个商品的最大价格限制）</span>
                 </el-form-item>
                 <el-form-item label="自动下架时间">
-                  <el-input-number 
-                    v-model="settings.trade.autoOfflineHours" 
-                    :min="24" 
+                  <el-input-number
+                    v-model="settings.trade.autoOfflineHours"
+                    :min="24"
                     :max="720"
                     controls-position="right"
                   >
@@ -180,22 +173,22 @@
               <h3>客服信息</h3>
               <el-form :model="settings.contact" label-width="120px">
                 <el-form-item label="客服邮箱">
-                  <el-input 
-                    v-model="settings.contact.email" 
+                  <el-input
+                    v-model="settings.contact.email"
                     placeholder="请输入客服邮箱"
                     maxlength="100"
                   />
                 </el-form-item>
                 <el-form-item label="客服电话">
-                  <el-input 
-                    v-model="settings.contact.phone" 
+                  <el-input
+                    v-model="settings.contact.phone"
                     placeholder="请输入客服电话"
                     maxlength="20"
                   />
                 </el-form-item>
                 <el-form-item label="公司地址">
-                  <el-input 
-                    v-model="settings.contact.address" 
+                  <el-input
+                    v-model="settings.contact.address"
                     type="textarea"
                     :rows="3"
                     placeholder="请输入公司地址"
@@ -204,9 +197,9 @@
                   />
                 </el-form-item>
                 <el-form-item label="工作时间">
-                  <el-time-picker 
-                    v-model="settings.contact.workTime" 
-                    is-range 
+                  <el-time-picker
+                    v-model="settings.contact.workTime"
+                    is-range
                     range-separator="至"
                     start-placeholder="开始时间"
                     end-placeholder="结束时间"
@@ -224,25 +217,28 @@
               <h3>账户安全</h3>
               <el-form :model="settings.security" label-width="120px">
                 <el-form-item label="密码强度要求">
-                  <el-select v-model="settings.security.passwordStrength" placeholder="请选择密码强度要求">
+                  <el-select
+                    v-model="settings.security.passwordStrength"
+                    placeholder="请选择密码强度要求"
+                  >
                     <el-option label="低（6位以上）" value="low" />
                     <el-option label="中（8位以上，包含数字字母）" value="medium" />
                     <el-option label="高（8位以上，包含数字字母符号）" value="high" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="登录失败锁定">
-                  <el-input-number 
-                    v-model="settings.security.loginAttempts" 
-                    :min="3" 
+                  <el-input-number
+                    v-model="settings.security.loginAttempts"
+                    :min="3"
                     :max="10"
                     controls-position="right"
                   />
                   <span class="form-tip">（登录失败次数达到该值后锁定账户）</span>
                 </el-form-item>
                 <el-form-item label="账户锁定时间">
-                  <el-input-number 
-                    v-model="settings.security.lockDuration" 
-                    :min="5" 
+                  <el-input-number
+                    v-model="settings.security.lockDuration"
+                    :min="5"
                     :max="1440"
                     controls-position="right"
                   >
@@ -251,9 +247,9 @@
                   <span class="form-tip">（账户锁定持续的时间）</span>
                 </el-form-item>
                 <el-form-item label="会话超时">
-                  <el-input-number 
-                    v-model="settings.security.sessionTimeout" 
-                    :min="30" 
+                  <el-input-number
+                    v-model="settings.security.sessionTimeout"
+                    :min="30"
                     :max="1440"
                     controls-position="right"
                   >
@@ -380,23 +376,25 @@ const resetSettings = () => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    Object.assign(settings, JSON.parse(JSON.stringify(defaultSettings)))
-    ElMessage.success('设置已重置为默认值')
-  }).catch(() => {})
+  })
+    .then(() => {
+      Object.assign(settings, JSON.parse(JSON.stringify(defaultSettings)))
+      ElMessage.success('设置已重置为默认值')
+    })
+    .catch(() => {})
 }
 
 // 保存设置
 const saveSettings = async () => {
   try {
     loading.value = true
-    
+
     // 验证设置
     if (!validateEmail(settings.contact.email)) {
       ElMessage.error('请输入正确的邮箱地址')
       return
     }
-    
+
     if (!isValidContactPhone(settings.contact.phone)) {
       ElMessage.error('客服电话须为 400 热线、座机（区号-号码）或手机号')
       return
@@ -521,12 +519,12 @@ onMounted(() => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .settings-card {
     height: 500px;
   }

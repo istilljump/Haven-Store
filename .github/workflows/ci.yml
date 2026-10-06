@@ -1,0 +1,92 @@
+# Haven-Store 持续集成
+#
+# 触发：push / PR 到 main，或手动（workflow_dispatch）。
+# 流程：MySQL 8 + Redis 7 服务容器 → 建库导入 01-schema.sql →
+#       后端单元测试（66 项）→ 打包并启动后端 → 冒烟测试（336 项断言）→ 前端构建。
+# 冒烟测试无需第三方 Python 依赖（纯标准库）。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 1234
+          MYSQL_DATABASE: secondhand_market
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -p1234"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 初始化数据库（12 张表 + 种子数据）
+        run: |
+          mysql -h 127.0.0.1 -uroot -p1234 -e "SELECT 1" 2>/dev/null || \
+            sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client
+          mysql -h 127.0.0.1 -uroot -p1234 secondhand_market < backend/sql/01-schema.sql
+          mysql -h 127.0.0.1 -uroot -p1234 -e "USE secondhand_market; SHOW TABLES;"
+
+      - name: 后端单元测试（66 项）
+        run: mvn -B test --file backend/pom.xml
+
+      - name: 打包后端
+        run: mvn -B package -DskipTests --file backend/pom.xml
+
+      - name: 启动后端并等待就绪
+        run: |
+          nohup java -jar backend/target/second-hand-market-1.0.0.jar > backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/api/health > /dev/null; then
+              echo "后端已就绪（第 ${i} 次探测）"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "后端启动超时，日志如下："
+          tail -50 backend.log
+          exit 1
+
+      - name: 冒烟测试（336 项断言）
+        run: python3 tests/api_smoke_test.py http://localhost:8080/api
+
+      - name: 前端构建
+        run: cd frontend && npm ci --no-audit --no-fund && npm run build

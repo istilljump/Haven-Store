@@ -96,7 +96,7 @@ function Start-Services {
     
     # 启动服务
     Push-Location $PROJECT_DIR
-    if (docker-compose up -d) {
+    if (docker-compose -f config\docker-compose.yml up -d) {
         Print-Success "服务启动成功"
         Print-Info "查看服务状态: .\deploy.ps1 status"
         Print-Info "查看服务日志: .\deploy.ps1 logs"
@@ -111,7 +111,7 @@ function Start-Services {
 function Stop-Services {
     Print-Info "停止服务..."
     Push-Location $PROJECT_DIR
-    if (docker-compose down) {
+    if (docker-compose -f config\docker-compose.yml down) {
         Print-Success "服务停止成功"
     } else {
         Print-Error "服务停止失败"
@@ -131,7 +131,7 @@ function Restart-Services {
 function Get-ServicesStatus {
     Print-Info "服务状态："
     Push-Location $PROJECT_DIR
-    docker-compose ps
+    docker-compose -f config\docker-compose.yml ps
     
     Print-Info "查看实时日志: .\deploy.ps1 logs"
     Print-Info "查看前端日志: docker logs secondhand-frontend"
@@ -145,7 +145,7 @@ function Get-ServicesStatus {
 function Show-ServicesLogs {
     Print-Info "服务日志（按Ctrl+C退出）："
     Push-Location $PROJECT_DIR
-    docker-compose logs -f
+    docker-compose -f config\docker-compose.yml logs -f
 }
 
 # 清理资源
@@ -154,7 +154,7 @@ function Clean-Services {
     
     # 停止并删除容器
     Push-Location $PROJECT_DIR
-    docker-compose down -v
+    docker-compose -f config\docker-compose.yml down -v
     
     # 删除镜像
     Print-Info "删除Docker镜像..."

@@ -26,7 +26,12 @@
             />
           </el-form-item>
           <el-form-item label="订单状态">
-            <el-select v-model="searchForm.status" placeholder="全部状态" clearable @change="handleSearch">
+            <el-select
+              v-model="searchForm.status"
+              placeholder="全部状态"
+              clearable
+              @change="handleSearch"
+            >
               <el-option
                 v-for="option in ORDER_STATUS_OPTIONS"
                 :key="option.value"
@@ -69,9 +74,7 @@
         </el-table-column>
         <el-table-column label="操作" width="100" align="center">
           <template #default="{ row }">
-            <el-button type="primary" size="small" link @click="viewOrder(row)">
-              详情
-            </el-button>
+            <el-button type="primary" size="small" link @click="viewOrder(row)"> 详情 </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -93,18 +96,32 @@
     <el-dialog v-model="detailDialog" title="订单详情" width="640px">
       <template v-if="detailOrder">
         <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="订单号" :span="2">{{ detailOrder.orderNo }}</el-descriptions-item>
-          <el-descriptions-item label="买家">{{ detailOrder.buyerName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="订单号" :span="2">{{
+            detailOrder.orderNo
+          }}</el-descriptions-item>
+          <el-descriptions-item label="买家">{{
+            detailOrder.buyerName || '-'
+          }}</el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="statusMap[detailOrder.status]?.type || 'info'" size="small">
               {{ detailOrder.statusDesc }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="下单时间">{{ formatDateTime(detailOrder.createTime) }}</el-descriptions-item>
-          <el-descriptions-item label="支付时间">{{ formatDateTime(detailOrder.payTime) }}</el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ formatDateTime(detailOrder.finishTime) }}</el-descriptions-item>
-          <el-descriptions-item label="取消时间">{{ formatDateTime(detailOrder.cancelTime) }}</el-descriptions-item>
-          <el-descriptions-item label="买家留言" :span="2">{{ detailOrder.remark || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="下单时间">{{
+            formatDateTime(detailOrder.createTime)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="支付时间">{{
+            formatDateTime(detailOrder.payTime)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="完成时间">{{
+            formatDateTime(detailOrder.finishTime)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="取消时间">{{
+            formatDateTime(detailOrder.cancelTime)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="买家留言" :span="2">{{
+            detailOrder.remark || '无'
+          }}</el-descriptions-item>
         </el-descriptions>
 
         <h4 class="items-title">商品明细</h4>

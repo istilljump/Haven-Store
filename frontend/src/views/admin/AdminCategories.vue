@@ -23,12 +23,7 @@
           </div>
         </template>
 
-        <el-table
-          v-loading="loading"
-          :data="categories"
-          row-key="id"
-          style="width: 100%"
-        >
+        <el-table v-loading="loading" :data="categories" row-key="id" style="width: 100%">
           <el-table-column label="分类图标" width="100" align="center">
             <template #default="{ row }">
               <div class="category-icon">
@@ -45,10 +40,10 @@
           </el-table-column>
           <el-table-column prop="sort" label="排序" width="80" align="center">
             <template #default="{ row }">
-              <el-input-number 
-                v-model="row.sort" 
-                :min="1" 
-                :max="99" 
+              <el-input-number
+                v-model="row.sort"
+                :min="1"
+                :max="99"
                 size="small"
                 @change="handleSortChange(row)"
               />
@@ -68,17 +63,11 @@
           </el-table-column>
           <el-table-column label="操作" width="200" align="center">
             <template #default="{ row }">
-              <el-button 
-                type="primary" 
-                size="small" 
-                @click="editCategory(row)"
-              >
-                编辑
-              </el-button>
-              <el-button 
-                v-if="row.id !== 1" 
-                type="danger" 
-                size="small" 
+              <el-button type="primary" size="small" @click="editCategory(row)"> 编辑 </el-button>
+              <el-button
+                v-if="row.id !== 1"
+                type="danger"
+                size="small"
                 @click="deleteCategory(row)"
               >
                 删除
@@ -103,18 +92,18 @@
         label-width="80px"
       >
         <el-form-item label="分类名称" prop="name">
-          <el-input 
-            v-model="categoryForm.name" 
+          <el-input
+            v-model="categoryForm.name"
             placeholder="请输入分类名称"
             maxlength="20"
             show-word-limit
           />
         </el-form-item>
         <el-form-item label="排序" prop="sort">
-          <el-input-number 
-            v-model="categoryForm.sort" 
-            :min="1" 
-            :max="99" 
+          <el-input-number
+            v-model="categoryForm.sort"
+            :min="1"
+            :max="99"
             placeholder="请输入排序值"
           />
         </el-form-item>
@@ -136,29 +125,22 @@
     </el-dialog>
 
     <!-- 删除确认对话框 -->
-    <el-dialog
-      v-model="deleteDialog"
-      title="删除分类"
-      width="400px"
-    >
+    <el-dialog v-model="deleteDialog" title="删除分类" width="400px">
       <div class="delete-content">
         <el-icon class="warning-icon" color="#f56c6c">
           <Warning />
         </el-icon>
         <div class="warning-text">
-          确定要删除分类 "<strong>{{ deleteCategoryName }}</strong>" 吗？
-          <br>
-          <span class="warning-desc">
-            分类下仍有商品时将无法删除（需先移走或下架商品）
-          </span>
+          确定要删除分类 "<strong>{{ deleteCategoryName }}</strong
+          >" 吗？
+          <br />
+          <span class="warning-desc"> 分类下仍有商品时将无法删除（需先移走或下架商品） </span>
         </div>
       </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="deleteDialog = false">取消</el-button>
-          <el-button type="danger" @click="confirmDelete">
-            确认删除
-          </el-button>
+          <el-button type="danger" @click="confirmDelete"> 确认删除 </el-button>
         </span>
       </template>
     </el-dialog>
@@ -199,9 +181,7 @@ const categoryRules = {
     { required: true, message: '请输入排序值', trigger: 'blur' },
     { type: 'number', message: '排序值必须为数字', trigger: 'blur' }
   ],
-  status: [
-    { required: true, message: '请选择状态', trigger: 'change' }
-  ]
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
 }
 
 // 加载分类列表
@@ -221,8 +201,8 @@ const loadCategories = async () => {
 // 显示新增分类对话框
 const showAddCategoryDialog = () => {
   isEdit.value = false
-  Object.keys(categoryForm).forEach(key => {
-    categoryForm[key] = key === 'id' ? null : (key === 'sort' ? 1 : (key === 'status' ? 1 : ''))
+  Object.keys(categoryForm).forEach((key) => {
+    categoryForm[key] = key === 'id' ? null : key === 'sort' ? 1 : key === 'status' ? 1 : ''
   })
   categoryDialog.value = true
 }
@@ -238,9 +218,9 @@ const editCategory = (category) => {
 const saveCategory = async () => {
   try {
     await categoryFormRef.value.validate()
-    
+
     loading.value = true
-    
+
     if (isEdit.value) {
       // 编辑分类
       await adminApi.updateCategory(categoryForm.id, categoryForm)
@@ -250,7 +230,7 @@ const saveCategory = async () => {
       await adminApi.addCategory(categoryForm)
       ElMessage.success('分类添加成功')
     }
-    
+
     categoryDialog.value = false
     loadCategories()
   } catch (error) {
@@ -275,7 +255,7 @@ const handleSortChange = async (category) => {
       sort: category.sort,
       status: category.status
     })
-    const updatedCategories = categories.value.map(cat => {
+    const updatedCategories = categories.value.map((cat) => {
       if (cat.id === category.id) {
         return { ...cat, sort: category.sort }
       }
@@ -416,7 +396,7 @@ onMounted(() => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;

@@ -21,7 +21,12 @@
           </el-input>
         </el-col>
         <el-col :xs="12" :sm="5">
-          <el-select v-model="searchForm.category" placeholder="选择分类" clearable @change="handleSearch">
+          <el-select
+            v-model="searchForm.category"
+            placeholder="选择分类"
+            clearable
+            @change="handleSearch"
+          >
             <el-option
               v-for="item in categoryOptions"
               :key="item.id"
@@ -31,7 +36,12 @@
           </el-select>
         </el-col>
         <el-col :xs="12" :sm="5">
-          <el-select v-model="searchForm.priceRange" placeholder="价格区间" clearable @change="handleSearch">
+          <el-select
+            v-model="searchForm.priceRange"
+            placeholder="价格区间"
+            clearable
+            @change="handleSearch"
+          >
             <el-option label="0-100元" value="0-100" />
             <el-option label="100-500元" value="100-500" />
             <el-option label="500-1000元" value="500-1000" />
@@ -88,11 +98,21 @@
         <el-button type="primary" @click="fetchProducts">重新加载</el-button>
       </el-empty>
 
-      <el-empty v-else-if="products.length === 0" :description="nearbyMode ? '附近暂无在售商品，试试扩大范围或关闭附近模式' : '没有找到相关商品'" />
+      <el-empty
+        v-else-if="products.length === 0"
+        :description="
+          nearbyMode ? '附近暂无在售商品，试试扩大范围或关闭附近模式' : '没有找到相关商品'
+        "
+      />
 
       <div v-else class="grid">
         <template v-if="nearbyMode">
-          <div v-for="item in products" :key="item.id" class="nearby-card" @click="viewProduct(item.id)">
+          <div
+            v-for="item in products"
+            :key="item.id"
+            class="nearby-card"
+            @click="viewProduct(item.id)"
+          >
             <AppImage class="nearby-cover" :src="item.coverImage" :alt="item.title" />
             <div class="nearby-info">
               <div class="nearby-title">{{ item.title }}</div>
@@ -197,7 +217,10 @@ export default {
             pageNum: currentPage.value,
             pageSize: pageSize.value
           })
-          products.value = (data.records || []).map(p => ({ ...p, distanceKm: Number(p.distance).toFixed(1) }))
+          products.value = (data.records || []).map((p) => ({
+            ...p,
+            distanceKm: Number(p.distance).toFixed(1)
+          }))
           total.value = data.total || 0
         } else {
           const range = PRICE_RANGE_MAP[searchForm.priceRange] || [null, null]
@@ -252,7 +275,7 @@ export default {
       }
       locating.value = true
       navigator.geolocation.getCurrentPosition(
-        position => {
+        (position) => {
           locating.value = false
           location.value = {
             longitude: Number(position.coords.longitude.toFixed(6)),
@@ -390,7 +413,9 @@ export default {
   overflow: hidden;
   cursor: pointer;
   border: 1px solid #ebeef5;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .nearby-card:hover {

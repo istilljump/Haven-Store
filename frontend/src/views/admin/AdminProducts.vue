@@ -37,10 +37,10 @@
           <el-form-item label="商品分类">
             <el-select v-model="searchForm.categoryId" placeholder="全部分类" clearable>
               <el-option label="全部分类" value="" />
-              <el-option 
-                v-for="category in categories" 
-                :key="category.id" 
-                :label="category.name" 
+              <el-option
+                v-for="category in categories"
+                :key="category.id"
+                :label="category.name"
                 :value="category.id"
               />
             </el-select>
@@ -75,12 +75,7 @@
           </div>
         </template>
 
-        <el-table
-          v-loading="loading"
-          :data="productList"
-          stripe
-          style="width: 100%"
-        >
+        <el-table v-loading="loading" :data="productList" stripe style="width: 100%">
           <el-table-column prop="id" label="商品ID" width="80" align="center" />
           <el-table-column label="商品图片" width="100" align="center">
             <template #default="{ row }">
@@ -89,12 +84,15 @@
                 :preview-src-list="row.coverImage ? [row.coverImage] : []"
                 :preview-teleported="true"
                 fit="cover"
-                style="width: 60px; height: 60px; border-radius: 8px;"
+                style="width: 60px; height: 60px; border-radius: 8px"
               >
                 <!-- 加载失败时显示占位图，而不是 Element Plus 默认的「FAILED」文案 -->
                 <template #error>
-                  <img src="/default-product.png" alt="暂无图片"
-                       style="width: 60px; height: 60px; border-radius: 8px;" />
+                  <img
+                    src="/default-product.png"
+                    alt="暂无图片"
+                    style="width: 60px; height: 60px; border-radius: 8px"
+                  />
                 </template>
               </el-image>
             </template>
@@ -135,36 +133,26 @@
           </el-table-column>
           <el-table-column label="操作" width="200" align="center">
             <template #default="{ row }">
-              <el-button 
-                type="primary" 
-                size="small" 
-                link
-                @click="viewProductDetail(row)"
-              >
+              <el-button type="primary" size="small" link @click="viewProductDetail(row)">
                 查看
               </el-button>
-              <el-button 
+              <el-button
                 v-if="row.status === 1"
-                type="warning" 
-                size="small" 
+                type="warning"
+                size="small"
                 @click="handleOfflineProduct(row)"
               >
                 下架
               </el-button>
-              <el-button 
+              <el-button
                 v-else-if="row.status === 3"
-                type="success" 
-                size="small" 
+                type="success"
+                size="small"
                 @click="handleOnlineProduct(row)"
               >
                 上架
               </el-button>
-              <el-button 
-                type="danger" 
-                size="small" 
-                link
-                @click="deleteProduct(row)"
-              >
+              <el-button type="danger" size="small" link @click="deleteProduct(row)">
                 删除
               </el-button>
             </template>
@@ -253,11 +241,7 @@
     </el-dialog>
 
     <!-- 确认对话框 -->
-    <el-dialog
-      v-model="confirmDialog"
-      :title="confirmTitle"
-      width="400px"
-    >
+    <el-dialog v-model="confirmDialog" :title="confirmTitle" width="400px">
       <div class="confirm-content">
         {{ confirmMessage }}
       </div>
@@ -309,15 +293,15 @@ const searchForm = reactive({
 const loadProducts = async () => {
   try {
     loading.value = true
-    
+
     const params = {
       page: currentPage.value,
       pageSize: pageSize.value,
       ...searchForm
     }
-    
+
     const response = await adminApi.getAdminProducts(params)
-    
+
     productList.value = response.records
     total.value = response.total
   } catch (error) {
@@ -340,7 +324,7 @@ const loadCategories = async () => {
 
 // 获取分类名称
 const getCategoryName = (categoryId) => {
-  const category = categories.value.find(c => c.id === categoryId)
+  const category = categories.value.find((c) => c.id === categoryId)
   return category ? category.name : '未知分类'
 }
 
@@ -352,7 +336,7 @@ const handleSearch = () => {
 
 // 重置搜索
 const resetSearch = () => {
-  Object.keys(searchForm).forEach(key => {
+  Object.keys(searchForm).forEach((key) => {
     searchForm[key] = ''
   })
   currentPage.value = 1
@@ -463,7 +447,7 @@ const exportProducts = async () => {
       ...searchForm,
       export: true
     }
-    
+
     await adminApi.exportProducts(params)
     ElMessage.success('商品数据导出成功')
   } catch (error) {
@@ -495,8 +479,8 @@ const getStatusText = (status) => {
 // 获取交易方式样式类（取值与后端 ProductConstant 一致：线上/线下）
 const getTradeTypeClass = (tradeType) => {
   const typeMap = {
-    '线上': 'primary',
-    '线下': 'success'
+    线上: 'primary',
+    线下: 'success'
   }
   // ElTag 的 type 只接受 primary/success/info/warning/danger
   return typeMap[tradeType] || 'info'
@@ -505,8 +489,8 @@ const getTradeTypeClass = (tradeType) => {
 // 获取交易方式文本
 const getTradeTypeName = (tradeType) => {
   const typeMap = {
-    '线上': '线上交易',
-    '线下': '线下交易'
+    线上: '线上交易',
+    线下: '线下交易'
   }
   return typeMap[tradeType] || '未知'
 }
@@ -680,21 +664,21 @@ onMounted(() => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .search-form {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .search-form .el-form-item {
     margin-bottom: 12px;
   }
-  
+
   .detail-grid {
     grid-template-columns: 1fr;
   }

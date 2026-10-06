@@ -1,4 +1,4 @@
-/* eslint 配置：此前 lint 脚本一直存在，但仓库里没有任何配置文件，等于无法执行 */
+/* 本文件为 ESLint 配置。注意：注释不能以"eslint"单词开头，否则会被当作内联配置解析而报错 */
 module.exports = {
   root: true,
   env: {
@@ -6,10 +6,7 @@ module.exports = {
     es2021: true,
     node: true
   },
-  extends: [
-    'plugin:vue/vue3-essential',
-    '@vue/prettier'
-  ],
+  extends: ['plugin:vue/vue3-essential', '@vue/prettier'],
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module'

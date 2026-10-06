@@ -14,13 +14,13 @@
 
 ## 快速启动
 
-1. 初始化数据库：执行 `scripts/01-schema.sql`，它会建库 `secondhand_market`、建 10 张表（`user`、`category`、`product`、`product_image`、`system_message`、`user_product_relation`、`comment`、`private_message`、`product_order`、`order_item`）并写入种子数据；
+1. 初始化数据库：执行 `sql/01-schema.sql`，它会建库 `secondhand_market`、建 10 张表（`user`、`category`、`product`、`product_image`、`system_message`、`user_product_relation`、`comment`、`private_message`、`product_order`、`order_item`）并写入种子数据；
 2. 修改 `src/main/resources/application.yml` 中的 MySQL 账号密码、Redis 地址为本机环境；
 3. 启动应用：运行 `SecondHandMarketApplication` 主类，或执行 `mvn spring-boot:run`；
 4. 打开接口文档：<http://localhost:8080/api/doc.html>。
 
 > 前置依赖：**MySQL 与 Redis 都必须先启动**——登录会把用户信息写入 Redis 缓存，Redis 不可用会导致登录失败。
-> 数据库初始化与增量升级细节见 [database_setup.md](database_setup.md)。
+> 数据库初始化与增量升级细节见 [database_setup.md](../docs/database_setup.md)。
 >
 > ⚠️ `legacy/` 目录下的两个 SQL 脚本已废弃，请勿使用，原因见 [legacy/README.md](legacy/README.md)。
 
@@ -29,7 +29,7 @@
 ```text
 backend
 ├── pom.xml                                    # Maven 依赖与构建配置
-├── scripts/01-schema.sql                      # 数据库初始化脚本（唯一有效的一份）
+├── sql/01-schema.sql                         # 数据库初始化脚本（唯一有效的一份）
 ├── legacy/                                    # 已废弃的脚本与配置（原因见其 README）
 └── src/main
     ├── resources/application.yml              # 核心配置文件

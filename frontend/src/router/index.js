@@ -29,13 +29,7 @@ const routes = [
     path: '/',
     component: MainLayout,
     redirect: '/home',
-    children: [
-      ...homeRoutes,
-      ...productRoutes,
-      ...userRoutes,
-      ...messageRoutes,
-      ...tradeRoutes
-    ]
+    children: [...homeRoutes, ...productRoutes, ...userRoutes, ...messageRoutes, ...tradeRoutes]
   },
   {
     path: '/auth',

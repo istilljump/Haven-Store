@@ -3,7 +3,9 @@
     <div class="page-container">
       <div class="page-head">
         <h2>我的发布</h2>
-        <el-button type="primary" size="small" @click="$router.push('/products/create')">发布新商品</el-button>
+        <el-button type="primary" size="small" @click="$router.push('/products/create')"
+          >发布新商品</el-button
+        >
       </div>
 
       <el-tabs v-model="activeStatus" @tab-change="handleTabChange">
@@ -23,28 +25,32 @@
                 v-if="Number(item.status) === 1"
                 size="mini"
                 @click="$router.push(`/products/${item.id}/edit`)"
-              >编辑</el-button>
+                >编辑</el-button
+              >
               <el-button
                 v-if="Number(item.status) === 1"
                 size="mini"
                 type="warning"
                 plain
                 @click="offline(item)"
-              >下架</el-button>
+                >下架</el-button
+              >
               <el-button
                 v-if="Number(item.status) === 3"
                 size="mini"
                 type="success"
                 plain
                 @click="reshelf(item)"
-              >重新上架</el-button>
+                >重新上架</el-button
+              >
               <el-button
                 v-if="Number(item.status) === 3"
                 size="mini"
                 type="danger"
                 plain
                 @click="purge(item)"
-              >删除</el-button>
+                >删除</el-button
+              >
             </div>
           </div>
         </div>
@@ -110,7 +116,9 @@ export default {
     }
 
     const offline = (item) => {
-      ElMessageBox.confirm(`下架「${item.title}」后买家将无法看到，可随时重新上架。`, '下架商品', { type: 'warning' })
+      ElMessageBox.confirm(`下架「${item.title}」后买家将无法看到，可随时重新上架。`, '下架商品', {
+        type: 'warning'
+      })
         .then(async () => {
           await removeProduct(item.id)
           ElMessage.success('已下架')

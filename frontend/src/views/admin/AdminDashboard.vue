@@ -119,9 +119,9 @@
               </div>
             </template>
             <div class="recent-products">
-              <div 
-                v-for="product in dashboardData.recentProducts" 
-                :key="product.id" 
+              <div
+                v-for="product in dashboardData.recentProducts"
+                :key="product.id"
                 class="product-item"
               >
                 <div class="product-info">
@@ -141,7 +141,7 @@
             </div>
           </el-card>
         </el-col>
-        
+
         <el-col :span="12">
           <el-card class="module-card" shadow="hover">
             <template #header>
@@ -153,9 +153,9 @@
               </div>
             </template>
             <div class="system-messages">
-              <div 
-                v-for="message in dashboardData.systemMessages" 
-                :key="message.id" 
+              <div
+                v-for="message in dashboardData.systemMessages"
+                :key="message.id"
                 class="message-item"
               >
                 <div class="message-icon">
@@ -271,12 +271,30 @@ const renderTrendChart = (trend) => {
     tooltip: { trigger: 'axis' },
     legend: { data: ['新增用户', '新增商品', '新增订单'], top: 0 },
     grid: { left: 40, right: 20, top: 34, bottom: 28 },
-    xAxis: { type: 'category', data: trend.map(p => p.date.slice(5)) },
+    xAxis: { type: 'category', data: trend.map((p) => p.date.slice(5)) },
     yAxis: { type: 'value', minInterval: 1 },
     series: [
-      { name: '新增用户', type: 'line', smooth: true, data: trend.map(p => p.newUsers), itemStyle: { color: '#409eff' } },
-      { name: '新增商品', type: 'line', smooth: true, data: trend.map(p => p.newProducts), itemStyle: { color: '#67c23a' } },
-      { name: '新增订单', type: 'line', smooth: true, data: trend.map(p => p.newOrders), itemStyle: { color: '#e6a23c' } }
+      {
+        name: '新增用户',
+        type: 'line',
+        smooth: true,
+        data: trend.map((p) => p.newUsers),
+        itemStyle: { color: '#409eff' }
+      },
+      {
+        name: '新增商品',
+        type: 'line',
+        smooth: true,
+        data: trend.map((p) => p.newProducts),
+        itemStyle: { color: '#67c23a' }
+      },
+      {
+        name: '新增订单',
+        type: 'line',
+        smooth: true,
+        data: trend.map((p) => p.newOrders),
+        itemStyle: { color: '#e6a23c' }
+      }
     ]
   })
 }
@@ -297,7 +315,7 @@ const renderCategoryChart = (stats) => {
         avoidLabelOverlap: true,
         itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
         label: { show: false },
-        data: stats.map(s => ({ name: s.categoryName || `分类${s.categoryId}`, value: s.count }))
+        data: stats.map((s) => ({ name: s.categoryName || `分类${s.categoryId}`, value: s.count }))
       }
     ]
   })
@@ -396,12 +414,14 @@ const goToLogout = () => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    removeToken()
-    removeUserInfo()
-    ElMessage.success('退出成功')
-    router.push('/admin/login')
-  }).catch(() => {})
+  })
+    .then(() => {
+      removeToken()
+      removeUserInfo()
+      ElMessage.success('退出成功')
+      router.push('/admin/login')
+    })
+    .catch(() => {})
 }
 
 // 组件挂载时加载数据与图表；窗口尺寸变化时重绘
@@ -694,12 +714,12 @@ onBeforeUnmount(() => {
     gap: 16px;
     align-items: flex-start;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .action-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -709,7 +729,7 @@ onBeforeUnmount(() => {
   .stats-cards .el-col {
     margin-bottom: 16px;
   }
-  
+
   .function-modules .el-col {
     margin-bottom: 16px;
   }

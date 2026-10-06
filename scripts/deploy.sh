@@ -168,12 +168,12 @@ health_check() {
     fi
 }
 
-# 数据库初始化（在 MySQL 容器内执行 backend/scripts/01-schema.sql）
+# 数据库初始化（在 MySQL 容器内执行 backend/sql/01-schema.sql）
 migrate_database() {
     print_info "执行数据库初始化..."
     echo -e "${RED}注意：该脚本含 DROP TABLE，会清空并重建所有表！${NC}"
     cd "$PROJECT_DIR"
-    if docker exec -i secondhand-mysql mysql -uroot -p123456 --default-character-set=utf8mb4 < backend/scripts/01-schema.sql; then
+    if docker exec -i secondhand-mysql mysql -uroot -p123456 --default-character-set=utf8mb4 < backend/sql/01-schema.sql; then
         print_success "数据库初始化完成"
     else
         print_error "数据库初始化失败"

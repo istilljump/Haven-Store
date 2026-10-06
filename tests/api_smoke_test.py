@@ -300,7 +300,10 @@ def main():
     section("6. 用户管理")
     _, _, r = call("GET", "/admin/users?page=1&pageSize=10", token=admin_token)
     check("GET /admin/users 分页结构", r, '"records"')
-    check("列表含 admin 账号", r, '"username":"admin"')
+    # 用户列表按注册时间倒序排列，多轮冒烟累积的账号会把 admin 挤出第一页，
+    # 因此用关键词检索断言（顺带覆盖 keyword 过滤链路），不依赖分页窗口内容
+    _, _, r_admin = call("GET", "/admin/users?page=1&pageSize=10&keyword=admin", token=admin_token)
+    check("列表含 admin 账号", r_admin, '"username":"admin"')
     check("列表项含 isAdmin 标识", r, '"isAdmin"')
     # 脱敏校验：用户列表响应里不允许出现密码字段
     text = json.dumps(r, ensure_ascii=False)

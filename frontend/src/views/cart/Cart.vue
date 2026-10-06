@@ -28,23 +28,14 @@
               全选
             </el-checkbox>
             <span class="toolbar-count">已选 {{ selectedIds.length }} 件</span>
-            <el-button
-              v-if="unavailableCount > 0"
-              text
-              type="warning"
-              @click="clearUnavailable"
-            >
+            <el-button v-if="unavailableCount > 0" text type="warning" @click="clearUnavailable">
               清理失效商品（{{ unavailableCount }}）
             </el-button>
             <div class="toolbar-right">
               <span class="total">
                 合计：<em>{{ formatMoney(selectedTotal) }}</em>
               </span>
-              <el-button
-                type="danger"
-                :disabled="!selectedIds.length"
-                @click="openCheckout"
-              >
+              <el-button type="danger" :disabled="!selectedIds.length" @click="openCheckout">
                 去结算
               </el-button>
             </div>
@@ -119,9 +110,7 @@
           <div class="toolbar">
             <span class="toolbar-count">共收藏 {{ favorites.length }} 件</span>
             <div class="toolbar-right">
-              <el-button :loading="addingAll" @click="addAllFavorites">
-                全部加入购物车
-              </el-button>
+              <el-button :loading="addingAll" @click="addAllFavorites"> 全部加入购物车 </el-button>
             </div>
           </div>
 
@@ -206,9 +195,7 @@
       />
       <template #footer>
         <el-button @click="checkoutVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitOrder">
-          提交订单
-        </el-button>
+        <el-button type="primary" :loading="submitting" @click="submitOrder"> 提交订单 </el-button>
       </template>
     </el-dialog>
   </div>
@@ -247,15 +234,18 @@ export default {
     const selectableItems = computed(() => cartItems.value.filter((item) => item.available))
     /** 失效条目（已售出/已下架/自己发布的） */
     const unavailableCount = computed(() => cartItems.value.length - selectableItems.value.length)
-    const allSelected = computed(() => selectableItems.value.length > 0
-      && selectedIds.value.length === selectableItems.value.length)
+    const allSelected = computed(
+      () =>
+        selectableItems.value.length > 0 &&
+        selectedIds.value.length === selectableItems.value.length
+    )
     const indeterminate = computed(() => selectedIds.value.length > 0 && !allSelected.value)
-    const checkoutItems = computed(() => cartItems.value.filter(
-      (item) => selectedIds.value.includes(item.productId)
-    ))
-    const selectedTotal = computed(() => checkoutItems.value.reduce(
-      (sum, item) => sum + Number(item.price || 0), 0
-    ))
+    const checkoutItems = computed(() =>
+      cartItems.value.filter((item) => selectedIds.value.includes(item.productId))
+    )
+    const selectedTotal = computed(() =>
+      checkoutItems.value.reduce((sum, item) => sum + Number(item.price || 0), 0)
+    )
 
     const isSelected = (productId) => selectedIds.value.includes(productId)
 
@@ -272,7 +262,8 @@ export default {
       try {
         cartItems.value = (await cartApi.getCartList()) || []
         // 勾选状态只保留仍然存在且可结算的条目，避免取消勾选后残留
-        const validIds = cartItems.value.filter((item) => item.available)
+        const validIds = cartItems.value
+          .filter((item) => item.available)
           .map((item) => item.productId)
         selectedIds.value = selectedIds.value.filter((id) => validIds.includes(id))
       } catch (error) {
@@ -305,26 +296,28 @@ export default {
     }
 
     const toggleSelectAll = (checked) => {
-      selectedIds.value = checked
-        ? selectableItems.value.map((item) => item.productId)
-        : []
+      selectedIds.value = checked ? selectableItems.value.map((item) => item.productId) : []
     }
 
     const goToProduct = (productId) => router.push(`/products/${productId}`)
 
     const removeItem = (item) => {
       ElMessageBox.confirm(`确定把「${item.title}」移出购物车吗？`, '移出购物车', {
-        type: 'warning', confirmButtonText: '移出', cancelButtonText: '取消'
-      }).then(async () => {
-        try {
-          await cartApi.removeFromCart(item.productId)
-          ElMessage.success('已移出购物车')
-          await loadCart()
-          await syncCartCount()
-        } catch (error) {
-          console.error('移出购物车失败:', error)
-        }
-      }).catch(() => {})
+        type: 'warning',
+        confirmButtonText: '移出',
+        cancelButtonText: '取消'
+      })
+        .then(async () => {
+          try {
+            await cartApi.removeFromCart(item.productId)
+            ElMessage.success('已移出购物车')
+            await loadCart()
+            await syncCartCount()
+          } catch (error) {
+            console.error('移出购物车失败:', error)
+          }
+        })
+        .catch(() => {})
     }
 
     const toFavorite = async (item) => {
@@ -341,21 +334,23 @@ export default {
     const clearUnavailable = () => {
       const invalid = cartItems.value.filter((item) => !item.available)
       if (!invalid.length) return
-      ElMessageBox.confirm(
-        `确定清理这 ${invalid.length} 件已无法购买的商品吗？`,
-        '清理失效商品',
-        { type: 'warning', confirmButtonText: '清理', cancelButtonText: '取消' }
-      ).then(async () => {
-        try {
-          for (const item of invalid) {
-            await cartApi.removeFromCart(item.productId)
+      ElMessageBox.confirm(`确定清理这 ${invalid.length} 件已无法购买的商品吗？`, '清理失效商品', {
+        type: 'warning',
+        confirmButtonText: '清理',
+        cancelButtonText: '取消'
+      })
+        .then(async () => {
+          try {
+            for (const item of invalid) {
+              await cartApi.removeFromCart(item.productId)
+            }
+            ElMessage.success(`已清理 ${invalid.length} 件失效商品`)
+            await loadAll()
+          } catch (error) {
+            console.error('清理失效商品失败:', error)
           }
-          ElMessage.success(`已清理 ${invalid.length} 件失效商品`)
-          await loadAll()
-        } catch (error) {
-          console.error('清理失效商品失败:', error)
-        }
-      }).catch(() => {})
+        })
+        .catch(() => {})
     }
 
     const addToCartFromFavorite = async (item) => {
@@ -370,16 +365,20 @@ export default {
 
     const removeFavorite = (item) => {
       ElMessageBox.confirm(`确定取消收藏「${item.title}」吗？`, '取消收藏', {
-        type: 'warning', confirmButtonText: '取消收藏', cancelButtonText: '再想想'
-      }).then(async () => {
-        try {
-          await productApi.unfavoriteProduct(item.id)
-          ElMessage.success('已取消收藏')
-          await loadFavorites()
-        } catch (error) {
-          console.error('取消收藏失败:', error)
-        }
-      }).catch(() => {})
+        type: 'warning',
+        confirmButtonText: '取消收藏',
+        cancelButtonText: '再想想'
+      })
+        .then(async () => {
+          try {
+            await productApi.unfavoriteProduct(item.id)
+            ElMessage.success('已取消收藏')
+            await loadFavorites()
+          } catch (error) {
+            console.error('取消收藏失败:', error)
+          }
+        })
+        .catch(() => {})
     }
 
     /** 收藏批量加入购物车：分别提示成功与跳过，不做笼统的"已加入" */

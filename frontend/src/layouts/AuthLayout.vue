@@ -5,11 +5,11 @@
         <h1>{{ config.siteName }}</h1>
         <p>欢迎来到 Haven-Store</p>
       </div>
-      
+
       <div class="auth-content">
         <router-view />
       </div>
-      
+
       <div class="auth-footer">
         <p>&copy; 2024 {{ config.siteName }}. All rights reserved.</p>
       </div>

@@ -15,6 +15,7 @@ const https = require('https');
 const http = require('http');
 const { argv } = require('process');
 const fs = require('fs');
+const path = require('path');
 
 // 解析命令行参数
 const parseArgs = () => {
@@ -308,8 +309,12 @@ const analyzeResults = (results, startTime, runArgs) => {
     errors: errorCounts
   };
   
-  fs.writeFileSync(`stress_test_report_${Date.now()}.json`, JSON.stringify(report, null, 2));
-  console.log(`报告已保存到: stress_test_report_${Date.now()}.json`);
+  // 报告统一写入 reports/stress/（以脚本位置为基准，不受执行时工作目录影响）
+  const reportDir = path.join(__dirname, '..', 'reports', 'stress');
+  fs.mkdirSync(reportDir, { recursive: true });
+  const reportFile = path.join(reportDir, `stress_test_report_${Date.now()}.json`);
+  fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
+  console.log(`报告已保存到: ${reportFile}`);
 };
 
 // 主程序

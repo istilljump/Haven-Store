@@ -29,7 +29,9 @@
     <div v-else class="order-list">
       <div v-for="order in orders" :key="order.orderNo" class="order-card">
         <div class="order-head">
-          <span class="order-no" @click="$router.push(`/orders/${order.orderNo}`)">订单号：{{ order.orderNo }}</span>
+          <span class="order-no" @click="$router.push(`/orders/${order.orderNo}`)"
+            >订单号：{{ order.orderNo }}</span
+          >
           <span class="order-time">{{ order.createTime }}</span>
           <el-tag class="order-status" :type="statusTagType(order.status)" size="small">
             {{ order.statusDesc }}
@@ -48,8 +50,11 @@
                 {{ item.title }}
               </div>
               <div class="order-item-meta">
-                <span>{{ role === 'buyer' ? '卖家' : '买家' }}：{{ role === 'buyer'
-                  ? (item.sellerName || '—') : order.buyerName }}</span>
+                <span
+                  >{{ role === 'buyer' ? '卖家' : '买家' }}：{{
+                    role === 'buyer' ? item.sellerName || '—' : order.buyerName
+                  }}</span
+                >
                 <el-tag v-if="item.productDeleted" type="info" size="small" effect="plain">
                   商品已被删除
                 </el-tag>
@@ -66,33 +71,17 @@
             共 {{ order.itemCount }} 件，实付 <em>{{ formatMoney(order.totalAmount) }}</em>
           </span>
           <div class="order-actions">
-            <el-button
-              text
-              type="primary"
-              @click="$router.push(`/orders/${order.orderNo}`)"
-            >
+            <el-button text type="primary" @click="$router.push(`/orders/${order.orderNo}`)">
               查看详情
             </el-button>
             <template v-if="role === 'buyer'">
-              <el-button
-                v-if="order.status === 1"
-                text
-                @click="cancelOrder(order)"
-              >
+              <el-button v-if="order.status === 1" text @click="cancelOrder(order)">
                 取消订单
               </el-button>
-              <el-button
-                v-if="order.status === 1"
-                type="danger"
-                @click="payOrder(order)"
-              >
+              <el-button v-if="order.status === 1" type="danger" @click="payOrder(order)">
                 去支付
               </el-button>
-              <el-button
-                v-if="order.status === 2"
-                type="primary"
-                @click="confirmOrder(order)"
-              >
+              <el-button v-if="order.status === 2" type="primary" @click="confirmOrder(order)">
                 确认收货
               </el-button>
               <span v-if="order.status === 1" class="pay-tip">支付为模拟支付，不会真实扣款</span>
@@ -185,51 +174,57 @@ export default {
     /** 支付：明确告知是模拟支付，避免误导 */
     const payOrder = (order) => {
       ElMessageBox.confirm(
-        `订单 ${order.orderNo} 应付金额 ${formatMoney(order.totalAmount)}。`
-        + '本项目为课程作品，不会跳转真实支付渠道，也不会产生任何真实扣款。',
+        `订单 ${order.orderNo} 应付金额 ${formatMoney(order.totalAmount)}。` +
+          '本项目为课程作品，不会跳转真实支付渠道，也不会产生任何真实扣款。',
         '模拟支付',
         { type: 'info', confirmButtonText: '确认支付', cancelButtonText: '再想想' }
-      ).then(async () => {
-        try {
-          await orderApi.payOrder(order.orderNo)
-          ElMessage.success('支付成功（模拟支付）')
-          await loadOrders()
-        } catch (error) {
-          console.error('支付失败:', error)
-        }
-      }).catch(() => {})
+      )
+        .then(async () => {
+          try {
+            await orderApi.payOrder(order.orderNo)
+            ElMessage.success('支付成功（模拟支付）')
+            await loadOrders()
+          } catch (error) {
+            console.error('支付失败:', error)
+          }
+        })
+        .catch(() => {})
     }
 
     const cancelOrder = (order) => {
-      ElMessageBox.confirm(
-        '取消后商品会重新回到在售状态，确定取消这笔订单吗？',
-        '取消订单',
-        { type: 'warning', confirmButtonText: '取消订单', cancelButtonText: '再想想' }
-      ).then(async () => {
-        try {
-          await orderApi.cancelOrder(order.orderNo)
-          ElMessage.success('订单已取消')
-          await loadOrders()
-        } catch (error) {
-          console.error('取消订单失败:', error)
-        }
-      }).catch(() => {})
+      ElMessageBox.confirm('取消后商品会重新回到在售状态，确定取消这笔订单吗？', '取消订单', {
+        type: 'warning',
+        confirmButtonText: '取消订单',
+        cancelButtonText: '再想想'
+      })
+        .then(async () => {
+          try {
+            await orderApi.cancelOrder(order.orderNo)
+            ElMessage.success('订单已取消')
+            await loadOrders()
+          } catch (error) {
+            console.error('取消订单失败:', error)
+          }
+        })
+        .catch(() => {})
     }
 
     const confirmOrder = (order) => {
-      ElMessageBox.confirm(
-        '确认已收到商品？确认后订单将标记为已完成。',
-        '确认收货',
-        { type: 'info', confirmButtonText: '确认收货', cancelButtonText: '再等等' }
-      ).then(async () => {
-        try {
-          await orderApi.confirmOrder(order.orderNo)
-          ElMessage.success('订单已完成')
-          await loadOrders()
-        } catch (error) {
-          console.error('确认收货失败:', error)
-        }
-      }).catch(() => {})
+      ElMessageBox.confirm('确认已收到商品？确认后订单将标记为已完成。', '确认收货', {
+        type: 'info',
+        confirmButtonText: '确认收货',
+        cancelButtonText: '再等等'
+      })
+        .then(async () => {
+          try {
+            await orderApi.confirmOrder(order.orderNo)
+            ElMessage.success('订单已完成')
+            await loadOrders()
+          } catch (error) {
+            console.error('确认收货失败:', error)
+          }
+        })
+        .catch(() => {})
     }
 
     onMounted(loadOrders)

@@ -32,17 +32,19 @@ export function validatePhone(phone) {
  */
 export function validatePassword(password, strength = 'medium') {
   if (!password) return false
-  
+
   switch (strength) {
     case 'low':
       return password.length >= 6
     case 'medium':
       return password.length >= 8 && /[a-zA-Z]/.test(password) && /\d/.test(password)
     case 'high':
-      return password.length >= 8 && 
-             /[a-zA-Z]/.test(password) && 
-             /\d/.test(password) && 
-             /[!@#$%^&*(),.?":{}|<>]/.test(password)
+      return (
+        password.length >= 8 &&
+        /[a-zA-Z]/.test(password) &&
+        /\d/.test(password) &&
+        /[!@#$%^&*(),.?":{}|<>]/.test(password)
+      )
     default:
       return password.length >= 6
   }
@@ -117,7 +119,8 @@ export function validateUrl(url) {
  */
 export function validateIp(ip) {
   if (!ip) return false
-  const ipRegex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+  const ipRegex =
+    /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
   return ipRegex.test(ip)
 }
 
@@ -155,11 +158,9 @@ export function validateDate(date, format = 'YYYY-MM-DD') {
   if (!date) return false
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/
   if (!dateRegex.test(date)) return false
-  
+
   const [year, month, day] = date.split('-').map(Number)
   const d = new Date(year, month - 1, day)
-  
-  return d.getFullYear() === year && 
-         d.getMonth() === month - 1 && 
-         d.getDate() === day
+
+  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day
 }

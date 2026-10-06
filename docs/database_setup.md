@@ -4,7 +4,7 @@
 
 ## 唯一正确的建表脚本
 
-**`backend/scripts/01-schema.sql`**（10 张表 + 种子数据）
+**`backend/sql/01-schema.sql`**（10 张表 + 种子数据）
 
 > 历史遗留的 `backend/legacy/init.sql` 与 `backend/legacy/init_database.sql` **请勿使用**：
 > 前者建的是 `message` 表（字段为 `from_user_id`/`to_user_id`），
@@ -29,7 +29,7 @@
 ### 1. 执行脚本（脚本自带建库语句，无需手动建库）
 
 ```bash
-mysql -uroot -p < backend/scripts/01-schema.sql
+mysql -uroot -p < backend/sql/01-schema.sql
 ```
 
 脚本会创建数据库 `secondhand_market`（**注意不是 `second_hand_market`**，
@@ -109,7 +109,7 @@ ALTER TABLE `system_message`
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
-| 接口返回 501「系统内部错误」 | 表未创建 | 执行 `backend/scripts/01-schema.sql` |
-| 消息功能报表不存在 | 误导了 `legacy/init.sql` | 改用 `backend/scripts/01-schema.sql` |
+| 接口返回 501「系统内部错误」 | 表未创建 | 执行 `backend/sql/01-schema.sql` |
+| 消息功能报表不存在 | 误导了 `legacy/init.sql` | 改用 `backend/sql/01-schema.sql` |
 | 登录接口报错、日志出现 Redis 连接异常 | Redis 未启动（登录会把用户信息写入 Redis 缓存） | 启动 Redis 或改 `application.yml` 中的 Redis 地址 |
 | 中文乱码 | 连接串缺少字符集参数 | 保留 URL 中的 `characterEncoding=utf8` |

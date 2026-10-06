@@ -4,7 +4,7 @@ services:
   # 前端服务
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: secondhand-frontend
     restart: unless-stopped
@@ -20,7 +20,7 @@ services:
   # 后端服务
   backend:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
     container_name: secondhand-backend
     restart: unless-stopped
@@ -60,7 +60,7 @@ services:
       - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./backend/scripts:/docker-entrypoint-initdb.d
+      - ../backend/sql:/docker-entrypoint-initdb.d
     command: 
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4

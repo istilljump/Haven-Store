@@ -5,7 +5,14 @@
         <h2>通知中心</h2>
         <div class="head-actions">
           <el-button size="small" :disabled="!unreadCount" @click="markAllRead">全部已读</el-button>
-          <el-button size="small" type="danger" plain :disabled="!messages.length" @click="clearCurrent">删除选中</el-button>
+          <el-button
+            size="small"
+            type="danger"
+            plain
+            :disabled="!messages.length"
+            @click="clearCurrent"
+            >删除选中</el-button
+          >
         </div>
       </div>
 
@@ -116,7 +123,7 @@ export default {
         const pageData = await getSystemMessages(params)
         let records = pageData?.records || []
         if (activeTab.value === 'unread') {
-          records = records.filter(m => !m.isRead)
+          records = records.filter((m) => !m.isRead)
           total.value = records.length
         } else {
           total.value = Number(pageData?.total) || 0
@@ -175,7 +182,7 @@ export default {
         ElMessage.info('请先点击选中一条消息')
         return
       }
-      const msg = messages.value.find(m => m.id === selectedId.value)
+      const msg = messages.value.find((m) => m.id === selectedId.value)
       if (msg) removeMessage(msg)
     }
 

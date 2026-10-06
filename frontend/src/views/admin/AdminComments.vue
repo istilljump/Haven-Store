@@ -20,7 +20,12 @@
             />
           </el-form-item>
           <el-form-item label="评论状态">
-            <el-select v-model="searchForm.status" placeholder="全部状态" clearable @change="handleSearch">
+            <el-select
+              v-model="searchForm.status"
+              placeholder="全部状态"
+              clearable
+              @change="handleSearch"
+            >
               <el-option label="正常" :value="1" />
               <el-option label="隐藏" :value="0" />
             </el-select>
@@ -75,13 +80,7 @@
             >
               隐藏
             </el-button>
-            <el-button
-              v-else
-              type="success"
-              size="small"
-              plain
-              @click="updateStatus(row, 1)"
-            >
+            <el-button v-else type="success" size="small" plain @click="updateStatus(row, 1)">
               恢复
             </el-button>
             <el-button type="danger" size="small" plain @click="removeComment(row)">

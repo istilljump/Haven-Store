@@ -209,13 +209,7 @@ export const REPORT_TARGET_TYPES = {
 export const FILE_TYPES = {
   IMAGE: {
     extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'],
-    mimeTypes: [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/bmp'
-    ]
+    mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp']
   },
   DOCUMENT: {
     extensions: ['pdf', 'doc', 'docx', 'txt'],
@@ -228,11 +222,7 @@ export const FILE_TYPES = {
   },
   VIDEO: {
     extensions: ['mp4', 'avi', 'mov'],
-    mimeTypes: [
-      'video/mp4',
-      'video/x-msvideo',
-      'video/quicktime'
-    ]
+    mimeTypes: ['video/mp4', 'video/x-msvideo', 'video/quicktime']
   }
 }
 
