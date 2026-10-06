@@ -1,8 +1,11 @@
 package com.example.product.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.admin.dto.SystemSettingDTO;
+import com.example.admin.service.SystemSettingService;
 import com.example.category.entity.Category;
 import com.example.common.Result;
+import com.example.common.ResultCodeEnum;
 import com.example.product.dto.CommentAddDTO;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductEstimateDTO;
@@ -53,6 +56,9 @@ public class ProductController {
     /** 商品AI估价业务逻辑对象 */
     private final ProductAIService productAIService;
 
+    /** 系统设置服务（AI 估价开关等后台设置） */
+    private final SystemSettingService systemSettingService;
+
     /**
      * 发布二手商品
      *
@@ -83,10 +89,21 @@ public class ProductController {
      * @param dto 估价参数（标题、描述、成色、分类）
      * @return 估价结果
      */
-    @ApiOperation(value = "获取AI估价建议", notes = "基于商品特征进行智能估价，返回建议价格和置信度")
+    @ApiOperation(value = "获取AI估价建议", notes = "基于商品特征进行智能估价，返回建议价格和置信度；管理后台可关闭该功能")
     @PostMapping("/estimate")
     public Result<ProductEstimateVO> getAIPriceSuggestion(@RequestBody @Validated ProductEstimateDTO dto) {
+        if (!estimateSwitchEnabled()) {
+            return Result.fail(ResultCodeEnum.FORBIDDEN.getCode(), "AI 估价功能未开启");
+        }
         return productAIService.estimatePrice(dto);
+    }
+
+    /**
+     * AI 估价开关（管理后台「交易设置」的 autoEstimate；设置缺失时默认开启）
+     */
+    private boolean estimateSwitchEnabled() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings.getTrade() == null || !Boolean.FALSE.equals(settings.getTrade().getAutoEstimate());
     }
 
     /**
@@ -161,6 +178,32 @@ public class ProductController {
     @DeleteMapping("/{productId}")
     public Result<Void> offline(@PathVariable Long productId) {
         productService.offlineProduct(productId);
+        return Result.success();
+    }
+
+    /**
+     * 重新上架自己发布的商品
+     *
+     * @param productId 商品 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "重新上架商品", notes = "需要登录；仅发布者本人，且仅「已下架」状态可重新上架")
+    @PostMapping("/{productId}/reshelf")
+    public Result<Void> reshelf(@PathVariable Long productId) {
+        productService.reshelfProduct(productId);
+        return Result.success();
+    }
+
+    /**
+     * 彻底删除自己发布的商品
+     *
+     * @param productId 商品 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "删除商品", notes = "需要登录；仅发布者本人，且仅「已下架」状态可删除（物理删除并清理图片/评论/收藏）")
+    @DeleteMapping("/{productId}/purge")
+    public Result<Void> purge(@PathVariable Long productId) {
+        productService.purgeProduct(productId);
         return Result.success();
     }
 

@@ -12,8 +12,8 @@
           <div class="user-info">
             <h2>{{ user?.username }}</h2>
             <p>{{ user?.email }}</p>
-            <el-tag :type="getRoleTagType(user?.role)">
-              {{ getRoleText(user?.role) }}
+            <el-tag :type="getRoleTagType(user)">
+              {{ getRoleText(user) }}
             </el-tag>
           </div>
         </div>
@@ -303,23 +303,11 @@ export default {
       ElMessage.error('头像上传失败，请检查图片格式与大小')
     }
     
-    const getRoleTagType = (role) => {
-      const roleMap = {
-        'super_admin': 'danger',
-        'admin': 'warning',
-        'user': 'info'
-      }
-      return roleMap[role] || 'info'
-    }
-    
-    const getRoleText = (role) => {
-      const roleMap = {
-        'super_admin': '超级管理员',
-        'admin': '管理员',
-        'user': '普通用户'
-      }
-      return roleMap[role] || role
-    }
+    // 角色展示：登录态归一化后是 isAdmin 布尔（/user/info 的 role 数字已在 store 归一化），
+    // 直接读 user.role 字符串会永远落到「普通用户」
+    const getRoleTagType = (info) => (info?.isAdmin ? 'warning' : 'info')
+
+    const getRoleText = (info) => (info?.isAdmin ? '管理员' : '普通用户')
     
     // 我的发布：来自 GET /product/mine（当前登录用户发布的商品）
     const loadUserProducts = async () => {

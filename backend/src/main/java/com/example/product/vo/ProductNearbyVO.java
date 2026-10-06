@@ -31,6 +31,10 @@ public class ProductNearbyVO implements Serializable {
     @ApiModelProperty("商品价格")
     private BigDecimal price;
 
+    /** 商品封面图 */
+    @ApiModelProperty("商品封面图")
+    private String coverImage;
+
     /** 商品成色 */
     @ApiModelProperty("商品成色")
     private String productCondition;

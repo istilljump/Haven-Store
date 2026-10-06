@@ -43,6 +43,10 @@ public class CommentVO implements Serializable {
     @ApiModelProperty("评论人头像")
     private String avatar;
 
+    /** 是否为已验证购买（评论人下过该商品的订单且订单已支付/已完成） */
+    @ApiModelProperty("是否已验证购买")
+    private Boolean verifiedBuyer;
+
     /** 评论时间 */
     @ApiModelProperty("评论时间")
     private LocalDateTime createTime;

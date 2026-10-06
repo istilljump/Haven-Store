@@ -1,16 +1,13 @@
 package com.example.message.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.example.common.Result;
-import com.example.message.dto.SendMessageDTO;
 import com.example.message.entity.Message;
 import com.example.message.service.MessageService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 系统消息模块控制器
@@ -30,27 +27,15 @@ public class MessageController {
     private final MessageService messageService;
 
     /**
-     * 发送系统消息
-     *
-     * @param dto 消息入参（接收者ID、消息类型、标题、内容）
-     * @return 消息ID
-     */
-    @ApiOperation(value = "发送系统消息", notes = "需要管理员权限；发送系统通知、公告等消息")
-    @PostMapping("/send")
-    public Result<Long> sendMessage(@RequestBody @Validated SendMessageDTO dto) {
-        return Result.success(messageService.sendMessage(dto));
-    }
-
-    /**
-     * 获取当前用户的系统消息列表
+     * 获取当前用户的系统消息列表（分页）
      *
      * @param page 页码
      * @param size 每页大小
-     * @return 消息列表
+     * @return 分页消息列表
      */
-    @ApiOperation(value = "获取消息列表", notes = "获取当前用户的所有系统消息，按时间倒序排列")
+    @ApiOperation(value = "获取消息列表", notes = "分页获取当前用户的系统消息，按时间倒序排列")
     @GetMapping("/list")
-    public Result<List<Message>> getMessageList(
+    public Result<IPage<Message>> getMessageList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size) {
         return Result.success(messageService.getMessageList(page, size));

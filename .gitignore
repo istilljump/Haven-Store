@@ -182,3 +182,6 @@ ai_commit_notes/
 # 用户上传的图片（运行时产物，不入库）
 uploads/
 backend/uploads/
+
+# Mimosa 安全扫描本地状态（不入库）
+.mimosa/

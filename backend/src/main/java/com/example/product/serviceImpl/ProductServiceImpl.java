@@ -1,13 +1,22 @@
 package com.example.product.serviceImpl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.admin.dto.SystemSettingDTO;
+import com.example.admin.service.SystemSettingService;
 import com.example.category.entity.Category;
 import com.example.category.mapper.CategoryMapper;
 import com.example.common.BusinessException;
 import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
+import com.example.config.CacheConfig;
+import com.example.order.entity.OrderItem;
+import com.example.order.entity.ProductOrder;
+import com.example.order.enums.OrderStatusEnum;
+import com.example.order.mapper.OrderItemMapper;
+import com.example.order.mapper.ProductOrderMapper;
 import com.example.product.constant.ProductConstant;
 import com.example.product.constant.RelationTypeConstant;
 import com.example.product.dto.CommentAddDTO;
@@ -36,7 +45,9 @@ import com.example.user.mapper.UserMapper;
 import com.example.utils.UserHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -45,6 +56,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -80,6 +92,15 @@ public class ProductServiceImpl implements ProductService {
     /** 商品图片数据访问对象 */
     private final ProductImageMapper productImageMapper;
 
+    /** 订单明细数据访问对象（评论时校验「是否真的买过」） */
+    private final OrderItemMapper orderItemMapper;
+
+    /** 订单数据访问对象（评论时校验订单状态） */
+    private final ProductOrderMapper productOrderMapper;
+
+    /** 系统设置服务：价格上限、单次上传张数、AI 估价开关均从后台设置读取 */
+    private final SystemSettingService systemSettingService;
+
     /** 分类启用状态标识（与 category.status 字段对应：1 启用，0 禁用） */
     private static final int CATEGORY_STATUS_ENABLE = 1;
 
@@ -99,11 +120,15 @@ public class ProductServiceImpl implements ProductService {
      * 发布二手商品：
      * 依次执行登录态校验 → 交易方式与成色合法性校验 → 分类存在性校验 → 线下模式联动校验 →
      * 组装实体并默认上架状态写入数据库，返回自增商品 ID
+     * <p>
+     * 事务说明：商品主表 + 图片表 + 封面回写共多次写库，任一步失败整体回滚，
+     * 避免「商品在图片不在」的半截数据
      *
      * @param dto 发布入参
      * @return 新发布商品的 ID
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<ProductAddVO> addProduct(ProductAddDTO dto) {
         // 1. 从线程上下文获取当前登录用户 ID 作为卖家（由 JWT 拦截器写入，前端传入的用户 ID 一律不被信任）
         Long userId = UserHolder.getUserId();
@@ -129,24 +154,28 @@ public class ProductServiceImpl implements ProductService {
         }
         // 6. 线下交易联动校验：交易方式为线下时，地址、经度、纬度必须填写
         validateOfflineTrade(dto);
-        // 7. 组装商品实体并写入数据库（创建时间、更新时间由 MyBatis-Plus 自动填充）
+        // 7. 交易设置校验：价格上限与单次上传张数（来自管理后台「系统设置」）
+        validateTradeSettings(dto);
+        // 8. 组装商品实体并写入数据库（创建时间、更新时间由 MyBatis-Plus 自动填充）
         Product product = buildProduct(dto, userId);
         productMapper.insert(product);
         // 图片独立成表；cover_image 已由 buildProduct 取第一张，这里落库完整列表
         saveProductImages(product.getId(), dto);
         log.info("商品发布成功，商品ID：{}，卖家用户ID：{}，分类：{}，交易方式：{}",
                 product.getId(), userId, category.getName(), dto.getTradeType());
-        // 7. 获取AI估价建议（可选，不影响发布流程）
+        // 7. 获取AI估价建议（管理后台可关闭；可选功能，不影响发布流程）
         ProductEstimateVO estimateVO = null;
-        try {
-            ProductEstimateDTO estimateDTO = new ProductEstimateDTO();
-            estimateDTO.setTitle(dto.getTitle());
-            estimateDTO.setDescription(dto.getDescription());
-            estimateDTO.setProductCondition(dto.getProductCondition());
-            estimateDTO.setCategoryId(dto.getCategoryId());
-            estimateVO = productAIService.estimatePrice(estimateDTO).getData();
-        } catch (Exception e) {
-            log.warn("获取AI估价建议失败，不影响商品发布", e);
+        if (isAutoEstimateEnabled()) {
+            try {
+                ProductEstimateDTO estimateDTO = new ProductEstimateDTO();
+                estimateDTO.setTitle(dto.getTitle());
+                estimateDTO.setDescription(dto.getDescription());
+                estimateDTO.setProductCondition(dto.getProductCondition());
+                estimateDTO.setCategoryId(dto.getCategoryId());
+                estimateVO = productAIService.estimatePrice(estimateDTO).getData();
+            } catch (Exception e) {
+                log.warn("获取AI估价建议失败，不影响商品发布", e);
+            }
         }
 
         // 8. 返回商品 ID 和估价建议
@@ -175,6 +204,37 @@ public class ProductServiceImpl implements ProductService {
                 throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "线下交易时纬度不能为空");
             }
         }
+    }
+
+    /**
+     * 交易设置校验（发布与编辑共用）：
+     * 商品价格不得超过后台设置的价格上限（0 表示不限制）；
+     * 单次上传图片张数不得超过后台设置的上限（默认 9 张）
+     */
+    private void validateTradeSettings(ProductAddDTO dto) {
+        SystemSettingDTO settings = systemSettingService.get();
+        if (settings.getTrade() != null && settings.getTrade().getMaxPrice() != null
+                && settings.getTrade().getMaxPrice() > 0
+                && dto.getPrice() != null
+                && dto.getPrice().compareTo(BigDecimal.valueOf(settings.getTrade().getMaxPrice())) > 0) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
+                    "商品价格不能超过平台上限 " + settings.getTrade().getMaxPrice() + " 元");
+        }
+        if (settings.getUpload() != null && settings.getUpload().getMaxImages() != null
+                && dto.getImages() != null
+                && dto.getImages().stream().filter(StringUtils::hasText).count() > settings.getUpload().getMaxImages()) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
+                    "商品图片最多上传 " + settings.getUpload().getMaxImages() + " 张");
+        }
+    }
+
+    /**
+     * AI 自动估价是否开启（管理后台「交易设置」的 autoEstimate 开关）
+     */
+    private boolean isAutoEstimateEnabled() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings.getTrade() == null
+                || !Boolean.FALSE.equals(settings.getTrade().getAutoEstimate());
     }
 
     /**
@@ -301,9 +361,11 @@ public class ProductServiceImpl implements ProductService {
     /**
      * 查询可用的商品分类
      * <p>
-     * 只返回启用状态的分类：管理后台把分类禁用后，发布页就不再展示它
+     * 只返回启用状态的分类：管理后台把分类禁用后，发布页就不再展示它。
+     * 结果缓存 10 分钟（管理端分类增删改会整组驱逐），避免高频下拉查询反复打库
      */
     @Override
+    @Cacheable(cacheNames = CacheConfig.CACHE_CATEGORIES, key = "'enabled'")
     public List<Category> listEnabledCategories() {
         return categoryMapper.selectList(
                 new LambdaQueryWrapper<Category>()
@@ -323,7 +385,12 @@ public class ProductServiceImpl implements ProductService {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
                 .eq(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode());
         if (StringUtils.hasText(keyword)) {
-            wrapper.like(Product::getTitle, keyword.trim());
+            // 关键词同时匹配标题/描述/品牌/型号，任一命中即返回
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(Product::getTitle, kw)
+                    .or().like(Product::getDescription, kw)
+                    .or().like(Product::getBrand, kw)
+                    .or().like(Product::getModel, kw));
         }
         if (categoryId != null) {
             wrapper.eq(Product::getCategoryId, categoryId);
@@ -536,9 +603,12 @@ public class ProductServiceImpl implements ProductService {
     /**
      * 修改自己发布的商品
      * <p>
-     * 越权校验：只能改自己发布且仍然存在的商品
+     * 越权校验：只能改自己发布且仍然存在的商品；
+     * 状态校验：仅「在售」可编辑——已售出商品改价/改名会破坏订单快照与买家预期，
+     * 已下架商品需先重新上架再编辑
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateProduct(Long productId, ProductAddDTO dto) {
         Long userId = requireLoginUserId();
         Product exist = productMapper.selectById(productId);
@@ -547,6 +617,12 @@ public class ProductServiceImpl implements ProductService {
         }
         if (!userId.equals(exist.getUserId())) {
             throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能修改自己发布的商品");
+        }
+        if (!ProductStatusEnum.ON_SHELF.getCode().equals(exist.getStatus())) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
+                    ProductStatusEnum.SOLD.getCode().equals(exist.getStatus())
+                            ? "商品已售出，不能编辑"
+                            : "商品已下架，请先重新上架再编辑");
         }
         if (!ProductConstant.VALID_TRADE_TYPES.contains(dto.getTradeType())) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "交易方式不合法，仅支持：线上、线下");
@@ -559,6 +635,7 @@ public class ProductServiceImpl implements ProductService {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品分类不存在");
         }
         validateOfflineTrade(dto);
+        validateTradeSettings(dto);
 
         Product update = new Product();
         update.setId(productId);
@@ -620,6 +697,71 @@ public class ProductServiceImpl implements ProductService {
     }
 
     /**
+     * 重新上架自己发布的商品
+     * <p>
+     * 仅「已下架」可重新上架：已售出的商品回到在售会与既有订单冲突，明确拒绝
+     */
+    @Override
+    public void reshelfProduct(Long productId) {
+        Long userId = requireLoginUserId();
+        Product exist = productMapper.selectById(productId);
+        if (exist == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (!userId.equals(exist.getUserId())) {
+            throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能上架自己发布的商品");
+        }
+        if (!ProductStatusEnum.OFF_SHELF.getCode().equals(exist.getStatus())) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "仅「已下架」的商品可以重新上架");
+        }
+        Product update = new Product();
+        update.setId(productId);
+        update.setStatus(ProductStatusEnum.ON_SHELF.getCode());
+        productMapper.updateById(update);
+        log.info("商品重新上架，商品ID：{}，用户ID：{}", productId, userId);
+    }
+
+    /**
+     * 彻底删除自己发布的商品：仅「已下架」状态允许，清理全部关联数据
+     */
+    @Override
+    public void purgeProduct(Long productId) {
+        Long userId = requireLoginUserId();
+        Product exist = productMapper.selectById(productId);
+        if (exist == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (!userId.equals(exist.getUserId())) {
+            throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能删除自己发布的商品");
+        }
+        if (!ProductStatusEnum.OFF_SHELF.getCode().equals(exist.getStatus())) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
+                    "仅「已下架」的商品可以删除；如不再出售请先下架，已售出商品涉及订单凭证不可删除");
+        }
+        hardDeleteProduct(productId);
+        log.info("用户删除商品，商品ID：{}，用户ID：{}", productId, userId);
+    }
+
+    /**
+     * 彻底删除商品（物理删除，含全部关联数据）
+     * <p>
+     * 事务保证：商品、图片、评论、收藏/购物车关系要么一起删掉，要么都不动；
+     * 订单与订单明细保存的是下单快照，不随商品删除
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void hardDeleteProduct(Long productId) {
+        productImageMapper.delete(new LambdaQueryWrapper<ProductImage>()
+                .eq(ProductImage::getProductId, productId));
+        commentMapper.delete(new LambdaQueryWrapper<Comment>()
+                .eq(Comment::getProductId, productId));
+        // 收藏与购物车共用一张关联表，一并清理，避免残留指向已删除商品的孤儿关系
+        userProductRelationMapper.delete(new LambdaQueryWrapper<UserProductRelation>()
+                .eq(UserProductRelation::getProductId, productId));
+        productMapper.deleteById(productId);
+    }
+
+    /**
      * 分页查询商品评论（只展示正常状态的评论，按时间倒序）
      */
     @Override
@@ -641,6 +783,10 @@ public class ProductServiceImpl implements ProductService {
                 ? Collections.emptyMap()
                 : userMapper.selectBatchIds(userIds).stream()
                         .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        // 批量判定「已验证购买」：评论人中真实买过该商品的用户集合
+        Set<Long> verifiedBuyerIds = commentPage.getRecords().isEmpty()
+                ? Collections.emptySet()
+                : findVerifiedBuyerIds(Collections.singletonList(productId));
 
         Page<CommentVO> result = new Page<>(commentPage.getCurrent(), commentPage.getSize(), commentPage.getTotal());
         result.setRecords(commentPage.getRecords().stream().map(c -> {
@@ -652,6 +798,7 @@ public class ProductServiceImpl implements ProductService {
             User author = userMap.get(c.getUserId());
             vo.setUsername(author == null ? "已注销用户" : author.getUsername());
             vo.setAvatar(author == null ? null : author.getAvatar());
+            vo.setVerifiedBuyer(verifiedBuyerIds.contains(c.getUserId()));
             vo.setCreateTime(c.getCreateTime());
             return vo;
         }).collect(Collectors.toList()));
@@ -660,6 +807,9 @@ public class ProductServiceImpl implements ProductService {
 
     /**
      * 发表商品评论
+     * <p>
+     * 评价资格与订单挂钩：只有真实买过该商品（存在本人订单且订单已支付/已完成）的用户可评，
+     * 防止对在售商品随意刷分
      */
     @Override
     public void addComment(Long productId, CommentAddDTO dto) {
@@ -674,6 +824,9 @@ public class ProductServiceImpl implements ProductService {
         if (isCommented(productId)) {
             throw new BusinessException("您已经评价过该商品");
         }
+        if (!findVerifiedBuyerIds(Collections.singletonList(productId)).contains(userId)) {
+            throw new BusinessException("仅购买过该商品的用户可以评价");
+        }
 
         Comment comment = new Comment();
         comment.setUserId(userId);
@@ -683,6 +836,34 @@ public class ProductServiceImpl implements ProductService {
         comment.setStatus(COMMENT_STATUS_NORMAL);
         commentMapper.insert(comment);
         log.info("用户发表评价，用户ID：{}，商品ID：{}，评分：{}", userId, productId, dto.getRating());
+    }
+
+    /**
+     * 查询「买过指定商品的用户」集合（订单已支付或已完成才算有效交易）
+     *
+     * @param productIds 商品 ID 集合
+     * @return 已成交买家的用户 ID 集合
+     */
+    private Set<Long> findVerifiedBuyerIds(List<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        // 1. 找到这些商品出现在哪些订单明细里
+        List<OrderItem> items = orderItemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
+                .in(OrderItem::getProductId, productIds)
+                .select(OrderItem::getOrderId));
+        if (items.isEmpty()) {
+            return Collections.emptySet();
+        }
+        List<Long> orderIds = items.stream().map(OrderItem::getOrderId).distinct().collect(Collectors.toList());
+        // 2. 命中订单中筛选「已支付/已完成」的买家
+        List<ProductOrder> orders = productOrderMapper.selectList(new LambdaQueryWrapper<ProductOrder>()
+                .in(ProductOrder::getId, orderIds)
+                .in(ProductOrder::getStatus,
+                        OrderStatusEnum.PAID.getCode(),
+                        OrderStatusEnum.FINISHED.getCode())
+                .select(ProductOrder::getBuyerId));
+        return orders.stream().map(ProductOrder::getBuyerId).collect(Collectors.toSet());
     }
 
     /**
@@ -752,17 +933,28 @@ public class ProductServiceImpl implements ProductService {
 
     /**
      * 计算商品平均评分（无评论时返回 null，前端据此显示"暂无评分"）
+     * <p>
+     * 用 SQL AVG 聚合代替拉全量评论内存求平均
      */
     private Double avgRating(Long productId) {
-        List<Comment> comments = commentMapper.selectList(new LambdaQueryWrapper<Comment>()
-                .eq(Comment::getProductId, productId)
-                .eq(Comment::getStatus, COMMENT_STATUS_NORMAL));
-        if (comments.isEmpty()) {
+        QueryWrapper<Comment> wrapper = new QueryWrapper<Comment>()
+                .select("IFNULL(AVG(rating), 0) AS avg_rating")
+                .eq("product_id", productId)
+                .eq("status", COMMENT_STATUS_NORMAL);
+        List<Map<String, Object>> rows = commentMapper.selectMaps(wrapper);
+        if (rows.isEmpty() || rows.get(0) == null) {
             return null;
         }
-        double sum = comments.stream().mapToInt(Comment::getRating).sum();
+        Object value = rows.get(0).get("avg_rating");
+        if (!(value instanceof Number)) {
+            return null;
+        }
+        double avg = ((Number) value).doubleValue();
+        if (avg <= 0) {
+            return null;
+        }
         // 保留一位小数
-        return Math.round(sum / comments.size() * 10) / 10.0;
+        return Math.round(avg * 10) / 10.0;
     }
 
     /**

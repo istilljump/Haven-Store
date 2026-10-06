@@ -13,6 +13,7 @@ import com.example.product.entity.Product;
 import com.example.product.enums.ProductStatusEnum;
 import com.example.product.mapper.ProductMapper;
 import com.example.product.service.ProductService;
+import com.example.product.serviceImpl.ProductServiceImpl;
 import com.example.product.vo.ProductAddVO;
 import com.example.product.vo.ProductNearbyVO;
 import com.example.utils.UserHolder;
@@ -54,6 +55,30 @@ class ProductServiceImplTest {
     @Mock
     private CategoryMapper categoryMapper;
 
+    @Mock
+    private com.example.product.service.ProductAIService productAIService;
+
+    @Mock
+    private com.example.user.mapper.UserMapper userMapper;
+
+    @Mock
+    private com.example.product.mapper.UserProductRelationMapper userProductRelationMapper;
+
+    @Mock
+    private com.example.product.mapper.CommentMapper commentMapper;
+
+    @Mock
+    private com.example.product.mapper.ProductImageMapper productImageMapper;
+
+    @Mock
+    private com.example.order.mapper.OrderItemMapper orderItemMapper;
+
+    @Mock
+    private com.example.order.mapper.ProductOrderMapper productOrderMapper;
+
+    @Mock
+    private com.example.admin.service.SystemSettingService systemSettingService;
+
     @InjectMocks
     private ProductServiceImpl productService;
 
@@ -67,24 +92,28 @@ class ProductServiceImplTest {
     void setUp() {
         // 模拟登录态
         UserHolder.setUserId(MOCK_USER_ID);
+        // 系统设置：返回默认值（价格上限/上传白名单等），避免业务校验空指针
+        Mockito.lenient().when(systemSettingService.get())
+                .thenReturn(com.example.admin.dto.SystemSettingDTO.defaults());
+
         // 模拟分类存在
         existCategory.setId(1);
         existCategory.setName("手机数码");
-        when(categoryMapper.selectById(1)).thenReturn(existCategory);
+        Mockito.lenient().when(categoryMapper.selectById(1)).thenReturn(existCategory);
         // 模拟插入成功（MyBatis-Plus insert 回填主键）
-        when(productMapper.insert(any(Product.class))).thenAnswer(invocation -> {
+        Mockito.lenient().when(productMapper.insert(any(Product.class))).thenAnswer(invocation -> {
             Product p = invocation.getArgument(0);
             p.setId(100L);
             return 1;
         });
         // 模拟附近商品查询
-        when(productMapper.selectNearbyProducts(
+        Mockito.lenient().when(productMapper.selectNearbyProducts(
                 any(BigDecimal.class), any(BigDecimal.class), any(Integer.class), 
                 any(Integer.class), any(Integer.class), any(Integer.class), any(Integer.class),
                 any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class)
         )).thenReturn(List.of(createTestNearbyProduct()));
         // 模拟附近商品总数查询
-        when(productMapper.selectNearbyProductCount(
+        Mockito.lenient().when(productMapper.selectNearbyProductCount(
                 any(BigDecimal.class), any(BigDecimal.class), any(Integer.class), any(Integer.class),
                 any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class)
         )).thenReturn(1L);

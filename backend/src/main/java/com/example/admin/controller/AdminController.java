@@ -3,13 +3,18 @@ package com.example.admin.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.admin.dto.AdminMessageSendDTO;
+import com.example.admin.dto.AdminResetPasswordDTO;
 import com.example.admin.dto.AdminUserCreateDTO;
+import com.example.admin.dto.AdminUserUpdateDTO;
 import com.example.admin.dto.CategoryFormDTO;
+import com.example.admin.dto.CommentStatusDTO;
 import com.example.admin.dto.ProductStatusDTO;
 import com.example.admin.dto.SystemSettingDTO;
 import com.example.admin.dto.UserStatusDTO;
 import com.example.admin.service.AdminService;
+import com.example.admin.vo.AdminCommentVO;
 import com.example.admin.vo.AdminMessageVO;
+import com.example.admin.vo.AdminOrderVO;
 import com.example.admin.vo.AdminProductVO;
 import com.example.admin.vo.AdminUserVO;
 import com.example.admin.vo.DashboardVO;
@@ -20,12 +25,17 @@ import com.example.common.ResultCodeEnum;
 import com.example.product.entity.Product;
 import com.example.product.enums.ProductStatusEnum;
 import com.example.product.mapper.ProductMapper;
+import com.example.report.dto.ReportHandleDTO;
+import com.example.report.service.ReportService;
+import com.example.report.vo.AdminReportVO;
 import com.example.user.dto.LoginDTO;
 import com.example.user.entity.User;
 import com.example.user.enums.UserStatusEnum;
 import com.example.user.mapper.UserMapper;
 import com.example.user.service.UserService;
 import com.example.user.vo.LoginUserVO;
+import com.example.utils.FileStorageUtil;
+import com.example.utils.UserHolder;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +52,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -64,6 +75,12 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+
+    /** 举报模块业务逻辑对象（举报处理台） */
+    private final ReportService reportService;
+
+    /** 图片存储工具（Logo 等管理端上传） */
+    private final FileStorageUtil fileStorageUtil;
 
     /** 用户模块业务逻辑对象（登录复用） */
     private final UserService userService;
@@ -128,6 +145,151 @@ public class AdminController {
         return Result.success(adminService.getDashboard());
     }
 
+    /**
+     * 近 N 日新增趋势（看板折线图）
+     *
+     * @param days 天数（1-30，默认 7）
+     * @return 按日期升序的 新增用户/商品/订单 数列
+     */
+    @ApiOperation(value = "近N日新增趋势", notes = "管理员功能：按天聚合的新增用户、商品、订单数量，供看板折线图使用")
+    @GetMapping("/stats/trend")
+    public Result<List<DashboardVO.TrendPoint>> getTrend(@RequestParam(defaultValue = "7") Integer days) {
+        return Result.success(adminService.getTrend(days));
+    }
+
+    /**
+     * 商品分类分布（看板饼图）
+     *
+     * @return 分类分布列表（按商品数降序）
+     */
+    @ApiOperation(value = "商品分类分布", notes = "管理员功能：按分类聚合的商品数量，供看板饼图使用")
+    @GetMapping("/stats/category")
+    public Result<List<DashboardVO.CategoryStat>> getCategoryStats() {
+        return Result.success(adminService.getCategoryStats());
+    }
+
+    // ==================== 订单管理 ====================
+
+    /**
+     * 分页查询全平台订单
+     *
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @param status   订单状态（1 待支付，2 已支付，3 已取消，4 已完成）
+     * @param keyword  关键词（订单号）
+     * @return 订单分页数据
+     */
+    @ApiOperation(value = "获取订单列表", notes = "管理员功能：分页查询全平台订单，支持状态与订单号过滤")
+    @GetMapping("/orders")
+    public Result<Page<AdminOrderVO>> getOrderList(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
+        return Result.success(adminService.listOrders(page, pageSize, status, keyword));
+    }
+
+    /**
+     * 订单详情（含明细与买卖双方名称）
+     *
+     * @param orderNo 订单号
+     * @return 订单详情
+     */
+    @ApiOperation(value = "获取订单详情", notes = "管理员功能：查看订单明细与买卖双方信息")
+    @GetMapping("/orders/{orderNo}")
+    public Result<AdminOrderVO> getOrderDetail(@PathVariable String orderNo) {
+        return Result.success(adminService.getOrder(orderNo));
+    }
+
+    // ==================== 评论管理 ====================
+
+    /**
+     * 分页查询全平台评论
+     *
+     * @param page      页码
+     * @param pageSize  每页条数
+     * @param productId 商品 ID
+     * @param status    评论状态（1 正常，0 隐藏）
+     * @return 评论分页数据
+     */
+    @ApiOperation(value = "获取评论列表", notes = "管理员功能：分页查询全平台评论，支持商品与状态过滤")
+    @GetMapping("/comments")
+    public Result<Page<AdminCommentVO>> getCommentList(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Long productId,
+            @RequestParam(required = false) Integer status) {
+        return Result.success(adminService.listComments(page, pageSize, productId, status));
+    }
+
+    /**
+     * 变更评论状态（显示/隐藏）
+     *
+     * @param commentId 评论 ID
+     * @param dto       状态入参
+     * @return 操作结果
+     */
+    @ApiOperation(value = "变更评论状态", notes = "管理员功能：隐藏或恢复展示指定评论")
+    @PutMapping("/comments/{commentId}/status")
+    public Result<Void> updateCommentStatus(@PathVariable Long commentId,
+                                            @RequestBody @Validated CommentStatusDTO dto) {
+        adminService.updateCommentStatus(commentId, dto.getStatus());
+        return Result.success();
+    }
+
+    /**
+     * 删除评论
+     *
+     * @param commentId 评论 ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "删除评论", notes = "管理员功能：物理删除指定评论")
+    @DeleteMapping("/comments/{commentId}")
+    public Result<Void> deleteComment(@PathVariable Long commentId) {
+        adminService.deleteComment(commentId);
+        return Result.success();
+    }
+
+    // ==================== 举报处理 ====================
+
+    /**
+     * 分页查询举报列表
+     *
+     * @param page       页码
+     * @param pageSize   每页条数
+     * @param status     处理状态（0 待处理，1 已处理，2 已驳回）
+     * @param targetType 举报对象类型（product/comment）
+     * @return 举报分页数据
+     */
+    @ApiOperation(value = "获取举报列表", notes = "管理员功能：分页查询用户举报，待处理的排在前面")
+    @GetMapping("/reports")
+    public Result<Page<AdminReportVO>> getReportList(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String targetType) {
+        return Result.success(reportService.listForAdmin(page, pageSize, status, targetType));
+    }
+
+    /**
+     * 处理举报
+     *
+     * @param reportId 举报 ID
+     * @param dto      处理入参（动作：下架商品/隐藏评论/驳回 + 备注）
+     * @return 操作结果
+     */
+    @ApiOperation(value = "处理举报", notes = "管理员功能：驳回举报，或据举报下架商品/隐藏评论")
+    @PutMapping("/reports/{reportId}/handle")
+    public Result<Void> handleReport(@PathVariable Long reportId,
+                                     @RequestBody @Validated ReportHandleDTO dto) {
+        Long adminId = UserHolder.getUserId();
+        if (adminId == null) {
+            throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
+        }
+        reportService.handle(reportId, dto, adminId);
+        return Result.success();
+    }
+
     // ==================== 用户管理 ====================
 
     /**
@@ -173,6 +335,35 @@ public class AdminController {
     @PutMapping("/users/{userId}/status")
     public Result<Void> updateUserStatus(@PathVariable Long userId, @RequestBody @Validated UserStatusDTO dto) {
         adminService.updateUserStatus(userId, dto.getStatus());
+        return Result.success();
+    }
+
+    /**
+     * 编辑用户资料（昵称、手机号、角色）
+     *
+     * @param userId 用户 ID
+     * @param dto    编辑入参
+     * @return 操作结果
+     */
+    @ApiOperation(value = "编辑用户资料", notes = "管理员功能：修改昵称/手机号/角色；不能取消自己的管理员角色")
+    @PutMapping("/users/{userId}")
+    public Result<Void> updateUser(@PathVariable Long userId, @RequestBody @Validated AdminUserUpdateDTO dto) {
+        adminService.updateUser(userId, dto);
+        return Result.success();
+    }
+
+    /**
+     * 重置用户密码
+     *
+     * @param userId 用户 ID
+     * @param dto    新密码
+     * @return 操作结果
+     */
+    @ApiOperation(value = "重置用户密码", notes = "管理员功能：重置后该用户需使用新密码重新登录")
+    @PutMapping("/users/{userId}/password")
+    public Result<Void> resetUserPassword(@PathVariable Long userId,
+                                          @RequestBody @Validated AdminResetPasswordDTO dto) {
+        adminService.resetPassword(userId, dto);
         return Result.success();
     }
 
@@ -390,6 +581,34 @@ public class AdminController {
             @RequestParam(required = false) Integer categoryId) {
         String csv = adminService.exportProductsCsv(keyword, status, categoryId);
         return buildCsvResponse(csv, "products.csv");
+    }
+
+    /**
+     * 导出订单数据（CSV）
+     *
+     * @param status  订单状态
+     * @param keyword 关键词（订单号）
+     * @return CSV 文件流
+     */
+    @ApiOperation(value = "导出订单数据", notes = "管理员功能：按当前筛选条件导出订单数据（含商品明细）为 CSV")
+    @GetMapping("/export/orders")
+    public ResponseEntity<byte[]> exportOrders(
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
+        String csv = adminService.exportOrdersCsv(status, keyword);
+        return buildCsvResponse(csv, "orders.csv");
+    }
+
+    /**
+     * 管理端图片上传（系统设置 Logo 等场景，落 uploads/settings/ 目录）
+     *
+     * @param file 图片文件
+     * @return 可直接访问的图片地址
+     */
+    @ApiOperation(value = "上传图片", notes = "管理员功能：上传站点 Logo 等图片，返回可访问地址")
+    @PostMapping("/upload")
+    public Result<String> upload(@RequestParam("file") MultipartFile file) {
+        return Result.success(fileStorageUtil.storeImage(file, "settings"));
     }
 
     /**

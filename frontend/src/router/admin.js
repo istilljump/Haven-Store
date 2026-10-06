@@ -62,6 +62,36 @@ export default [
         }
       },
       {
+        path: 'orders',
+        name: 'AdminOrders',
+        component: () => import('@/views/admin/AdminOrders.vue'),
+        meta: {
+          title: '订单管理',
+          requiresAuth: true,
+          requiresAdmin: true
+        }
+      },
+      {
+        path: 'comments',
+        name: 'AdminComments',
+        component: () => import('@/views/admin/AdminComments.vue'),
+        meta: {
+          title: '评论管理',
+          requiresAuth: true,
+          requiresAdmin: true
+        }
+      },
+      {
+        path: 'reports',
+        name: 'AdminReports',
+        component: () => import('@/views/admin/AdminReports.vue'),
+        meta: {
+          title: '举报处理',
+          requiresAuth: true,
+          requiresAdmin: true
+        }
+      },
+      {
         path: 'messages',
         name: 'AdminMessages',
         component: () => import('@/views/admin/AdminMessages.vue'),

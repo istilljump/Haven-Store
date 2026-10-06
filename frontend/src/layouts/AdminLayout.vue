@@ -8,6 +8,8 @@
       <!-- 顶部导航 -->
       <el-header class="admin-header">
         <div class="header-left">
+          <!-- 移动端侧边栏开关（此前侧滑样式写好了但没有触发按钮） -->
+          <el-icon class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen"><Fold /></el-icon>
           <div class="logo" @click="goToDashboard">
             <el-icon><Monitor /></el-icon>
             <span>Haven-Store</span>
@@ -50,9 +52,9 @@
 
       <!-- 主体区域 -->
       <el-container class="admin-container">
-        <!-- 侧边栏 -->
-        <el-aside width="240px" class="admin-sidebar">
-          <el-scrollbar>
+        <!-- 侧边栏：移动端通过 .open 类滑入 -->
+        <el-aside width="240px" class="admin-sidebar" :class="{ open: sidebarOpen }">
+          <div class="sidebar-mask" @click="sidebarOpen = false" />
             <el-menu
               :default-active="activeMenu"
               :router="true"
@@ -76,9 +78,24 @@
                 <span>商品管理</span>
               </el-menu-item>
 
+              <el-menu-item index="/admin/orders">
+                <el-icon><Tickets /></el-icon>
+                <span>订单管理</span>
+              </el-menu-item>
+
               <el-menu-item index="/admin/categories">
                 <el-icon><Collection /></el-icon>
                 <span>分类管理</span>
+              </el-menu-item>
+
+              <el-menu-item index="/admin/comments">
+                <el-icon><ChatLineSquare /></el-icon>
+                <span>评论管理</span>
+              </el-menu-item>
+
+              <el-menu-item index="/admin/reports">
+                <el-icon><WarningFilled /></el-icon>
+                <span>举报处理</span>
               </el-menu-item>
 
               <el-menu-item index="/admin/messages">
@@ -91,7 +108,6 @@
                 <span>系统设置</span>
               </el-menu-item>
             </el-menu>
-          </el-scrollbar>
         </el-aside>
 
         <!-- 主内容区域 -->
@@ -111,11 +127,15 @@ import {
   Monitor,
   HomeFilled,
   ArrowDown,
+  Fold,
   User,
   Setting,
   SwitchButton,
   Odometer,
   Goods,
+  Tickets,
+  ChatLineSquare,
+  WarningFilled,
   Collection,
   Bell
 } from '@element-plus/icons-vue'
@@ -123,6 +143,9 @@ import { getUserInfo, removeToken, removeUserInfo } from '@/utils/auth'
 
 const router = useRouter()
 const route = useRoute()
+
+// 移动端侧边栏滑出开关
+const sidebarOpen = ref(false)
 
 // 当前登录用户信息
 // 唯一数据源是 utils/auth 的 getUserInfo（即登录时写入 localStorage 的 LoginUserVO），
@@ -135,7 +158,10 @@ const currentRouteTitle = computed(() => {
     '/admin/dashboard': '数据概览',
     '/admin/users': '用户管理',
     '/admin/products': '商品管理',
+    '/admin/orders': '订单管理',
     '/admin/categories': '分类管理',
+    '/admin/comments': '评论管理',
+    '/admin/reports': '举报处理',
     '/admin/messages': '系统消息',
     '/admin/settings': '系统设置'
   }
@@ -156,7 +182,8 @@ const goToDashboard = () => {
 const handleCommand = (command) => {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人功能开发中')
+      // 管理员也有前台个人资料页（改资料/改密码/头像）
+      router.push('/profile')
       break
     case 'settings':
       router.push('/admin/settings')
@@ -319,9 +346,36 @@ onMounted(() => {
 }
 
 /* 响应式设计 */
+.sidebar-toggle {
+  display: none;
+  font-size: 20px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.sidebar-mask {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .admin-header {
     padding: 0 10px;
+  }
+
+  .sidebar-toggle {
+    display: block;
+  }
+
+  .sidebar-mask {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 98;
+  }
+
+  .admin-sidebar.open .sidebar-mask {
+    display: block;
   }
   
   .logo span {

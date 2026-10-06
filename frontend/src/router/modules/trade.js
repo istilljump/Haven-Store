@@ -20,6 +20,16 @@ const tradeRoutes = [
       title: '我的订单',
       requiresAuth: true
     }
+  },
+  {
+    // 订单详情：买家本人或订单内商品的卖家可见（后端校验）
+    path: 'orders/:orderNo',
+    name: 'OrderDetail',
+    component: () => import('@/views/order/OrderDetail.vue'),
+    meta: {
+      title: '订单详情',
+      requiresAuth: true
+    }
   }
 ]
 

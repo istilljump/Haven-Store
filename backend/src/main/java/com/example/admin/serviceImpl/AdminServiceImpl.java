@@ -1,13 +1,20 @@
 package com.example.admin.serviceImpl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.admin.dto.AdminMessageSendDTO;
+import com.example.admin.dto.AdminResetPasswordDTO;
 import com.example.admin.dto.AdminUserCreateDTO;
+import com.example.admin.dto.AdminUserUpdateDTO;
 import com.example.admin.dto.CategoryFormDTO;
 import com.example.admin.dto.SystemSettingDTO;
 import com.example.admin.service.AdminService;
+import com.example.admin.service.SystemSettingService;
+import com.example.admin.vo.AdminCommentVO;
 import com.example.admin.vo.AdminMessageVO;
+import com.example.admin.vo.AdminOrderVO;
 import com.example.admin.vo.AdminProductVO;
 import com.example.admin.vo.AdminUserVO;
 import com.example.admin.vo.DashboardVO;
@@ -19,13 +26,18 @@ import com.example.common.RedisKeyConst;
 import com.example.message.entity.Message;
 import com.example.message.enums.MessageReceiverTypeEnum;
 import com.example.message.mapper.MessageMapper;
+import com.example.message.service.MessageService;
+import com.example.order.entity.OrderItem;
+import com.example.order.entity.ProductOrder;
+import com.example.order.enums.OrderStatusEnum;
+import com.example.order.mapper.OrderItemMapper;
+import com.example.order.mapper.ProductOrderMapper;
 import com.example.product.entity.Comment;
 import com.example.product.entity.Product;
-import com.example.product.entity.ProductImage;
 import com.example.product.enums.ProductStatusEnum;
 import com.example.product.mapper.CommentMapper;
-import com.example.product.mapper.ProductImageMapper;
 import com.example.product.mapper.ProductMapper;
+import com.example.product.service.ProductService;
 import com.example.user.constant.UserConstant;
 import com.example.user.entity.User;
 import com.example.user.enums.UserStatusEnum;
@@ -35,16 +47,21 @@ import com.example.utils.RedisUtil;
 import com.example.utils.UserHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -81,11 +98,23 @@ public class AdminServiceImpl implements AdminService {
 
     private final MessageMapper messageMapper;
 
-    /** 商品图片数据访问对象（删除商品时连带清理） */
-    private final ProductImageMapper productImageMapper;
+    /** 系统消息 IService（群发时使用 saveBatch 批量插入） */
+    private final MessageService messageService;
 
-    /** 商品评论数据访问对象（删除商品时连带清理） */
+    /** 订单数据访问对象（订单管理与数据概览） */
+    private final ProductOrderMapper productOrderMapper;
+
+    /** 订单明细数据访问对象（订单详情与导出） */
+    private final OrderItemMapper orderItemMapper;
+
+    /** 商品评论数据访问对象（评论管理） */
     private final CommentMapper commentMapper;
+
+    /** 商品模块业务逻辑（删除商品时复用其级联删除） */
+    private final ProductService productService;
+
+    /** 系统设置读写服务（设置落库与各业务侧读取共用） */
+    private final SystemSettingService systemSettingService;
 
     private final PasswordUtil passwordUtil;
 
@@ -190,6 +219,65 @@ public class AdminServiceImpl implements AdminService {
         log.info("管理员变更用户状态，用户ID：{}，新状态：{}", userId, status);
     }
 
+    /**
+     * 编辑用户资料（昵称、手机号、角色）
+     * <p>
+     * 语义约定：nickname 不传保持不变；phone 不传(null)保持不变、传空串清空；
+     * 角色不允许管理员自行降级，避免把自己锁在后台外。
+     * 任何变更都会清掉该用户的登录缓存
+     */
+    @Override
+    public void updateUser(Long userId, AdminUserUpdateDTO dto) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        boolean hasPhone = StringUtils.hasText(dto.getPhone());
+        if (hasPhone) {
+            Long phoneCount = userMapper.selectCount(new LambdaQueryWrapper<User>()
+                    .eq(User::getPhone, dto.getPhone())
+                    .ne(User::getId, userId));
+            if (phoneCount != null && phoneCount > 0) {
+                throw new BusinessException("该手机号已被其他账号使用");
+            }
+        }
+        if (Boolean.FALSE.equals(dto.getIsAdmin()) && userId.equals(UserHolder.getUserId())) {
+            throw new BusinessException("不能取消自己的管理员角色");
+        }
+
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<User>().eq(User::getId, userId);
+        if (StringUtils.hasText(dto.getNickname())) {
+            wrapper.set(User::getNickname, dto.getNickname());
+        }
+        if (dto.getPhone() != null) {
+            wrapper.set(User::getPhone, hasPhone ? dto.getPhone() : null);
+        }
+        if (dto.getIsAdmin() != null) {
+            wrapper.set(User::getRole, dto.getIsAdmin() ? UserConstant.ROLE_ADMIN : UserConstant.ROLE_USER);
+        }
+        userMapper.update(null, wrapper);
+        redisUtil.deleteQuietly(RedisKeyConst.USER_INFO_KEY + userId);
+        log.info("管理员编辑用户资料，用户ID：{}，昵称是否变更：{}，角色是否变更：{}",
+                userId, StringUtils.hasText(dto.getNickname()), dto.getIsAdmin() != null);
+    }
+
+    /**
+     * 重置用户密码：重置后清缓存强制重新登录
+     */
+    @Override
+    public void resetPassword(Long userId, AdminResetPasswordDTO dto) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        User update = new User();
+        update.setId(userId);
+        update.setPassword(passwordUtil.encode(dto.getPassword()));
+        userMapper.updateById(update);
+        redisUtil.deleteQuietly(RedisKeyConst.USER_INFO_KEY + userId);
+        log.info("管理员重置用户密码，用户ID：{}", userId);
+    }
+
     // ==================== 数据概览 ====================
 
     /**
@@ -210,6 +298,13 @@ public class AdminServiceImpl implements AdminService {
         // 今日新增：按当天 00:00:00 起的发布时间统计
         statistics.setTodayProducts(productMapper.selectCount(
                 new LambdaQueryWrapper<Product>().ge(Product::getCreateTime, LocalDate.now().atStartOfDay())));
+        // 订单总数与今日新增订单
+        statistics.setTotalOrders(productOrderMapper.selectCount(null));
+        statistics.setTodayOrders(productOrderMapper.selectCount(
+                new LambdaQueryWrapper<ProductOrder>().ge(ProductOrder::getCreateTime, LocalDate.now().atStartOfDay())));
+        // 近 7 日趋势与分类分布（看板图表数据源）
+        vo.setTrend(getTrend(7));
+        vo.setCategoryStats(getCategoryStats());
 
         // 最近发布的商品
         List<Product> recentProducts = productMapper.selectList(
@@ -238,6 +333,322 @@ public class AdminServiceImpl implements AdminService {
         }).collect(Collectors.toList()));
 
         return vo;
+    }
+
+    /**
+     * 近 N 日新增趋势（用户/商品/订单，按天聚合）
+     * <p>
+     * 三个维度各查一次「创建时间 >= 起始日」的轻量查询（只取时间列），
+     * 在内存按天聚合计数——平台量级下比按天 GROUP BY 的三套 XML 更省事，也足够快
+     */
+    @Override
+    public List<DashboardVO.TrendPoint> getTrend(Integer days) {
+        int n = (days == null || days < 1) ? 7 : Math.min(days, 30);
+        LocalDate startDate = LocalDate.now().minusDays(n - 1L);
+        LocalDateTime startTime = startDate.atStartOfDay();
+
+        // 初始化每一天的数据点，保证无数据的日期也返回 0（前端折线图不会断）
+        LinkedHashMap<String, DashboardVO.TrendPoint> points = new LinkedHashMap<>();
+        for (int i = 0; i < n; i++) {
+            DashboardVO.TrendPoint point = new DashboardVO.TrendPoint();
+            point.setDate(startDate.plusDays(i).toString());
+            points.put(point.getDate(), point);
+        }
+
+        Map<String, Long> userCounts = countByDay(userMapper.selectList(
+                new LambdaQueryWrapper<User>().ge(User::getCreateTime, startTime).select(User::getCreateTime))
+                .stream().map(User::getCreateTime).collect(Collectors.toList()));
+        Map<String, Long> productCounts = countByDay(productMapper.selectList(
+                new LambdaQueryWrapper<Product>().ge(Product::getCreateTime, startTime).select(Product::getCreateTime))
+                .stream().map(Product::getCreateTime).collect(Collectors.toList()));
+        Map<String, Long> orderCounts = countByDay(productOrderMapper.selectList(
+                new LambdaQueryWrapper<ProductOrder>().ge(ProductOrder::getCreateTime, startTime).select(ProductOrder::getCreateTime))
+                .stream().map(ProductOrder::getCreateTime).collect(Collectors.toList()));
+
+        for (DashboardVO.TrendPoint point : points.values()) {
+            point.setNewUsers(userCounts.getOrDefault(point.getDate(), 0L));
+            point.setNewProducts(productCounts.getOrDefault(point.getDate(), 0L));
+            point.setNewOrders(orderCounts.getOrDefault(point.getDate(), 0L));
+        }
+        return new ArrayList<>(points.values());
+    }
+
+    /**
+     * 商品分类分布（按分类聚合商品数，按数量降序）
+     */
+    @Override
+    public List<DashboardVO.CategoryStat> getCategoryStats() {
+        QueryWrapper<Product> wrapper = new QueryWrapper<Product>()
+                .select("category_id", "COUNT(*) AS cnt")
+                .groupBy("category_id");
+        List<Map<String, Object>> rows = productMapper.selectMaps(wrapper);
+        Map<Integer, String> categoryNameMap = loadCategoryNameMap();
+        return rows.stream().map(row -> {
+            DashboardVO.CategoryStat stat = new DashboardVO.CategoryStat();
+            Object categoryId = row.get("category_id");
+            if (!(categoryId instanceof Number)) {
+                return null;
+            }
+            stat.setCategoryId(((Number) categoryId).intValue());
+            stat.setCategoryName(categoryNameMap.get(stat.getCategoryId()));
+            Object cnt = row.get("cnt");
+            stat.setCount(cnt instanceof Number ? ((Number) cnt).longValue() : 0L);
+            return stat;
+        }).filter(Objects::nonNull)
+                .sorted((a, b) -> Long.compare(b.getCount(), a.getCount()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 把时间列表按「yyyy-MM-dd」聚合计数
+     */
+    private Map<String, Long> countByDay(List<LocalDateTime> times) {
+        return times.stream().filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(t -> t.toLocalDate().toString(), Collectors.counting()));
+    }
+
+    // ==================== 订单管理 ====================
+
+    /**
+     * 分页查询全平台订单
+     */
+    @Override
+    public Page<AdminOrderVO> listOrders(Integer page, Integer pageSize, Integer status, String keyword) {
+        LambdaQueryWrapper<ProductOrder> wrapper = new LambdaQueryWrapper<>();
+        if (status != null) {
+            wrapper.eq(ProductOrder::getStatus, status);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(ProductOrder::getOrderNo, keyword.trim());
+        }
+        wrapper.orderByDesc(ProductOrder::getCreateTime).orderByDesc(ProductOrder::getId);
+        Page<ProductOrder> orderPage = productOrderMapper.selectPage(new Page<>(page, pageSize), wrapper);
+
+        Page<AdminOrderVO> result = new Page<>(orderPage.getCurrent(), orderPage.getSize(), orderPage.getTotal());
+        result.setRecords(buildAdminOrderVOs(orderPage.getRecords(), false));
+        return result;
+    }
+
+    /**
+     * 订单详情（含明细）
+     */
+    @Override
+    public AdminOrderVO getOrder(String orderNo) {
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("订单号不能为空");
+        }
+        ProductOrder order = productOrderMapper.selectOne(new LambdaQueryWrapper<ProductOrder>()
+                .eq(ProductOrder::getOrderNo, orderNo));
+        if (order == null) {
+            throw new BusinessException("订单不存在");
+        }
+        List<AdminOrderVO> vos = buildAdminOrderVOs(Collections.singletonList(order), true);
+        return vos.get(0);
+    }
+
+    /**
+     * 导出订单 CSV（含商品明细列）
+     */
+    @Override
+    public String exportOrdersCsv(Integer status, String keyword) {
+        LambdaQueryWrapper<ProductOrder> wrapper = new LambdaQueryWrapper<>();
+        if (status != null) {
+            wrapper.eq(ProductOrder::getStatus, status);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(ProductOrder::getOrderNo, keyword.trim());
+        }
+        wrapper.orderByDesc(ProductOrder::getCreateTime).orderByDesc(ProductOrder::getId);
+        List<ProductOrder> orders = productOrderMapper.selectList(wrapper);
+        List<AdminOrderVO> vos = buildAdminOrderVOs(orders, true);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("订单号,买家,件数,总金额,状态,买家留言,下单时间,支付时间,完成时间,取消时间,商品明细\n");
+        for (AdminOrderVO vo : vos) {
+            String itemsText = vo.getItems().stream()
+                    .map(i -> i.getTitle() + " x" + i.getPrice())
+                    .collect(Collectors.joining(" | "));
+            sb.append(csvCell(vo.getOrderNo())).append(',')
+                    .append(csvCell(vo.getBuyerName())).append(',')
+                    .append(csvCell(vo.getItemCount())).append(',')
+                    .append(csvCell(vo.getTotalAmount())).append(',')
+                    .append(csvCell(vo.getStatusDesc())).append(',')
+                    .append(csvCell(vo.getRemark())).append(',')
+                    .append(csvCell(vo.getCreateTime())).append(',')
+                    .append(csvCell(vo.getPayTime())).append(',')
+                    .append(csvCell(vo.getFinishTime())).append(',')
+                    .append(csvCell(vo.getCancelTime())).append(',')
+                    .append(csvCell(itemsText))
+                    .append('\n');
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 批量把订单转为管理端展示对象（一次补齐明细与买卖双方名称，避免逐条查询）
+     *
+     * @param withItems 是否填充订单明细（列表页不填，详情与导出才需要）
+     */
+    private List<AdminOrderVO> buildAdminOrderVOs(List<ProductOrder> orders, boolean withItems) {
+        if (orders == null || orders.isEmpty()) {
+            return Collections.emptyList();
+        }
+        // 买家名称
+        Map<Long, String> buyerNames = orders.stream()
+                .map(ProductOrder::getBuyerId).filter(Objects::nonNull).distinct()
+                .collect(Collectors.toList()).isEmpty()
+                ? Collections.emptyMap()
+                : userMapper.selectBatchIds(orders.stream()
+                        .map(ProductOrder::getBuyerId).filter(Objects::nonNull).distinct()
+                        .collect(Collectors.toList())).stream()
+                .collect(Collectors.toMap(User::getId, u ->
+                        StringUtils.hasText(u.getNickname()) ? u.getNickname() : u.getUsername(), (a, b) -> a));
+
+        // 明细与卖家名称
+        List<Long> orderIds = orders.stream().map(ProductOrder::getId).collect(Collectors.toList());
+        List<OrderItem> allItems = withItems && !orderIds.isEmpty()
+                ? orderItemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
+                        .in(OrderItem::getOrderId, orderIds).orderByAsc(OrderItem::getId))
+                : Collections.emptyList();
+        Map<Long, List<OrderItem>> itemsByOrder = allItems.stream()
+                .collect(Collectors.groupingBy(OrderItem::getOrderId));
+        List<Long> sellerIds = allItems.stream().map(OrderItem::getSellerId)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        Map<Long, String> sellerNames = sellerIds.isEmpty()
+                ? Collections.emptyMap()
+                : userMapper.selectBatchIds(sellerIds).stream()
+                .collect(Collectors.toMap(User::getId, u ->
+                        StringUtils.hasText(u.getNickname()) ? u.getNickname() : u.getUsername(), (a, b) -> a));
+
+        return orders.stream().map(order -> {
+            AdminOrderVO vo = new AdminOrderVO();
+            vo.setId(order.getId());
+            vo.setOrderNo(order.getOrderNo());
+            vo.setBuyerId(order.getBuyerId());
+            vo.setBuyerName(buyerNames.get(order.getBuyerId()));
+            vo.setTotalAmount(order.getTotalAmount());
+            vo.setItemCount(order.getItemCount());
+            vo.setStatus(order.getStatus());
+            vo.setStatusDesc(OrderStatusEnum.descOf(order.getStatus()));
+            vo.setRemark(order.getRemark());
+            vo.setPayTime(order.getPayTime());
+            vo.setFinishTime(order.getFinishTime());
+            vo.setCancelTime(order.getCancelTime());
+            vo.setCreateTime(order.getCreateTime());
+            if (withItems) {
+                vo.setItems(itemsByOrder.getOrDefault(order.getId(), Collections.emptyList()).stream()
+                        .map(item -> {
+                            AdminOrderVO.Item itemVO = new AdminOrderVO.Item();
+                            itemVO.setProductId(item.getProductId());
+                            itemVO.setTitle(item.getTitle());
+                            itemVO.setCoverImage(item.getCoverImage());
+                            itemVO.setPrice(item.getPrice());
+                            itemVO.setSellerId(item.getSellerId());
+                            itemVO.setSellerName(sellerNames.get(item.getSellerId()));
+                            return itemVO;
+                        }).collect(Collectors.toList()));
+            }
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    // ==================== 评论管理 ====================
+
+    /**
+     * 分页查询全平台评论
+     */
+    @Override
+    public Page<AdminCommentVO> listComments(Integer page, Integer pageSize, Long productId, Integer status) {
+        LambdaQueryWrapper<Comment> wrapper = new LambdaQueryWrapper<>();
+        if (productId != null) {
+            wrapper.eq(Comment::getProductId, productId);
+        }
+        if (status != null) {
+            wrapper.eq(Comment::getStatus, status);
+        }
+        wrapper.orderByDesc(Comment::getCreateTime).orderByDesc(Comment::getId);
+        Page<Comment> commentPage = commentMapper.selectPage(new Page<>(page, pageSize), wrapper);
+
+        // 批量补齐商品标题与评论人名称
+        List<Comment> records = commentPage.getRecords();
+        Map<Long, String> productTitleMap = loadProductTitlesByIds(records.stream()
+                .map(Comment::getProductId)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList()));
+        Map<Long, String> usernameMap = loadUserDisplayNames(records.stream()
+                .map(Comment::getUserId)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList()));
+
+        Page<AdminCommentVO> result = new Page<>(commentPage.getCurrent(), commentPage.getSize(), commentPage.getTotal());
+        result.setRecords(records.stream().map(c -> {
+            AdminCommentVO vo = new AdminCommentVO();
+            vo.setId(c.getId());
+            vo.setProductId(c.getProductId());
+            vo.setProductTitle(productTitleMap.get(c.getProductId()));
+            vo.setUserId(c.getUserId());
+            vo.setUsername(usernameMap.get(c.getUserId()));
+            vo.setContent(c.getContent());
+            vo.setRating(c.getRating());
+            vo.setStatus(c.getStatus());
+            vo.setCreateTime(c.getCreateTime());
+            return vo;
+        }).collect(Collectors.toList()));
+        return result;
+    }
+
+    /**
+     * 变更评论状态（显示/隐藏）
+     */
+    @Override
+    public void updateCommentStatus(Long commentId, Integer status) {
+        boolean valid = Integer.valueOf(1).equals(status) || Integer.valueOf(0).equals(status);
+        if (!valid) {
+            throw new BusinessException("非法的评论状态");
+        }
+        Comment comment = commentMapper.selectById(commentId);
+        if (comment == null) {
+            throw new BusinessException("评论不存在");
+        }
+        Comment update = new Comment();
+        update.setId(commentId);
+        update.setStatus(status);
+        commentMapper.updateById(update);
+        log.info("管理员变更评论状态，评论ID：{}，新状态：{}", commentId, status);
+    }
+
+    /**
+     * 删除单条评论（物理删除）
+     */
+    @Override
+    public void deleteComment(Long commentId) {
+        Comment comment = commentMapper.selectById(commentId);
+        if (comment == null) {
+            throw new BusinessException("评论不存在");
+        }
+        commentMapper.deleteById(commentId);
+        log.info("管理员删除评论，评论ID：{}", commentId);
+    }
+
+    /**
+     * 批量回查商品标题
+     */
+    private Map<Long, String> loadProductTitlesByIds(List<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return productMapper.selectBatchIds(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, Product::getTitle, (a, b) -> a));
+    }
+
+    /**
+     * 批量回查用户展示名（昵称优先，回落用户名）
+     */
+    private Map<Long, String> loadUserDisplayNames(List<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return userMapper.selectBatchIds(userIds).stream()
+                .collect(Collectors.toMap(User::getId, u ->
+                        StringUtils.hasText(u.getNickname()) ? u.getNickname() : u.getUsername(), (a, b) -> a));
     }
 
     // ==================== 商品管理 ====================
@@ -306,8 +717,8 @@ public class AdminServiceImpl implements AdminService {
     /**
      * 删除商品（物理删除）
      * <p>
-     * 商品表没有外键约束，删除主记录不会连带清理子表；
-     * 这里显式清掉该商品的图片与评论，避免留下查不到出处的孤儿数据
+     * 级联清理逻辑（图片、评论、收藏/购物车关系）统一在商品模块的
+     * hardDeleteProduct 中实现，管理端与用户端删除共用同一份代码
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -316,13 +727,8 @@ public class AdminServiceImpl implements AdminService {
         if (product == null) {
             throw new BusinessException("商品不存在");
         }
-        int images = productImageMapper.delete(new LambdaQueryWrapper<ProductImage>()
-                .eq(ProductImage::getProductId, productId));
-        int comments = commentMapper.delete(new LambdaQueryWrapper<Comment>()
-                .eq(Comment::getProductId, productId));
-        productMapper.deleteById(productId);
-        log.info("管理员删除商品，商品ID：{}，标题：{}，连带清理图片 {} 张、评论 {} 条",
-                productId, product.getTitle(), images, comments);
+        productService.hardDeleteProduct(productId);
+        log.info("管理员删除商品，商品ID：{}，标题：{}", productId, product.getTitle());
     }
 
     // ==================== 分类管理 ====================
@@ -336,6 +742,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(cacheNames = com.example.config.CacheConfig.CACHE_CATEGORIES, allEntries = true)
     public void addCategory(CategoryFormDTO dto) {
         Long nameCount = categoryMapper.selectCount(
                 new LambdaQueryWrapper<Category>().eq(Category::getName, dto.getName()));
@@ -351,6 +758,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(cacheNames = com.example.config.CacheConfig.CACHE_CATEGORIES, allEntries = true)
     public void updateCategory(Integer categoryId, CategoryFormDTO dto) {
         Category exist = categoryMapper.selectById(categoryId);
         if (exist == null) {
@@ -379,6 +787,7 @@ public class AdminServiceImpl implements AdminService {
      * 分类下仍有商品时拒绝删除，避免商品表留下悬空的 category_id
      */
     @Override
+    @CacheEvict(cacheNames = com.example.config.CacheConfig.CACHE_CATEGORIES, allEntries = true)
     public void deleteCategory(Integer categoryId) {
         Category exist = categoryMapper.selectById(categoryId);
         if (exist == null) {
@@ -426,7 +835,9 @@ public class AdminServiceImpl implements AdminService {
     /**
      * 群发系统消息
      * <p>
-     * 接收范围由 userType 决定，命中几个用户就落几条记录（消息表按接收者存储，便于各自维护已读状态）
+     * 接收范围由 userType 决定，命中几个用户就落几条记录（消息表按接收者存储，便于各自维护已读状态）。
+     * 同一次群发共享一个批次号（batch_no），管理端列表按批次聚合、删除按批次整组删除；
+     * 落库使用 saveBatch 分批批量插入，替代逐条 insert 的长事务写法
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -441,23 +852,29 @@ public class AdminServiceImpl implements AdminService {
             throw new BusinessException("当前没有符合条件的接收用户");
         }
 
-        for (User receiver : receivers) {
+        String batchNo = UUID.randomUUID().toString();
+        List<Message> messages = receivers.stream().map(receiver -> {
             Message message = new Message();
             message.setReceiverId(receiver.getId());
             message.setMessageType(receiverType.getMessageType());
             message.setReceiverType(receiverType.getCode());
+            message.setBatchNo(batchNo);
             message.setTitle(dto.getTitle());
             message.setContent(dto.getContent());
             // 0 未读
             message.setIsRead(0);
-            messageMapper.insert(message);
-        }
-        log.info("管理员群发系统消息，接收范围：{}，送达人数：{}，标题：{}",
-                receiverType.getDesc(), receivers.size(), dto.getTitle());
+            return message;
+        }).collect(Collectors.toList());
+        // 每批 500 条批量插入，避免一次性拼出过大的 JDBC 批次
+        messageService.saveBatch(messages, 500);
+        log.info("管理员群发系统消息，接收范围：{}，送达人数：{}，标题：{}，批次号：{}",
+                receiverType.getDesc(), receivers.size(), dto.getTitle(), batchNo);
     }
 
     /**
      * 删除系统消息（整组删除）
+     * <p>
+     * 新数据按批次号整组删除；历史数据（无批次号）退回按「标题+内容+接收群体+类型」定位
      */
     @Override
     public void deleteMessage(Long messageId) {
@@ -465,51 +882,44 @@ public class AdminServiceImpl implements AdminService {
         if (message == null) {
             throw new BusinessException("消息不存在");
         }
-        // 按「标题 + 内容 + 接收群体 + 消息类型」定位同一次群发产生的全部记录
-        int removed = messageMapper.delete(new LambdaQueryWrapper<Message>()
-                .eq(Message::getTitle, message.getTitle())
-                .eq(Message::getContent, message.getContent())
-                .eq(Message::getReceiverType, message.getReceiverType())
-                .eq(Message::getMessageType, message.getMessageType()));
+        int removed;
+        if (StringUtils.hasText(message.getBatchNo())) {
+            removed = messageMapper.delete(new LambdaQueryWrapper<Message>()
+                    .eq(Message::getBatchNo, message.getBatchNo()));
+        } else {
+            // 历史数据兜底：同一次群发产生的记录共享相同的标题/内容/群体/类型组合
+            removed = messageMapper.delete(new LambdaQueryWrapper<Message>()
+                    .eq(Message::getTitle, message.getTitle())
+                    .eq(Message::getContent, message.getContent())
+                    .eq(Message::getReceiverType, message.getReceiverType())
+                    .eq(Message::getMessageType, message.getMessageType())
+                    .isNull(Message::getBatchNo));
+        }
         log.info("管理员删除系统消息，消息ID：{}，标题：{}，删除条数：{}", messageId, message.getTitle(), removed);
     }
 
     // ==================== 系统设置 ====================
 
     /**
-     * 读取系统设置
-     * <p>
-     * 设置以 Redis 作为存储，Redis 不可用时返回默认值并记警告——
-     * 让「系统设置」页面仍能打开，而不是整页报错
+     * 读取系统设置（持久化在数据库 system_setting 单行表，读取失败由设置服务兜底默认值）
      */
     @Override
     public SystemSettingDTO getSettings() {
-        SystemSettingDTO cached = redisUtil.getQuietly(RedisKeyConst.SYSTEM_SETTINGS_KEY);
-        return cached == null ? SystemSettingDTO.defaults() : cached;
+        return systemSettingService.get();
     }
 
     /**
-     * 保存系统设置
-     * <p>
-     * 这里是写入而非缓存，Redis 不可用意味着无法持久化，必须明确报错而不是静默成功
+     * 保存系统设置（先校验取值范围，再整体落库）
      */
     @Override
     public void updateSettings(SystemSettingDTO dto) {
         if (dto == null) {
             throw new BusinessException("设置内容不能为空");
         }
-        // 站点名称是前台页面标题的数据源，不允许留空
         if (dto.getSite() == null || !StringUtils.hasText(dto.getSite().getName())) {
             throw new BusinessException("站点名称不能为空");
         }
-        try {
-            redisUtil.set(RedisKeyConst.SYSTEM_SETTINGS_KEY, dto);
-        } catch (Exception e) {
-            log.error("系统设置保存失败，Redis 不可用", e);
-            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
-                    "系统设置存储暂不可用，请确认 Redis 服务已启动");
-        }
-        log.info("管理员更新系统设置，站点名称：{}", dto.getSite().getName());
+        systemSettingService.save(dto);
     }
 
     // ==================== 数据导出 ====================
@@ -597,10 +1007,13 @@ public class AdminServiceImpl implements AdminService {
 
         List<Message> messages = messageMapper.selectList(wrapper);
 
-        // key 相同的记录属于同一次群发，用 LinkedHashMap 保持时间倒序
+        // key 相同的记录属于同一次群发，用 LinkedHashMap 保持时间倒序；
+        // 新数据按批次号聚合，历史数据（无批次号）退回按「标题+内容+群体+类型」组合
         Map<String, AdminMessageVO> grouped = new LinkedHashMap<>();
         for (Message message : messages) {
-            String key = message.getTitle() + '\u0001' + message.getContent() + '\u0001'
+            String key = StringUtils.hasText(message.getBatchNo())
+                    ? "B:" + message.getBatchNo()
+                    : message.getTitle() + '\u0001' + message.getContent() + '\u0001'
                     + message.getReceiverType() + '\u0001' + message.getMessageType();
             AdminMessageVO existing = grouped.get(key);
             if (existing == null) {
@@ -610,6 +1023,7 @@ public class AdminServiceImpl implements AdminService {
                 item.setContent(message.getContent());
                 item.setMessageType(message.getMessageType());
                 item.setUserType(message.getReceiverType());
+                item.setBatchNo(message.getBatchNo());
                 item.setCreateTime(message.getCreateTime());
                 item.setStatus(MESSAGE_STATUS_DELIVERED);
                 item.setReceiverCount(1);
@@ -724,13 +1138,17 @@ public class AdminServiceImpl implements AdminService {
     /**
      * CSV 单元格转义
      * <p>
-     * 逗号、引号、换行都会破坏 CSV 结构，统一用双引号包裹并把内部引号转义为两个引号
+     * 逗号、引号、换行都会破坏 CSV 结构，统一用双引号包裹并把内部引号转义为两个引号；
+     * 以 = + - @ 开头的文本在 Excel 中会被当公式执行（CSV 公式注入），统一加单引号前缀中和
      */
     private String csvCell(Object value) {
         if (value == null) {
             return "";
         }
         String text = String.valueOf(value);
+        if (text.startsWith("=") || text.startsWith("+") || text.startsWith("-") || text.startsWith("@")) {
+            text = "'" + text;
+        }
         if (text.contains(",") || text.contains("\"") || text.contains("\n") || text.contains("\r")) {
             return '"' + text.replace("\"", "\"\"") + '"';
         }

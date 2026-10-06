@@ -29,6 +29,14 @@ public class DashboardVO implements Serializable {
     @ApiModelProperty("平台统计数据")
     private Statistics statistics = new Statistics();
 
+    /** 近 N 日新增趋势（用户/商品/订单） */
+    @ApiModelProperty("近N日新增趋势")
+    private List<TrendPoint> trend = new ArrayList<>();
+
+    /** 商品分类分布 */
+    @ApiModelProperty("商品分类分布")
+    private List<CategoryStat> categoryStats = new ArrayList<>();
+
     /** 最近发布的商品 */
     @ApiModelProperty("最近发布的商品")
     private List<RecentProduct> recentProducts = new ArrayList<>();
@@ -59,6 +67,47 @@ public class DashboardVO implements Serializable {
         /** 分类总数 */
         @ApiModelProperty("分类总数")
         private Long totalCategories = 0L;
+        /** 订单总数 */
+        @ApiModelProperty("订单总数")
+        private Long totalOrders = 0L;
+        /** 今日新增订单数 */
+        @ApiModelProperty("今日新增订单数")
+        private Long todayOrders = 0L;
+    }
+
+    /** 趋势数据点（按天聚合） */
+    @Data
+    @ApiModel(value = "DashboardTrendPoint", description = "看板趋势数据点")
+    public static class TrendPoint implements Serializable {
+        private static final long serialVersionUID = 1L;
+        /** 日期（yyyy-MM-dd） */
+        @ApiModelProperty("日期")
+        private String date;
+        /** 当日新增用户数 */
+        @ApiModelProperty("新增用户数")
+        private Long newUsers = 0L;
+        /** 当日新增商品数 */
+        @ApiModelProperty("新增商品数")
+        private Long newProducts = 0L;
+        /** 当日新增订单数 */
+        @ApiModelProperty("新增订单数")
+        private Long newOrders = 0L;
+    }
+
+    /** 分类分布数据点 */
+    @Data
+    @ApiModel(value = "DashboardCategoryStat", description = "看板分类分布数据点")
+    public static class CategoryStat implements Serializable {
+        private static final long serialVersionUID = 1L;
+        /** 分类 ID */
+        @ApiModelProperty("分类ID")
+        private Integer categoryId;
+        /** 分类名称 */
+        @ApiModelProperty("分类名称")
+        private String categoryName;
+        /** 该分类商品数 */
+        @ApiModelProperty("商品数")
+        private Long count = 0L;
     }
 
     /** 最近发布商品 */

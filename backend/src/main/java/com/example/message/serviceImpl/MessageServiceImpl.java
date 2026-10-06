@@ -5,12 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.common.BusinessException;
 import com.example.common.ResultCodeEnum;
-import com.example.message.dto.SendMessageDTO;
 import com.example.message.entity.Message;
 import com.example.message.mapper.MessageMapper;
 import com.example.message.service.MessageService;
-import com.example.user.entity.User;
-import com.example.user.mapper.UserMapper;
 import com.example.utils.UserHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,40 +27,15 @@ import java.util.List;
 public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> implements MessageService {
 
     private final MessageMapper messageMapper;
-    private final UserMapper userMapper;
 
     @Override
-    @Transactional
-    public Long sendMessage(SendMessageDTO dto) {
-        // 验证接收者是否存在
-        User receiver = userMapper.selectById(dto.getReceiverId());
-        if (receiver == null) {
-            throw new RuntimeException("接收者不存在");
-        }
-
-        Message message = new Message();
-        message.setReceiverId(dto.getReceiverId());
-        message.setMessageType(dto.getMessageType());
-        message.setTitle(dto.getTitle());
-        message.setContent(dto.getContent());
-        message.setIsRead(0); // 未读
-        message.setCreateTime(LocalDateTime.now());
-        message.setUpdateTime(LocalDateTime.now());
-
-        messageMapper.insert(message);
-        return message.getId();
-    }
-
-    @Override
-    public List<Message> getMessageList(Integer page, Integer size) {
+    public Page<Message> getMessageList(Integer page, Integer size) {
         LambdaQueryWrapper<Message> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Message::getReceiverId, getCurrentUserId())
                    .orderByDesc(Message::getCreateTime);
-        
+
         Page<Message> pageObj = new Page<>(page, size);
-        Page<Message> result = messageMapper.selectPage(pageObj, queryWrapper);
-        
-        return result.getRecords();
+        return messageMapper.selectPage(pageObj, queryWrapper);
     }
 
     @Override

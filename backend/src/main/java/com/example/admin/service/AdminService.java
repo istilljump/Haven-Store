@@ -2,10 +2,14 @@ package com.example.admin.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.admin.dto.AdminMessageSendDTO;
+import com.example.admin.dto.AdminResetPasswordDTO;
 import com.example.admin.dto.AdminUserCreateDTO;
+import com.example.admin.dto.AdminUserUpdateDTO;
 import com.example.admin.dto.CategoryFormDTO;
 import com.example.admin.dto.SystemSettingDTO;
+import com.example.admin.vo.AdminCommentVO;
 import com.example.admin.vo.AdminMessageVO;
+import com.example.admin.vo.AdminOrderVO;
 import com.example.admin.vo.AdminProductVO;
 import com.example.admin.vo.AdminUserVO;
 import com.example.admin.vo.DashboardVO;
@@ -50,11 +54,104 @@ public interface AdminService {
     void updateUserStatus(Long userId, Integer status);
 
     /**
+     * 编辑用户资料（昵称、手机号、角色）
+     * <p>
+     * 不允许管理员把自己的角色改成普通用户，避免把自己锁在后台外
+     *
+     * @param userId 用户 ID
+     * @param dto    编辑入参（null/不传的字段保持不变）
+     */
+    void updateUser(Long userId, AdminUserUpdateDTO dto);
+
+    /**
+     * 重置用户密码（管理员操作）
+     * <p>
+     * 重置后清除该用户的登录缓存，强制其用新密码重新登录
+     *
+     * @param userId 用户 ID
+     * @param dto    新密码
+     */
+    void resetPassword(Long userId, AdminResetPasswordDTO dto);
+
+    /**
      * 获取管理后台首页数据
      *
-     * @return 统计数据 + 最近商品 + 最近系统消息
+     * @return 统计数据 + 趋势 + 分类分布 + 最近商品 + 最近系统消息
      */
     DashboardVO getDashboard();
+
+    /**
+     * 近 N 日新增趋势（用户/商品/订单，按天聚合）
+     *
+     * @param days 天数（1-30）
+     * @return 按日期升序的趋势点列表
+     */
+    List<DashboardVO.TrendPoint> getTrend(Integer days);
+
+    /**
+     * 商品分类分布（按分类聚合商品数）
+     *
+     * @return 分类分布列表（按商品数降序）
+     */
+    List<DashboardVO.CategoryStat> getCategoryStats();
+
+    // ==================== 订单管理 ====================
+
+    /**
+     * 分页查询全平台订单（支持状态与订单号关键词过滤）
+     *
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @param status   订单状态（1 待支付，2 已支付，3 已取消，4 已完成；为空表示不限）
+     * @param keyword  关键词（订单号，模糊匹配）
+     * @return 订单分页数据（不含明细，明细走详情接口）
+     */
+    Page<AdminOrderVO> listOrders(Integer page, Integer pageSize, Integer status, String keyword);
+
+    /**
+     * 查询订单详情（含明细与买卖双方名称）
+     *
+     * @param orderNo 订单号
+     * @return 订单详情
+     */
+    AdminOrderVO getOrder(String orderNo);
+
+    /**
+     * 导出订单数据为 CSV 文本
+     *
+     * @param status  订单状态（为空表示全部）
+     * @param keyword 关键词（订单号）
+     * @return CSV 文本
+     */
+    String exportOrdersCsv(Integer status, String keyword);
+
+    // ==================== 评论管理 ====================
+
+    /**
+     * 分页查询全平台评论（支持商品与状态过滤）
+     *
+     * @param page      页码
+     * @param pageSize  每页条数
+     * @param productId 商品 ID（为空表示不限）
+     * @param status    评论状态（1 正常，0 隐藏；为空表示不限）
+     * @return 评论分页数据
+     */
+    Page<AdminCommentVO> listComments(Integer page, Integer pageSize, Long productId, Integer status);
+
+    /**
+     * 变更评论状态（显示 / 隐藏）
+     *
+     * @param commentId 评论 ID
+     * @param status    目标状态（1 正常，0 隐藏）
+     */
+    void updateCommentStatus(Long commentId, Integer status);
+
+    /**
+     * 删除单条评论（物理删除）
+     *
+     * @param commentId 评论 ID
+     */
+    void deleteComment(Long commentId);
 
     /**
      * 分页查询商品列表（支持关键词、状态、分类过滤）
@@ -80,8 +177,7 @@ public interface AdminService {
     /**
      * 删除商品
      * <p>
-     * 物理删除。商品表无外键约束，删除不会失败；
-     * user_product_relation 与 comment 两张关联表目前没有业务写入，因此不做级联清理
+     * 物理删除，并统一清理商品图片、评论与收藏/购物车关系（复用商品模块的级联删除）
      *
      * @param productId 商品 ID
      */

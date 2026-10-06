@@ -120,28 +120,33 @@ export const STATUS_CONFIG = {
   CONFLICT: 409
 }
 
-// 成色选项
+// 成色选项（与后端 ProductConstant.VALID_CONDITIONS 一致）
 export const CONDITION_OPTIONS = [
   { value: '全新', label: '全新' },
   { value: '九成新', label: '九成新' },
   { value: '八成新', label: '八成新' },
-  { value: '七成新', label: '七成新' },
   { value: '七成新及以下', label: '七成新及以下' }
 ]
 
-// 交易方式选项
+// 交易方式选项（后端存储中文值「线上/线下」）
 export const TRADE_TYPE_OPTIONS = [
-  { value: 'online', label: '在线交易' },
-  { value: 'offline', label: '线下交易' },
-  { value: 'both', label: '均可' }
+  { value: '线上', label: '线上交易' },
+  { value: '线下', label: '线下交易' }
 ]
 
-// 商品状态选项
+// 商品状态选项（与后端 ProductStatusEnum 一致）
 export const PRODUCT_STATUS_OPTIONS = [
   { value: 1, label: '在售', color: 'success' },
   { value: 2, label: '已售出', color: 'danger' },
   { value: 3, label: '已下架', color: 'info' }
 ]
+
+// 商品状态映射：key -> {label, tag 类型}，页面统一从这里取，避免各页重复 if/else
+export const PRODUCT_STATUS_MAP = {
+  1: { label: '在售', type: 'success' },
+  2: { label: '已售出', type: 'danger' },
+  3: { label: '已下架', type: 'info' }
+}
 
 // 分页配置
 export const PAGINATION_OPTIONS = [
@@ -167,27 +172,38 @@ export const MESSAGE_TYPES = {
   REPLY: 'reply'
 }
 
-// 订单状态
+// 订单状态（与后端 OrderStatusEnum 一致：1待支付 2已支付 3已取消 4已完成）
 export const ORDER_STATUS = {
-  PENDING: 1, // 待支付
+  PENDING_PAY: 1, // 待支付
   PAID: 2, // 已支付
-  SHIPPED: 3, // 已发货
-  RECEIVED: 4, // 已收货
-  COMPLETED: 5, // 已完成
-  CANCELLED: 6, // 已取消
-  REFUNDED: 7 // 已退款
+  CANCELLED: 3, // 已取消
+  FINISHED: 4 // 已完成
 }
 
 // 订单状态选项
 export const ORDER_STATUS_OPTIONS = [
   { value: 1, label: '待支付', color: 'warning' },
   { value: 2, label: '已支付', color: 'primary' },
-  { value: 3, label: '已发货', color: 'info' },
-  { value: 4, label: '已收货', color: 'success' },
-  { value: 5, label: '已完成', color: 'success' },
-  { value: 6, label: '已取消', color: 'danger' },
-  { value: 7, label: '已退款', color: 'info' }
+  { value: 3, label: '已取消', color: 'danger' },
+  { value: 4, label: '已完成', color: 'success' }
 ]
+
+// 订单状态映射：key -> {label, tag 类型}
+export const ORDER_STATUS_MAP = {
+  1: { label: '待支付', type: 'warning' },
+  2: { label: '已支付', type: 'primary' },
+  3: { label: '已取消', type: 'danger' },
+  4: { label: '已完成', type: 'success' }
+}
+
+// 举报原因选项
+export const REPORT_REASONS = ['违规商品', '涉嫌欺诈', '假冒伪劣', '侵权', '色情低俗', '其他']
+
+// 举报对象类型
+export const REPORT_TARGET_TYPES = {
+  PRODUCT: 'product',
+  COMMENT: 'comment'
+}
 
 // 文件类型配置
 export const FILE_TYPES = {

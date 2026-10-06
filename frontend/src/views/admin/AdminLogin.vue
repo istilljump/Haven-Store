@@ -60,7 +60,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Monitor, User, Lock } from '@element-plus/icons-vue'
@@ -71,10 +71,11 @@ const router = useRouter()
 const loginFormRef = ref()
 const loading = ref(false)
 
-// 登录表单数据
+// 登录表单数据：不再预填账号密码——把默认口令硬编码进前端，
+// 等于把管理员第一组凭据随生产构建一起发布
 const loginForm = reactive({
-  username: 'admin',
-  password: 'admin123'
+  username: '',
+  password: ''
 })
 
 // 表单验证规则
@@ -119,23 +120,10 @@ const handleLogin = async () => {
     
   } catch (error) {
     // 具体错误提示已由请求拦截器统一弹出，这里只兜底
-    console.error('管理员登录失败:', error)
   } finally {
     loading.value = false
   }
 }
-
-// 键盘快捷键
-const handleKeydown = (e) => {
-  if (e.key === 'Enter') {
-    handleLogin()
-  }
-}
-
-onMounted(() => {
-  // 添加键盘事件监听
-  window.addEventListener('keydown', handleKeydown)
-})
 </script>
 
 <style scoped>

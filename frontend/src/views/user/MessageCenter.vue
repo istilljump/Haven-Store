@@ -221,7 +221,7 @@ export default {
       await refreshUnreadCount()
     }
 
-    /** 发送私信 / 咨询 */
+    /** 发送私信 / 咨询（乐观插入：发送成功先上屏，会话列表增量更新，不再整列表重拉） */
     const send = async () => {
       const content = draft.value.trim()
       if (!content) {
@@ -237,12 +237,30 @@ export default {
         if (active.value.productId) {
           payload.productId = active.value.productId
         }
-        await messageApi.sendPrivateMessage(payload)
+        const newId = await messageApi.sendPrivateMessage(payload)
         draft.value = ''
-        await loadChat()
-        await loadConversations()
+        // 乐观插入刚发出的消息（后端返回新消息 ID）
+        messages.value.push({
+          id: newId || `local-${Date.now()}`,
+          fromUserId: userStore.userId,
+          content,
+          self: true,
+          createTime: formatDate(new Date(), 'YYYY-MM-DD HH:mm:ss')
+        })
+        await scrollToBottom()
+        // 会话列表只更新本地预览，不打断滚动位置；未读角标单独刷新
+        const conv = conversations.value.find(
+          (item) => isActive(item)
+            || (item.peerId === active.value.peerId
+              && (item.productId || null) === (active.value.productId || null))
+        )
+        if (conv) {
+          conv.lastContent = content
+          conv.lastTime = new Date().toISOString()
+        }
+        await refreshUnreadCount()
       } catch (error) {
-        console.error('发送私信失败:', error)
+        // 发送失败由拦截器提示，草稿保留在输入框里
       } finally {
         sending.value = false
       }
@@ -529,5 +547,26 @@ export default {
 
 .chat-input .el-textarea {
   flex: 1;
+}
+
+/* 移动端：双栏改上下堆叠，聊天窗自适应高度（此前固定 320px/620px 小屏挤坏） */
+@media (max-width: 768px) {
+  .message-center {
+    padding: 12px;
+  }
+
+  .mc-body {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .conversation-list {
+    width: 100%;
+    max-height: 240px;
+  }
+
+  .chat-pane {
+    height: 62vh;
+  }
 }
 </style>

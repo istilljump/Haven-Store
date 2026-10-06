@@ -100,6 +100,24 @@ export function removeProduct(productId) {
 }
 
 /**
+ * 重新上架商品（仅「已下架」状态可重新上架）
+ * @param {number} productId - 商品ID
+ * @returns {Promise} 返回操作结果
+ */
+export function reshelfProduct(productId) {
+  return request.post(`/product/${productId}/reshelf`)
+}
+
+/**
+ * 彻底删除商品（仅「已下架」状态可删除，物理删除并清理关联数据）
+ * @param {number} productId - 商品ID
+ * @returns {Promise} 返回操作结果
+ */
+export function purgeProduct(productId) {
+  return request.delete(`/product/${productId}/purge`)
+}
+
+/**
  * 收藏商品
  * @param {number} productId - 商品ID
  * @returns {Promise} 返回收藏结果
@@ -184,6 +202,8 @@ export default {
   searchProducts,
   updateProduct,
   removeProduct,
+  reshelfProduct,
+  purgeProduct,
   favoriteProduct,
   unfavoriteProduct,
   getFavoriteProducts,

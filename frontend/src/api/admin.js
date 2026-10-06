@@ -212,6 +212,137 @@ export function exportProducts(queryParams) {
   })
 }
 
+// ==================== 订单管理 ====================
+
+/**
+ * 获取订单列表（管理端）
+ * @param {Object} queryParams - 查询参数
+ * @param {number} [queryParams.status] - 订单状态（1待支付 2已支付 3已取消 4已完成）
+ * @param {string} [queryParams.keyword] - 订单号关键词
+ * @returns {Promise} 返回分页订单列表（{records, total}）
+ */
+export function getAdminOrders(queryParams) {
+  return request.get('/admin/orders', queryParams)
+}
+
+/**
+ * 获取订单详情（管理端，含明细与买卖双方信息）
+ * @param {string} orderNo - 订单号
+ * @returns {Promise} 返回订单详情
+ */
+export function getAdminOrderDetail(orderNo) {
+  return request.get(`/admin/orders/${orderNo}`)
+}
+
+/**
+ * 导出订单数据（CSV，含商品明细）
+ * @param {Object} queryParams - 查询参数（与列表页筛选项一致）
+ * @returns {Promise} 触发浏览器下载
+ */
+export function exportOrders(queryParams) {
+  return request.download('/admin/export/orders', '订单数据.csv', {
+    params: queryParams
+  })
+}
+
+// ==================== 评论管理 ====================
+
+/**
+ * 获取评论列表（管理端）
+ * @param {Object} queryParams - 查询参数
+ * @param {number} [queryParams.productId] - 商品ID
+ * @param {number} [queryParams.status] - 评论状态（1正常 0隐藏）
+ * @returns {Promise} 返回分页评论列表（{records, total}）
+ */
+export function getAdminComments(queryParams) {
+  return request.get('/admin/comments', queryParams)
+}
+
+/**
+ * 变更评论状态（显示/隐藏）
+ * @param {number} commentId - 评论ID
+ * @param {Object} statusData - {status: 1正常 0隐藏}
+ * @returns {Promise} 返回操作结果
+ */
+export function updateCommentStatus(commentId, statusData) {
+  return request.put(`/admin/comments/${commentId}/status`, statusData)
+}
+
+/**
+ * 删除评论
+ * @param {number} commentId - 评论ID
+ * @returns {Promise} 返回删除结果
+ */
+export function deleteComment(commentId) {
+  return request.delete(`/admin/comments/${commentId}`)
+}
+
+// ==================== 举报处理 ====================
+
+/**
+ * 获取举报列表（管理端，待处理的排在前面）
+ * @param {Object} queryParams - 查询参数
+ * @param {number} [queryParams.status] - 处理状态（0待处理 1已处理 2已驳回）
+ * @param {string} [queryParams.targetType] - 举报对象类型（product/comment）
+ * @returns {Promise} 返回分页举报列表（{records, total}）
+ */
+export function getAdminReports(queryParams) {
+  return request.get('/admin/reports', queryParams)
+}
+
+/**
+ * 处理举报
+ * @param {number} reportId - 举报ID
+ * @param {Object} handleData - 处理入参
+ * @param {string} handleData.action - 处理动作（takeDownProduct/hideComment/dismiss）
+ * @param {string} [handleData.note] - 处理备注
+ * @returns {Promise} 返回处理结果
+ */
+export function handleReport(reportId, handleData) {
+  return request.put(`/admin/reports/${reportId}/handle`, handleData)
+}
+
+// ==================== 用户管理增强 ====================
+
+/**
+ * 编辑用户资料（昵称/手机号/角色）
+ * @param {number} userId - 用户ID
+ * @param {Object} userData - 编辑数据（nickname/phone/isAdmin，字段不传表示保持不变）
+ * @returns {Promise} 返回更新结果
+ */
+export function updateUser(userId, userData) {
+  return request.put(`/admin/users/${userId}`, userData)
+}
+
+/**
+ * 重置用户密码
+ * @param {number} userId - 用户ID
+ * @param {Object} passwordData - {password: 新密码}
+ * @returns {Promise} 返回重置结果
+ */
+export function resetUserPassword(userId, passwordData) {
+  return request.put(`/admin/users/${userId}/password`, passwordData)
+}
+
+// ==================== 数据看板 ====================
+
+/**
+ * 获取近 N 日新增趋势（用户/商品/订单，按天聚合）
+ * @param {number} days - 天数（1-30，默认 7）
+ * @returns {Promise} 返回趋势点数组 [{date, newUsers, newProducts, newOrders}]
+ */
+export function getTrendStats(days = 7) {
+  return request.get('/admin/stats/trend', { days })
+}
+
+/**
+ * 获取商品分类分布
+ * @returns {Promise} 返回 [{categoryId, categoryName, count}]
+ */
+export function getCategoryStats() {
+  return request.get('/admin/stats/category')
+}
+
 /**
  * 默认导出：便于以 adminApi.xxx() 的形式统一调用
  */
@@ -221,6 +352,8 @@ export default {
   getAdminUsers,
   createUser,
   updateUserStatus,
+  updateUser,
+  resetUserPassword,
   getAdminProducts,
   updateProductStatus,
   deleteProduct,
@@ -234,5 +367,15 @@ export default {
   getAdminSettings,
   updateAdminSettings,
   exportUsers,
-  exportProducts
+  exportProducts,
+  getAdminOrders,
+  getAdminOrderDetail,
+  exportOrders,
+  getAdminComments,
+  updateCommentStatus,
+  deleteComment,
+  getAdminReports,
+  handleReport,
+  getTrendStats,
+  getCategoryStats
 }

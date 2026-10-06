@@ -19,6 +19,16 @@ const userRoutes = [
       title: '个人资料',
       requiresAuth: true
     }
+  },
+  {
+    // 我的发布：独立管理页（分页/筛选/下架/重新上架/删除/编辑）
+    path: 'my/products',
+    name: 'MyProducts',
+    component: () => import('@/views/product/MyProducts.vue'),
+    meta: {
+      title: '我的发布',
+      requiresAuth: true
+    }
   }
 ]
 

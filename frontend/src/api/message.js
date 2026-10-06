@@ -1,9 +1,59 @@
 /**
  * 私信与商品咨询API接口
- * 私信与咨询共用同一套接口：带上 productId 即为针对该商品的咨询
+ * 私信与咨询共用同一套接口：带上 productId 即为针对该商品的咨询；
+ * 系统消息（公告/通知）的收件箱能力也统一放在本文件
  */
 
 import request from '@/utils/request'
+
+// ==================== 系统消息（收件箱） ====================
+
+/**
+ * 分页获取当前用户的系统消息列表
+ * @param {Object} queryParams - 查询参数
+ * @param {number} [queryParams.page=1] - 页码
+ * @param {number} [queryParams.size=10] - 每页条数
+ * @returns {Promise} 返回分页消息列表（{records, total}）
+ */
+export function getSystemMessages(queryParams = {}) {
+  return request.get('/message/list', queryParams)
+}
+
+/**
+ * 标记单条系统消息为已读
+ * @param {number} messageId - 消息ID
+ * @returns {Promise} 返回操作结果
+ */
+export function markSystemMessageRead(messageId) {
+  return request.post(`/message/${messageId}/read`)
+}
+
+/**
+ * 标记全部系统消息为已读
+ * @returns {Promise} 返回操作结果
+ */
+export function markAllSystemMessagesRead() {
+  return request.post('/message/all/read')
+}
+
+/**
+ * 删除单条系统消息
+ * @param {number} messageId - 消息ID
+ * @returns {Promise} 返回操作结果
+ */
+export function deleteSystemMessage(messageId) {
+  return request.delete(`/message/${messageId}`)
+}
+
+/**
+ * 获取未读系统消息数量
+ * @returns {Promise} 返回未读条数
+ */
+export function getSystemUnreadCount() {
+  return request.get('/message/unread/count')
+}
+
+// ==================== 私信与商品咨询 ====================
 
 /**
  * 发送私信
@@ -60,6 +110,11 @@ export function deleteConversation(peerId, productId) {
  * 默认导出：便于以 messageApi.xxx() 的形式统一调用
  */
 export default {
+  getSystemMessages,
+  markSystemMessageRead,
+  markAllSystemMessagesRead,
+  deleteSystemMessage,
+  getSystemUnreadCount,
   sendPrivateMessage,
   getConversations,
   getChat,

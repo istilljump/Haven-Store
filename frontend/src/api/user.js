@@ -1,6 +1,11 @@
 /**
  * 用户相关API接口
  * 包含用户注册、登录、信息管理等功能
+ *
+ * 说明：只保留后端已实现的接口（/user/register、/user/login、/user/info、
+ * /user/password、/user/avatar）。此前这里还定义过 /user/products、/user/orders
+ * 等一批后端并不存在的接口，调用必然 404，已清理；
+ * 商品/订单/消息能力分别在 product.js、order.js、message.js 中
  */
 
 import request from '@/utils/request'
@@ -8,10 +13,10 @@ import request from '@/utils/request'
 /**
  * 用户注册
  * @param {Object} registrationData - 注册信息
- * @param {string} registrationData.username - 用户名
- * @param {string} registrationData.password - 密码
+ * @param {string} registrationData.username - 用户名（3-20字符）
+ * @param {string} registrationData.password - 密码（6-20字符）
  * @param {string} registrationData.confirmPassword - 确认密码
- * @param {string} registrationData.phone - 手机号
+ * @param {string} registrationData.phone - 手机号（11位）
  * @param {string} registrationData.nickname - 昵称
  * @returns {Promise} 返回注册结果
  */
@@ -70,107 +75,6 @@ export function uploadAvatar(formData, onProgress = null) {
 }
 
 /**
- * 获取用户发布的商品列表
- * @param {Object} queryParams - 查询参数
- * @param {number} queryParams.page - 页码
- * @param {number} queryParams.pageSize - 每页条数
- * @param {string} queryParams.status - 商品状态
- * @returns {Promise} 返回商品列表
- */
-export function getUserProducts(queryParams) {
-  return request.get('/user/products', queryParams)
-}
-
-/**
- * 获取用户的收藏列表
- * @param {Object} queryParams - 查询参数
- * @param {number} queryParams.page - 页码
- * @param {number} queryParams.pageSize - 每页条数
- * @returns {Promise} 返回收藏列表
- */
-export function getUserFavorites(queryParams) {
-  return request.get('/user/favorites', queryParams)
-}
-
-/**
- * 获取用户的消息列表
- * @param {Object} queryParams - 查询参数
- * @param {number} queryParams.page - 页码
- * @param {number} queryParams.pageSize - 每页条数
- * @param {string} queryParams.unread - 是否未读
- * @returns {Promise} 返回消息列表
- */
-export function getUserMessages(queryParams) {
-  return request.get('/user/messages', queryParams)
-}
-
-/**
- * 标记消息为已读
- * @param {number} messageId - 消息ID
- * @returns {Promise} 返回操作结果
- */
-export function markMessageAsRead(messageId) {
-  return request.put(`/user/messages/${messageId}/read`)
-}
-
-/**
- * 标记所有消息为已读
- * @returns {Promise} 返回操作结果
- */
-export function markAllMessagesAsRead() {
-  return request.put('/user/messages/read-all')
-}
-
-/**
- * 删除消息
- * @param {number} messageId - 消息ID
- * @returns {Promise} 返回操作结果
- */
-export function deleteMessage(messageId) {
-  return request.delete(`/user/messages/${messageId}`)
-}
-
-/**
- * 获取用户订单列表
- * @param {Object} queryParams - 查询参数
- * @param {number} queryParams.page - 页码
- * @param {number} queryParams.pageSize - 每页条数
- * @param {string} queryParams.status - 订单状态
- * @returns {Promise} 返回订单列表
- */
-export function getUserOrders(queryParams) {
-  return request.get('/user/orders', queryParams)
-}
-
-/**
- * 获取订单详情
- * @param {number} orderId - 订单ID
- * @returns {Promise} 返回订单详情
- */
-export function getOrderDetail(orderId) {
-  return request.get(`/user/orders/${orderId}`)
-}
-
-/**
- * 取消订单
- * @param {number} orderId - 订单ID
- * @param {string} reason - 取消原因
- * @returns {Promise} 返回操作结果
- */
-export function cancelOrder(orderId, reason) {
-  return request.put(`/user/orders/${orderId}/cancel`, { reason })
-}
-
-/**
- * 确认收货
- * @param {number} orderId - 订单ID
- * @returns {Promise} 返回操作结果
- */
-export function confirmOrder(orderId) {
-  return request.put(`/user/orders/${orderId}/confirm`)
-}
-
-/**
  * 默认导出：便于以 userApi.xxx() 的形式统一调用
  */
 export default {
@@ -179,15 +83,5 @@ export default {
   getCurrentUserInfo,
   updateUserInfo,
   changePassword,
-  uploadAvatar,
-  getUserProducts,
-  getUserFavorites,
-  getUserMessages,
-  markMessageAsRead,
-  markAllMessagesAsRead,
-  deleteMessage,
-  getUserOrders,
-  getOrderDetail,
-  cancelOrder,
-  confirmOrder
+  uploadAvatar
 }

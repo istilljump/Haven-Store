@@ -79,6 +79,32 @@
       </el-row>
     </div>
 
+    <!-- 数据图表：近 7 日趋势 + 分类分布 -->
+    <div id="dashboard-charts" class="chart-section">
+      <el-row :gutter="20">
+        <el-col :span="14">
+          <el-card class="module-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>近 7 日新增趋势</span>
+              </div>
+            </template>
+            <div ref="trendChartRef" class="chart-box" />
+          </el-card>
+        </el-col>
+        <el-col :span="10">
+          <el-card class="module-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>商品分类分布</span>
+              </div>
+            </template>
+            <div ref="categoryChartRef" class="chart-box" />
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
+
     <!-- 功能模块 -->
     <div class="function-modules">
       <el-row :gutter="20">
@@ -193,22 +219,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Refresh, 
-  SwitchButton, 
-  User, 
-  Goods, 
-  Calendar, 
-  ChatDotRound, 
+import {
+  Refresh,
+  SwitchButton,
+  User,
+  Goods,
+  Calendar,
+  ChatDotRound,
   ArrowRight,
   Bell,
   Collection,
   Setting,
   TrendCharts
 } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
 import adminApi from '@/api/admin'
 import { removeToken, removeUserInfo } from '@/utils/auth'
 import { formatRelativeTime } from '@/utils/format'
@@ -229,20 +256,86 @@ const dashboardData = reactive({
   systemMessages: []
 })
 
+// ==================== 图表 ====================
+const trendChartRef = ref(null)
+const categoryChartRef = ref(null)
+let trendChart = null
+let categoryChart = null
+
+const renderTrendChart = (trend) => {
+  if (!trendChartRef.value) return
+  if (!trendChart) {
+    trendChart = echarts.init(trendChartRef.value)
+  }
+  trendChart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['新增用户', '新增商品', '新增订单'], top: 0 },
+    grid: { left: 40, right: 20, top: 34, bottom: 28 },
+    xAxis: { type: 'category', data: trend.map(p => p.date.slice(5)) },
+    yAxis: { type: 'value', minInterval: 1 },
+    series: [
+      { name: '新增用户', type: 'line', smooth: true, data: trend.map(p => p.newUsers), itemStyle: { color: '#409eff' } },
+      { name: '新增商品', type: 'line', smooth: true, data: trend.map(p => p.newProducts), itemStyle: { color: '#67c23a' } },
+      { name: '新增订单', type: 'line', smooth: true, data: trend.map(p => p.newOrders), itemStyle: { color: '#e6a23c' } }
+    ]
+  })
+}
+
+const renderCategoryChart = (stats) => {
+  if (!categoryChartRef.value) return
+  if (!categoryChart) {
+    categoryChart = echarts.init(categoryChartRef.value)
+  }
+  categoryChart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} 件（{d}%）' },
+    legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle' },
+    series: [
+      {
+        type: 'pie',
+        radius: ['38%', '66%'],
+        center: ['42%', '50%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false },
+        data: stats.map(s => ({ name: s.categoryName || `分类${s.categoryId}`, value: s.count }))
+      }
+    ]
+  })
+}
+
+const loadCharts = async () => {
+  try {
+    const [trend, categoryStats] = await Promise.all([
+      adminApi.getTrendStats(7),
+      adminApi.getCategoryStats()
+    ])
+    await nextTick()
+    renderTrendChart(trend || [])
+    renderCategoryChart(categoryStats || [])
+  } catch (error) {
+    // 图表加载失败不影响看板其余内容
+  }
+}
+
+const handleResize = () => {
+  trendChart?.resize()
+  categoryChart?.resize()
+}
+
 // 加载后台数据
 const loadDashboardData = async () => {
   try {
     const response = await adminApi.getAdminDashboard()
     Object.assign(dashboardData, response)
   } catch (error) {
-    console.error('加载后台数据失败:', error)
-    ElMessage.error('加载后台数据失败')
+    // 失败原因由请求拦截器统一弹出
   }
 }
 
 // 刷新数据
 const refreshData = () => {
   loadDashboardData()
+  loadCharts()
 }
 
 // 格式化时间
@@ -292,8 +385,8 @@ const goToSettings = () => {
 }
 
 const goToDataStats = () => {
-  // 平台数据统计即本页的概览卡片，无需单独的 /admin/stats 页面
-  router.push('/admin/dashboard')
+  // 数据图表就在本页（近 7 日趋势 + 分类分布），滚动过去即可
+  document.getElementById('dashboard-charts')?.scrollIntoView({ behavior: 'smooth' })
 }
 
 // 退出登录：清空登录态后回到管理登录页
@@ -311,9 +404,19 @@ const goToLogout = () => {
   }).catch(() => {})
 }
 
-// 组件挂载时加载数据
+// 组件挂载时加载数据与图表；窗口尺寸变化时重绘
 onMounted(() => {
   loadDashboardData()
+  loadCharts()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  trendChart?.dispose()
+  categoryChart?.dispose()
+  trendChart = null
+  categoryChart = null
 })
 </script>
 
@@ -350,6 +453,16 @@ onMounted(() => {
 /* 统计卡片 */
 .stats-cards {
   margin-bottom: 24px;
+}
+
+/* 图表区 */
+.chart-section {
+  margin-bottom: 24px;
+}
+
+.chart-box {
+  width: 100%;
+  height: 320px;
 }
 
 .stats-card {

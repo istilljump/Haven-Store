@@ -10,6 +10,7 @@
             p.price,
             p.product_condition AS productCondition,
             p.trade_type AS tradeType,
+            p.cover_image AS coverImage,
             p.longitude,
             p.latitude,
             -- 计算距离（单位：公里），使用更精确的Haversine公式

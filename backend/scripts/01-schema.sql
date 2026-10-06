@@ -99,6 +99,7 @@ CREATE TABLE `system_message` (
     `receiver_id`  BIGINT       NOT NULL                COMMENT '接收者ID（关联 user 表）',
     `message_type` TINYINT      NOT NULL                COMMENT '消息类型：1系统通知 2公告 3交易消息 4其他',
     `receiver_type` VARCHAR(10) NOT NULL DEFAULT 'user' COMMENT '接收群体：all所有用户 admin仅管理员 user仅普通用户（管理后台群发时标记）',
+    `batch_no`     VARCHAR(36)  DEFAULT NULL            COMMENT '群发批次号：同一次群发的所有记录共享，用于聚合展示与整组删除',
     `title`        VARCHAR(100) NOT NULL                COMMENT '消息标题',
     `content`      TEXT         NOT NULL                COMMENT '消息内容',
     `is_read`      TINYINT      NOT NULL DEFAULT 0      COMMENT '是否已读：0未读 1已读',
@@ -107,7 +108,8 @@ CREATE TABLE `system_message` (
     PRIMARY KEY (`id`),
     KEY `idx_receiver_id` (`receiver_id`),
     KEY `idx_is_read` (`is_read`),
-    KEY `idx_create_time` (`create_time`)
+    KEY `idx_create_time` (`create_time`),
+    KEY `idx_batch_no` (`batch_no`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '系统消息表';
 
 -- ------------------------------------------------------------
@@ -225,6 +227,40 @@ CREATE TABLE `order_item` (
     KEY `idx_product_id` (`product_id`),
     KEY `idx_seller_id` (`seller_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '订单明细表';
+
+-- ------------------------------------------------------------
+-- 举报表（用户对商品/评论发起举报，管理员在后台处理）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `report`;
+CREATE TABLE `report` (
+    `id`              BIGINT       NOT NULL AUTO_INCREMENT COMMENT '举报ID',
+    `reporter_id`     BIGINT       NOT NULL                COMMENT '举报人用户ID（关联 user 表）',
+    `target_type`     VARCHAR(10)  NOT NULL                COMMENT '举报对象类型：product商品 comment评论',
+    `target_id`       BIGINT       NOT NULL                COMMENT '举报对象ID（商品ID或评论ID）',
+    `reason`          VARCHAR(30)  NOT NULL                COMMENT '举报原因',
+    `description`     VARCHAR(255) DEFAULT NULL            COMMENT '补充说明',
+    `status`          TINYINT      NOT NULL DEFAULT 0      COMMENT '处理状态：0待处理 1已处理 2已驳回',
+    `handle_action`   VARCHAR(20)  DEFAULT NULL            COMMENT '处理动作：takeDownProduct下架商品 hideComment隐藏评论 dismiss驳回',
+    `handle_note`     VARCHAR(255) DEFAULT NULL            COMMENT '处理备注',
+    `handle_admin_id` BIGINT       DEFAULT NULL            COMMENT '处理人（管理员）用户ID',
+    `create_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_reporter_id` (`reporter_id`),
+    KEY `idx_target` (`target_type`, `target_id`),
+    KEY `idx_status` (`status`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '举报表';
+
+-- ------------------------------------------------------------
+-- 系统设置表（单行表，id 固定为 1，设置整体以 JSON 存储）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `system_setting`;
+CREATE TABLE `system_setting` (
+    `id`          BIGINT NOT NULL COMMENT '主键，固定为1（系统只有一份设置）',
+    `config_json` TEXT   NOT NULL COMMENT '设置JSON文本（SystemSettingDTO 序列化结果）',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '系统设置表（单行）';
 
 -- ============================================================
 -- 种子数据

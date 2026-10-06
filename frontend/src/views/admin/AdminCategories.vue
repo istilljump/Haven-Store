@@ -149,7 +149,7 @@
           确定要删除分类 "<strong>{{ deleteCategoryName }}</strong>" 吗？
           <br>
           <span class="warning-desc">
-            删除后该分类下的所有商品将被归为"其他闲置"分类
+            分类下仍有商品时将无法删除（需先移走或下架商品）
           </span>
         </div>
       </div>
@@ -267,21 +267,27 @@ const closeCategoryDialog = () => {
   categoryDialog.value = false
 }
 
-// 处理排序变更
-const handleSortChange = (category) => {
-  // 更新排序
-  const updatedCategories = categories.value.map(cat => {
-    if (cat.id === category.id) {
-      return { ...cat, sort: category.sort }
-    }
-    return cat
-  })
-  
-  // 重新排序
-  updatedCategories.sort((a, b) => a.sort - b.sort)
-  categories.value = updatedCategories
-  
-  ElMessage.success('排序更新成功')
+// 处理排序变更：调用后端落库（此前只重排了本地数组就弹「成功」，刷新即回）
+const handleSortChange = async (category) => {
+  try {
+    await adminApi.updateCategory(category.id, {
+      name: category.name,
+      sort: category.sort,
+      status: category.status
+    })
+    const updatedCategories = categories.value.map(cat => {
+      if (cat.id === category.id) {
+        return { ...cat, sort: category.sort }
+      }
+      return cat
+    })
+    updatedCategories.sort((a, b) => a.sort - b.sort)
+    categories.value = updatedCategories
+    ElMessage.success('排序已保存')
+  } catch (error) {
+    // 保存失败时回读，避免本地显示与库中不一致
+    loadCategories()
+  }
 }
 
 // 删除分类

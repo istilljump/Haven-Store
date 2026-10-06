@@ -3,6 +3,9 @@ package com.example.config;
 import com.example.common.Constants;
 import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
+import com.example.user.entity.User;
+import com.example.user.enums.UserStatusEnum;
+import com.example.user.service.UserService;
 import com.example.utils.JwtUtil;
 import com.example.utils.UserHolder;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +40,9 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     /** JWT 工具类 */
     private final JwtUtil jwtUtil;
+
+    /** 用户服务：用于在每个请求上校验账号状态（Redis 缓存优先，未命中回源数据库） */
+    private final UserService userService;
 
     /** Jackson 序列化工具，用于向客户端写出 JSON 响应 */
     private final ObjectMapper objectMapper;
@@ -103,9 +109,23 @@ public class JwtInterceptor implements HandlerInterceptor {
             writeUnauthorized(response);
             return false;
         }
-        // 5. 解析用户 ID 并存入线程上下文，供后续业务直接获取
+        // 5. 解析用户 ID 并做账号状态校验（Redis 缓存优先），供后续业务直接获取
         Long userId = jwtUtil.getUserIdFromToken(token);
+        User user = userService.getAuthUser(userId);
+        if (user == null) {
+            // Token 签名有效但用户已被删除：等同于登录态失效
+            log.warn("Token 对应用户不存在，按未登录处理，URI：{}", request.getRequestURI());
+            writeUnauthorized(response, "登录状态已失效，请重新登录");
+            return false;
+        }
+        if (!UserStatusEnum.ENABLE.getCode().equals(user.getStatus())) {
+            // 禁用账号的 Token 立即失效：禁用后无法继续下单、发商品、发私信
+            log.warn("Token 对应用户已被禁用，URI：{}", request.getRequestURI());
+            writeUnauthorized(response, "账号已被禁用，请联系管理员");
+            return false;
+        }
         UserHolder.setUserId(userId);
+        UserHolder.setUser(user);
         return true;
     }
 
@@ -169,8 +189,21 @@ public class JwtInterceptor implements HandlerInterceptor {
      * @param response 当前响应
      */
     private void writeUnauthorized(HttpServletResponse response) throws IOException {
+        writeUnauthorized(response, null);
+    }
+
+    /**
+     * 向客户端写出未登录响应（支持自定义提示语）
+     *
+     * @param response 当前响应
+     * @param message  自定义提示语；为空时使用枚举默认文案
+     */
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(objectMapper.writeValueAsString(Result.fail(ResultCodeEnum.UNAUTHORIZED)));
+        Result<Void> body = StringUtils.hasText(message)
+                ? Result.fail(ResultCodeEnum.UNAUTHORIZED.getCode(), message)
+                : Result.fail(ResultCodeEnum.UNAUTHORIZED);
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

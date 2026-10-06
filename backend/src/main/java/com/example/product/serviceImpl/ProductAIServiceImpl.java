@@ -76,13 +76,13 @@ public class ProductAIServiceImpl implements ProductAIService {
 
     /**
      * 参数校验
+     * <p>
+     * 说明：描述允许为空——发布向导第一步就会调用估价，此时用户还没填描述，
+     * 估价规则以标题与成色为主
      */
     private void validateEstimateParams(ProductEstimateDTO dto) {
         if (dto.getTitle() == null || dto.getTitle().trim().isEmpty()) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品标题不能为空");
-        }
-        if (dto.getDescription() == null || dto.getDescription().trim().isEmpty()) {
-            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品描述不能为空");
         }
         if (dto.getProductCondition() == null) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品成色不能为空");
@@ -101,7 +101,8 @@ public class ProductAIServiceImpl implements ProductAIService {
     private Map<String, Object> extractFeatures(ProductEstimateDTO dto) {
         Map<String, Object> features = new HashMap<>();
         features.put("title_length", dto.getTitle().length());
-        features.put("description_length", dto.getDescription().length());
+        // 描述允许为空（发布向导第一步调用估价时还没有描述）
+        features.put("description_length", dto.getDescription() == null ? 0 : dto.getDescription().length());
         features.put("has_brand", dto.getTitle().contains("iPhone") || dto.getTitle().contains("华为") || dto.getTitle().contains("小米"));
         features.put("has_model", dto.getTitle().contains("Pro") || dto.getTitle().contains("Max") || dto.getTitle().contains("Plus"));
         features.put("condition_score", getConditionScore(dto.getProductCondition()));

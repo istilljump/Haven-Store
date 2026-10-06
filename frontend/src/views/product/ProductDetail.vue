@@ -60,7 +60,7 @@
               </div>
               <div class="meta-item">
                 <span class="label">发布时间:</span>
-                <span class="value">{{ product.publishTime || '暂无' }}</span>
+                <span class="value" :title="product.publishTime">{{ formatTime(product.publishTime) }}</span>
               </div>
               <div class="meta-item">
                 <span class="label">浏览次数:</span>
@@ -128,6 +128,11 @@
               </el-button>
               <el-button v-if="isOwner" @click="goToEdit">
                 编辑商品
+              </el-button>
+            </div>
+            <div class="report-row">
+              <el-button link type="info" size="small" icon="WarningFilled" @click="openReportDialog">
+                举报该商品
               </el-button>
             </div>
           </div>
@@ -254,8 +259,11 @@
                   <div class="review-header">
                     <el-avatar :src="review.avatar || '/default-avatar.png'" size="small" />
                     <div class="review-user">
-                      <div class="username">{{ review.username }}</div>
-                      <div class="review-time">{{ review.createTime }}</div>
+                      <div class="username">
+                        {{ review.username }}
+                        <el-tag v-if="review.verifiedBuyer" size="mini" type="success" class="verified-tag">已验证购买</el-tag>
+                      </div>
+                      <div class="review-time">{{ formatTime(review.createTime) }}</div>
                     </div>
                     <div class="review-rating">
                       <el-rate :model-value="review.rating" disabled />
@@ -306,6 +314,32 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 举报对话框：举报对象为当前商品 -->
+    <el-dialog v-model="reportDialogVisible" title="举报该商品" width="440px">
+      <p class="message-dialog-tip">如发现违规、欺诈等内容，请向我们举报，管理员会尽快处理。</p>
+      <el-form label-position="top">
+        <el-form-item label="举报原因" required>
+          <el-select v-model="reportForm.reason" placeholder="请选择举报原因" style="width: 100%">
+            <el-option v-for="reason in reportReasons" :key="reason" :label="reason" :value="reason" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="补充说明">
+          <el-input
+            v-model="reportForm.description"
+            type="textarea"
+            :rows="3"
+            maxlength="255"
+            show-word-limit
+            placeholder="补充描述问题细节（选填）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="reportDialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="reportSubmitting" @click="submitReport">提交举报</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -317,8 +351,11 @@ import { Star, StarFilled } from '@element-plus/icons-vue'
 import productApi from '@/api/product'
 import messageApi from '@/api/message'
 import cartApi from '@/api/cart'
+import reportApi from '@/api/report'
 import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store/index'
+import { REPORT_REASONS } from '@/utils/constants'
+import { formatRelativeTime } from '@/utils/format'
 
 export default {
   name: 'ProductDetail',
@@ -674,6 +711,48 @@ export default {
     const goToProducts = () => {
       router.push('/products')
     }
+
+    /** 相对时间展示（原样时间为 title 提示，鼠标悬停可看完整时间） */
+    const formatTime = (time) => formatRelativeTime(time) || '暂无'
+
+    // ==================== 举报 ====================
+    const reportDialogVisible = ref(false)
+    const reportSubmitting = ref(false)
+    const reportReasons = REPORT_REASONS
+    const reportForm = reactive({ reason: '', description: '' })
+
+    const openReportDialog = () => {
+      if (!authStore.isLoggedIn) {
+        ElMessage.warning('请先登录后再举报')
+        router.push(`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`)
+        return
+      }
+      reportForm.reason = ''
+      reportForm.description = ''
+      reportDialogVisible.value = true
+    }
+
+    const submitReport = async () => {
+      if (!reportForm.reason) {
+        ElMessage.warning('请选择举报原因')
+        return
+      }
+      reportSubmitting.value = true
+      try {
+        await reportApi.submitReport({
+          targetType: 'product',
+          targetId: product.id,
+          reason: reportForm.reason,
+          description: reportForm.description.trim() || undefined
+        })
+        reportDialogVisible.value = false
+        ElMessage.success('举报已提交，管理员会尽快处理')
+      } catch (error) {
+        // 重复举报等错误由拦截器提示
+      } finally {
+        reportSubmitting.value = false
+      }
+    }
     
     onMounted(() => {
       if (productId.value) {
@@ -718,7 +797,14 @@ export default {
       goToHome,
       goToProducts,
       goToEdit,
-      isOwner
+      isOwner,
+      formatTime,
+      reportDialogVisible,
+      reportSubmitting,
+      reportReasons,
+      reportForm,
+      openReportDialog,
+      submitReport
     }
   }
 }
@@ -749,6 +835,15 @@ export default {
   color: #909399;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.report-row {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.verified-tag {
+  margin-left: 6px;
 }
 
 .product-detail {

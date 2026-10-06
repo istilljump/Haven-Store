@@ -17,8 +17,9 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * 管理后台统一鉴权拦截器
  * <p>
- * 说明：JWT 拦截器先完成登录态解析并把用户 ID 写入 {@link UserHolder}，
+ * 说明：JWT 拦截器先完成登录态解析、账号状态校验并把用户实体写入 {@link UserHolder}，
  * 本拦截器在其后执行，只做一件事——校验当前登录用户角色是否为管理员。
+ * 用户实体直接复用 JWT 拦截器加载的那份（Redis 缓存优先），本拦截器不再查库。
  * 统一在拦截器层做校验的好处：/admin/** 下新增任何接口自动受保护，
  * 无需在每个 Controller 方法里重复编写权限判断（复用一处，全局生效）。
  *
@@ -29,7 +30,7 @@ import javax.servlet.http.HttpServletResponse;
 @RequiredArgsConstructor
 public class AdminAuthInterceptor implements HandlerInterceptor {
 
-    /** 用户模块数据访问对象（用于回查角色） */
+    /** 用户模块数据访问对象（JWT 拦截器未写入用户实体时的兜底回查） */
     private final UserMapper userMapper;
 
     /**
@@ -39,13 +40,20 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         // 1. 登录态兜底校验（正常情况下 JWT 拦截器已挡住未登录请求）
-        Long userId = UserHolder.getUserId();
-        if (userId == null) {
-            throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
+        User user = UserHolder.getUser();
+        if (user == null) {
+            // 兜底：JWT 拦截器按「公开但可选鉴权」放行时不会写入用户实体
+            Long userId = UserHolder.getUserId();
+            if (userId == null) {
+                throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
+            }
+            user = userMapper.selectById(userId);
+            if (user == null) {
+                throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
+            }
         }
-        // 2. 回查用户，账号不存在或被禁用一律视为未登录
-        User user = userMapper.selectById(userId);
-        if (user == null || !UserStatusEnum.ENABLE.getCode().equals(user.getStatus())) {
+        // 2. 账号状态校验（JWT 拦截器已校验过，这里兜底）
+        if (!UserStatusEnum.ENABLE.getCode().equals(user.getStatus())) {
             throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
         }
         // 3. 角色校验：非管理员拒绝访问管理接口

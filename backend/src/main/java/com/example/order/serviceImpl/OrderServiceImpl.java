@@ -207,10 +207,17 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderVO getOrderDetail(String orderNo) {
-        Long buyerId = requireLoginUserId();
+        Long userId = requireLoginUserId();
         ProductOrder order = getOrderByNoOrThrow(orderNo);
-        if (!buyerId.equals(order.getBuyerId())) {
-            throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能查看自己的订单");
+        // 买家本人可见；非买家但订单中有自己发布的商品（卖家）也可查看，
+        // 便于卖家核对「谁买走了我的东西」，越权兜底仍在本方法内完成
+        if (!userId.equals(order.getBuyerId())) {
+            Long sellerItemCount = orderItemMapper.selectCount(new LambdaQueryWrapper<OrderItem>()
+                    .eq(OrderItem::getOrderId, order.getId())
+                    .eq(OrderItem::getSellerId, userId));
+            if (sellerItemCount == null || sellerItemCount == 0) {
+                throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能查看自己的订单");
+            }
         }
         return toOrderVO(order, listItems(order.getId()),
                 displayName(userMapper.selectById(order.getBuyerId())));
@@ -223,11 +230,15 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException("订单当前为「" + OrderStatusEnum.descOf(order.getStatus()) + "」，不能支付");
         }
 
-        ProductOrder update = new ProductOrder();
-        update.setId(order.getId());
-        update.setStatus(OrderStatusEnum.PAID.getCode());
-        update.setPayTime(LocalDateTime.now());
-        productOrderMapper.updateById(update);
+        // 条件更新：并发下（如定时取消同时发生）状态被别人改过时更新不到，避免重复推进
+        int changed = productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
+                .eq(ProductOrder::getId, order.getId())
+                .eq(ProductOrder::getStatus, OrderStatusEnum.PENDING_PAY.getCode())
+                .set(ProductOrder::getStatus, OrderStatusEnum.PAID.getCode())
+                .set(ProductOrder::getPayTime, LocalDateTime.now()));
+        if (changed == 0) {
+            throw new BusinessException("订单状态已变化，请刷新后重试");
+        }
 
         // 说明：此处为模拟支付，仅推进订单状态，项目未接入任何真实支付渠道，不产生真实扣款
         log.info("订单模拟支付成功，订单号：{}，买家ID：{}，金额：{}",
@@ -242,19 +253,15 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException("订单当前为「" + OrderStatusEnum.descOf(order.getStatus()) + "」，不能取消");
         }
 
-        ProductOrder update = new ProductOrder();
-        update.setId(order.getId());
-        update.setStatus(OrderStatusEnum.CANCELLED.getCode());
-        update.setCancelTime(LocalDateTime.now());
-        productOrderMapper.updateById(update);
-
-        // 释放商品：仅把仍处于「已售出」的释放回「在售」，不覆盖卖家自己的下架操作
-        for (OrderItem item : listItems(order.getId())) {
-            productMapper.update(null, new LambdaUpdateWrapper<Product>()
-                    .eq(Product::getId, item.getProductId())
-                    .eq(Product::getStatus, ProductStatusEnum.SOLD.getCode())
-                    .set(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode()));
+        int changed = productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
+                .eq(ProductOrder::getId, order.getId())
+                .eq(ProductOrder::getStatus, OrderStatusEnum.PENDING_PAY.getCode())
+                .set(ProductOrder::getStatus, OrderStatusEnum.CANCELLED.getCode())
+                .set(ProductOrder::getCancelTime, LocalDateTime.now()));
+        if (changed == 0) {
+            throw new BusinessException("订单状态已变化，请刷新后重试");
         }
+        releaseOrderItems(order.getId());
         log.info("订单已取消，订单号：{}，商品已释放回在售", order.getOrderNo());
     }
 
@@ -265,12 +272,60 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException("只有已支付的订单才能确认收货");
         }
 
-        ProductOrder update = new ProductOrder();
-        update.setId(order.getId());
-        update.setStatus(OrderStatusEnum.FINISHED.getCode());
-        update.setFinishTime(LocalDateTime.now());
-        productOrderMapper.updateById(update);
+        int changed = productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
+                .eq(ProductOrder::getId, order.getId())
+                .eq(ProductOrder::getStatus, OrderStatusEnum.PAID.getCode())
+                .set(ProductOrder::getStatus, OrderStatusEnum.FINISHED.getCode())
+                .set(ProductOrder::getFinishTime, LocalDateTime.now()));
+        if (changed == 0) {
+            throw new BusinessException("订单状态已变化，请刷新后重试");
+        }
         log.info("订单已完成，订单号：{}", order.getOrderNo());
+    }
+
+    /**
+     * 取消超时未支付订单并释放商品（供定时任务调用）
+     * <p>
+     * 逐单条件更新（仅待支付状态可取消），与买家手动的取消操作互不冲突：
+     * 谁先把状态改掉谁生效，另一方更新不到即跳过
+     */
+    @Override
+    public int cancelTimeoutOrders(int timeoutMinutes) {
+        LocalDateTime deadline = LocalDateTime.now().minusMinutes(timeoutMinutes);
+        List<ProductOrder> expiredOrders = productOrderMapper.selectList(new LambdaQueryWrapper<ProductOrder>()
+                .eq(ProductOrder::getStatus, OrderStatusEnum.PENDING_PAY.getCode())
+                .lt(ProductOrder::getCreateTime, deadline));
+        int cancelled = 0;
+        for (ProductOrder order : expiredOrders) {
+            try {
+                int changed = productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
+                        .eq(ProductOrder::getId, order.getId())
+                        .eq(ProductOrder::getStatus, OrderStatusEnum.PENDING_PAY.getCode())
+                        .set(ProductOrder::getStatus, OrderStatusEnum.CANCELLED.getCode())
+                        .set(ProductOrder::getCancelTime, LocalDateTime.now()));
+                if (changed > 0) {
+                    releaseOrderItems(order.getId());
+                    cancelled++;
+                    log.info("超时未支付订单已自动取消，订单号：{}", order.getOrderNo());
+                }
+            } catch (Exception e) {
+                // 单笔失败不影响其余订单的自动取消
+                log.error("自动取消订单失败，订单号：{}", order.getOrderNo(), e);
+            }
+        }
+        return cancelled;
+    }
+
+    /**
+     * 释放订单占用的商品：仅把仍处于「已售出」的释放回「在售」，不覆盖卖家自己的下架操作
+     */
+    private void releaseOrderItems(Long orderId) {
+        for (OrderItem item : listItems(orderId)) {
+            productMapper.update(null, new LambdaUpdateWrapper<Product>()
+                    .eq(Product::getId, item.getProductId())
+                    .eq(Product::getStatus, ProductStatusEnum.SOLD.getCode())
+                    .set(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode()));
+        }
     }
 
     /**

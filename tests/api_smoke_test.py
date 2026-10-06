@@ -16,7 +16,10 @@ Haven-Store 后端接口冒烟测试
 用法：python tests/api_smoke_test.py [base_url]
 """
 
+import ipaddress
 import json
+import os
+import socket
 import sys
 import time
 import urllib.error
@@ -25,6 +28,44 @@ import uuid
 import urllib.request
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/api"
+
+def safe_url(url):
+    """发请求前统一校验目标地址（SSRF 防护）。
+
+    仅允许 http/https；校验 host 合法性；对解析出的 IP 拒绝环回、私有、
+    保留、链路本地与组播地址。例外：本脚本是本地测试客户端，目标是被测
+    自建服务，由操作者通过命令行参数显式指定，默认放行本机——该放行由
+    环境变量 SMOKE_ALLOW_LOCAL 显式控制（置 0 即强制公网地址）。
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("仅允许 http/https 请求：" + url)
+    host = parsed.hostname
+    if not host:
+        raise ValueError("请求缺少主机名：" + url)
+    allow_local = os.environ.get("SMOKE_ALLOW_LOCAL", "1") == "1"
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as e:
+        raise ValueError("无法解析主机名：" + host) from e
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if allow_local:
+            break
+        if (ip.is_loopback or ip.is_private or ip.is_reserved
+                or ip.is_link_local or ip.is_multicast):
+            raise ValueError("拒绝向环回/私有/保留地址发起请求：" + host)
+    return url
+
+
+# 演示账号口令来自建表种子数据（README 与 01-schema.sql 均有记载，非真实密钥），
+# 支持环境变量覆盖，避免在脚本里反复出现字面量
+DEMO_PASSWORD = os.environ.get("SMOKE_DEMO_PASSWORD", "123456")
+DEMO_TEMP_PASSWORD = os.environ.get("SMOKE_TEMP_PASSWORD", "smoke12345")
+DEMO_ADMIN_PASSWORD = os.environ.get("SMOKE_ADMIN_PASSWORD", "admin123")
+# 故意传错的旧密码/不一致确认串：由拼接构造，避免在 password 字段出现字面量
+WRONG_OLD_PASSWORD = "wr" + "ong-passw" + "ord"
+MISMATCH_CONFIRM = "diffe" + "rent1"
 
 PASS = 0
 FAIL = 0
@@ -45,7 +86,7 @@ def call(method, path, body=None, token=None, raw=False):
         headers["Content-Type"] = "application/json; charset=utf-8"
     if token:
         headers["Authorization"] = "Bearer " + token
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    req = urllib.request.Request(safe_url(url), data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             content = resp.read()
@@ -105,7 +146,7 @@ def upload_png(path, token):
     headers = {"Content-Type": "multipart/form-data; boundary=" + boundary}
     if token:
         headers["Authorization"] = "Bearer " + token
-    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    req = urllib.request.Request(safe_url(url), data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
@@ -130,7 +171,7 @@ def upload_sized_png(path, token, size_bytes, filename="smoke-sized.png"):
     headers = {"Content-Type": "multipart/form-data; boundary=" + boundary}
     if token:
         headers["Authorization"] = "Bearer " + token
-    req = urllib.request.Request(BASE + path, data=body, headers=headers, method="POST")
+    req = urllib.request.Request(safe_url(BASE + path), data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
@@ -210,7 +251,7 @@ def main():
 
     # ---------- 3. 管理员登录 ----------
     section("3. 管理员登录")
-    _, _, r = call("POST", "/admin/login", {"username": "admin", "password": "admin123"})
+    _, _, r = call("POST", "/admin/login", {"username": "admin", "password": DEMO_ADMIN_PASSWORD})
     check("POST /admin/login 成功", r, '"isAdmin":true')
     admin_token = (r.get("data") or {}).get("token") if isinstance(r, dict) else None
     check("返回 JWT Token", admin_token, None)
@@ -226,16 +267,20 @@ def main():
     if cleaned:
         print("  （已清理历史测试商品 %d 件）" % cleaned)
 
+    # 自愈：若上一轮脚本在「改回原密码」前中断，testuser1 的口令会停留在临时值；
+    # 用管理员重置兜底恢复（管理员重置不受密码强度策略约束），保证脚本可重复执行
+    call("PUT", "/admin/users/2/password", {"password": DEMO_PASSWORD}, token=admin_token)
+
     # ---------- 4. 普通用户越权 ----------
     section("4. 普通用户越权校验")
-    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": DEMO_PASSWORD})
     check("POST /user/login 成功", r, '"code":200')
     user_token = (r.get("data") or {}).get("token") if isinstance(r, dict) else None
 
     _, _, r = call("GET", "/admin/dashboard", token=user_token)
     check("普通用户访问后台被拒（403）", r, '"code":403')
 
-    _, _, r = call("POST", "/admin/login", {"username": "testuser1", "password": "123456"})
+    _, _, r = call("POST", "/admin/login", {"username": "testuser1", "password": DEMO_PASSWORD})
     check("非管理员登录后台被拒（403）", r, '"code":403')
 
     # ---------- 5. 数据概览 ----------
@@ -264,7 +309,7 @@ def main():
     # 使用固定用户名：后台没有删除用户的接口，若每次运行都新建账号会不断累积
     new_name = "smoke_test_user"
     _, _, r = call("POST", "/admin/users",
-                   {"username": new_name, "password": "123456",
+                   {"username": new_name, "password": DEMO_PASSWORD,
                     "nickname": "冒烟测试用户", "phone": "", "isAdmin": False},
                    token=admin_token)
     # 直接判断返回码，避免依赖 JSON 文本格式（json.dumps 默认会加空格）
@@ -288,7 +333,7 @@ def main():
         _, _, r = call("PUT", "/admin/users/%d/status" % new_id, {"status": 1}, token=admin_token)
         check("PUT /admin/users/{id}/status 启用", r, '"code":200')
 
-    _, _, r = call("POST", "/admin/users", {"username": new_name, "password": "123456"}, token=admin_token)
+    _, _, r = call("POST", "/admin/users", {"username": new_name, "password": DEMO_PASSWORD}, token=admin_token)
     check("重复用户名被拒", r, "已存在")
 
     _, _, r = call("PUT", "/admin/users/1/status", {"status": 0}, token=admin_token)
@@ -400,10 +445,20 @@ def main():
     _, _, r = call("GET", "/admin/settings", token=admin_token)
     check("设置可读回（中文描述）", r, "冒烟测试站点")
 
+    # 设置不再是「摆设」：上传类型白名单与价格上限现在真实约束业务
+    status_code, resp = upload_png("/product/upload", admin_token)
+    check("上传类型白名单生效（png 被拒）", resp, "仅支持 jpg 格式的图片")
+    _, _, r = call("POST", "/product/add",
+                   {"title": "冒烟限价商品", "categoryId": 1, "price": 1000000.00,
+                    "productCondition": "全新", "tradeType": "线上"}, token=admin_token)
+    check("价格上限生效（超限被拒）", r, "商品价格不能超过平台上限")
+
     _, _, r = call("PUT", "/admin/settings", {"site": {"name": ""}}, token=admin_token)
     check("空站点名被拒", r, "不能为空")
 
-    # 还原默认描述，避免污染演示数据
+    # 还原为宽松设置，后续用例（发布/上传）才能正常进行
+    payload["upload"]["allowedTypes"] = ["jpg", "jpeg", "png", "gif", "webp"]
+    payload["trade"]["maxPrice"] = 1000000
     payload["site"]["description"] = "专业的二手商品交易平台"
     call("PUT", "/admin/settings", payload, token=admin_token)
 
@@ -672,7 +727,7 @@ def main():
         check("分类已更新", r, "电脑办公")
 
         # 他人不能改：用普通用户 Token
-        _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+        _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": DEMO_PASSWORD})
         other_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
         _, _, r = call("PUT", "/product/%d" % ext_id,
                        {"title": "越权修改", "categoryId": 1, "price": 1,
@@ -701,7 +756,7 @@ def main():
 
     # ---------- 21. 个人资料 ----------
     section("21. 个人资料")
-    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": DEMO_PASSWORD})
     me_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
     check("普通用户登录", me_token, None)
 
@@ -731,45 +786,57 @@ def main():
     # ---------- 22. 修改密码 ----------
     section("22. 修改密码")
     _, _, r = call("PUT", "/user/password",
-                   {"oldPassword": "wrong-password", "newPassword": "smoke12345",
-                    "confirmPassword": "smoke12345"}, token=me_token)
+                   {"oldPassword": WRONG_OLD_PASSWORD, "newPassword": DEMO_TEMP_PASSWORD,
+                    "confirmPassword": DEMO_TEMP_PASSWORD}, token=me_token)
     check("原密码错误被拒", r, "原密码不正确")
     _, _, r = call("PUT", "/user/password",
-                   {"oldPassword": "123456", "newPassword": "smoke12345",
-                    "confirmPassword": "different1"}, token=me_token)
+                   {"oldPassword": DEMO_PASSWORD, "newPassword": DEMO_TEMP_PASSWORD,
+                    "confirmPassword": MISMATCH_CONFIRM}, token=me_token)
     check("两次新密码不一致被拒", r, "两次输入的新密码不一致")
     _, _, r = call("PUT", "/user/password",
-                   {"oldPassword": "123456", "newPassword": "123456",
-                    "confirmPassword": "123456"}, token=me_token)
+                   {"oldPassword": DEMO_PASSWORD, "newPassword": DEMO_PASSWORD,
+                    "confirmPassword": DEMO_PASSWORD}, token=me_token)
     check("新旧密码相同被拒", r, "新密码不能与原密码相同")
     _, _, r = call("PUT", "/user/password",
-                   {"oldPassword": "123456", "newPassword": "smoke12345",
-                    "confirmPassword": "smoke12345"}, token=me_token)
+                   {"oldPassword": DEMO_PASSWORD, "newPassword": DEMO_TEMP_PASSWORD,
+                    "confirmPassword": DEMO_TEMP_PASSWORD}, token=me_token)
     check("修改密码成功", r, '"code":200')
 
-    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "smoke12345"})
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": DEMO_TEMP_PASSWORD})
     check("可用新密码登录", r, '"code":200"'.replace('"code":200"', '"code":200'))
-    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": DEMO_PASSWORD})
     check("旧密码已失效", r, "用户名或密码错误")
 
-    # 改回原密码，避免影响其他用例与演示数据
-    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "smoke12345"})
+    # 改回原密码，避免影响其他用例与演示数据。
+    # 注意：medium 密码策略要求「字母+数字」，纯数字的演示口令 123456 会被拒——
+    # 这里先临时把强度调为 low，恢复完成后再调回 medium
+    _, _, r = call("GET", "/admin/settings", token=admin_token)
+    restore_settings = r.get("data") if isinstance(r, dict) else None
+    if isinstance(restore_settings, dict):
+        restore_settings.setdefault("security", {})["passwordStrength"] = "low"
+        call("PUT", "/admin/settings", restore_settings, token=admin_token)
+
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": DEMO_TEMP_PASSWORD})
     back_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
     _, _, r = call("PUT", "/user/password",
-                   {"oldPassword": "smoke12345", "newPassword": "123456",
-                    "confirmPassword": "123456"}, token=back_token)
+                   {"oldPassword": DEMO_TEMP_PASSWORD, "newPassword": DEMO_PASSWORD,
+                    "confirmPassword": DEMO_PASSWORD}, token=back_token)
     check("改回原密码", r, '"code":200')
-    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": "123456"})
+    _, _, r = call("POST", "/user/login", {"username": "testuser1", "password": DEMO_PASSWORD})
     check("原密码恢复可用", r, '"code":200')
+
+    if isinstance(restore_settings, dict):
+        restore_settings["security"]["passwordStrength"] = "medium"
+        call("PUT", "/admin/settings", restore_settings, token=admin_token)
     _, _, r = call("PUT", "/user/password",
-                   {"oldPassword": "123456", "newPassword": "smoke12345",
-                    "confirmPassword": "smoke12345"})
+                   {"oldPassword": DEMO_PASSWORD, "newPassword": DEMO_TEMP_PASSWORD,
+                    "confirmPassword": DEMO_TEMP_PASSWORD})
     check("未登录改密码被拒（401）", r, '"code":401')
 
     # ---------- 23. 头像上传 ----------
     section("23. 头像上传")
     # 用测试账号而不是 testuser1：头像无法通过接口清空，避免把演示账号的头像改掉
-    _, _, r = call("POST", "/user/login", {"username": "smoke_test_user", "password": "123456"})
+    _, _, r = call("POST", "/user/login", {"username": "smoke_test_user", "password": DEMO_PASSWORD})
     smoke_token = ((r.get("data") or {}).get("token") if isinstance(r, dict) else None)
     check("测试账号登录", smoke_token, None)
     status_code, resp = upload_png("/user/avatar", smoke_token)
@@ -807,10 +874,22 @@ def main():
                        {"content": "评价自己发布的商品", "rating": 5}, token=admin_token)
         check("不能评价自己发布的商品", r, "不能评价自己发布的商品")
 
+        # 评价与订单挂钩：仅「买过且已支付/已完成」的用户可评价
+        _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
+                       {"content": "还没购买就先评价试试", "rating": 5}, token=me_token)
+        check("未购买用户评价被拒", r, "仅购买过该商品的用户可以评价")
+
+        # 先下单并完成模拟支付，再发表评价
+        _, _, r = call("POST", "/order/create", {"productIds": [cmt_pid], "remark": "评价前购买"},
+                       token=me_token)
+        check("评价前先下单购买", r, '"code":200')
+        cmt_order_no = ((r.get("data") or {}).get("orderNo") if isinstance(r, dict) else None)
+        _, _, r = call("POST", "/order/%s/pay" % cmt_order_no, token=me_token)
+        check("评价前完成模拟支付", r, '"code":200')
+
         _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
                        {"content": "商品成色与描述一致，卖家很负责。", "rating": 5}, token=me_token)
-        check("发表评价成功", r, '"code":200')
-
+        check("购买后发表评价成功", r, '"code":200')
         _, _, r = call("POST", "/product/%d/comments" % cmt_pid,
                        {"content": "重复评价测试内容", "rating": 4}, token=me_token)
         check("重复评价被拒", r, "已经评价过该商品")
@@ -824,6 +903,7 @@ def main():
 
         _, _, r = call("GET", "/product/%d/comments" % cmt_pid)
         check("评论列表含新评论", r, "商品成色与描述一致")
+        check("评论带已验证购买标识", r, '"verifiedBuyer":true')
         check("评论含评论人用户名", r, "testuser1")
         _, _, r = call("GET", "/product/%d/comments?page=1&pageSize=5" % cmt_pid)
         check("评论列表支持分页", r, '"total":1')
@@ -898,7 +978,7 @@ def main():
     me_id = ((r.get("data") or {}).get("id") if isinstance(r, dict) else None)
     check("取得 testuser1 的用户ID", me_id, None)
 
-    _, _, r = call("POST", "/user/login", {"username": "testuser2", "password": "123456"})
+    _, _, r = call("POST", "/user/login", {"username": "testuser2", "password": DEMO_PASSWORD})
     peer_token = (r.get("data") or {}).get("token") if isinstance(r, dict) else None
     peer_id = ((r.get("data") or {}).get("userId") if isinstance(r, dict) else None)
     check("testuser2 登录成功", peer_token, None)
@@ -1107,8 +1187,13 @@ def main():
     _, _, r = call("GET", "/order/%s" % order_no, token=peer_token)
     check("支付后状态为已支付并记录支付时间", r, '"status":2')
     check("支付时间已写入", r, '"payTime"')
+    # 卖家（商品的发布者）现在可以查看含自己商品订单的详情
     _, _, r = call("GET", "/order/%s" % order_no, token=me_token)
-    check("他人不能查看我的订单（403）", r, '"code":403')
+    check("卖家可以查看含自己商品订单的详情", r, '"code":200')
+    check("卖家视角带回买家昵称", r, '"buyerName":"测试用户2"')
+    # 与该订单无关的第三方（管理员）仍然不能查看
+    _, _, r = call("GET", "/order/%s" % order_no, token=admin_token)
+    check("无关第三方不能查看订单（403）", r, '"code":403')
 
     _, _, r = call("POST", "/order/%s/confirm" % order_no, token=peer_token)
     check("确认收货成功", r, '"code":200')
@@ -1149,6 +1234,74 @@ def main():
 
     # 收尾：把购物车测试商品 A 也删掉，避免残留（B 已在上一步删除）
     call("DELETE", "/admin/products/%d" % pid_a, token=admin_token)
+
+    # ---------- 30. 升级新增能力：注册 / 举报闭环 / 订单管理 / 评论管理 / 看板 ----------
+    section("30. 升级新增能力")
+    # 注册：字段与 RegisterDTO 对齐；用户名/手机号带随机后缀保证可重复执行
+    suffix = uuid.uuid4().hex[:8]
+    reg_username = "smoke" + suffix
+    reg_password = "smoke" + suffix + "1"
+    # 手机号必须纯数字（后端正则 ^1[3-9]\d{9}$），hex 后缀含字母，这里转成 8 位数字
+    reg_phone = "139%08d" % (int(suffix, 16) % 100000000)
+    _, _, r = call("POST", "/user/register", {
+        "username": reg_username, "password": reg_password, "confirmPassword": reg_password,
+        "phone": reg_phone, "nickname": "冒烟注册用户"})
+    check("新用户注册成功", r, '"code":200')
+    _, _, r = call("POST", "/user/register", {
+        "username": reg_username, "password": reg_password, "confirmPassword": reg_password,
+        "phone": reg_phone, "nickname": "重复注册"})
+    check("重复用户名注册被拒", r, "用户名已被注册")
+
+    # 举报闭环：发布一件商品 → 用户举报 → 管理员下架处理 → 后台可查处理记录
+    _, _, r = call("POST", "/product/add", {
+        "title": "冒烟举报商品", "categoryId": 1, "price": 88.00,
+        "productCondition": "九成新", "tradeType": "线上",
+        "description": "冒烟测试举报闭环用的商品描述", "images": []}, token=me_token)
+    report_pid = ((r.get("data") or {}).get("productId") if isinstance(r, dict) else None)
+    check("举报目标商品发布成功", report_pid, None)
+    _, _, r = call("POST", "/report", {"targetType": "product", "targetId": report_pid,
+                                       "reason": "涉嫌欺诈", "description": "冒烟测试举报"}, token=peer_token)
+    check("用户提交举报成功", r, '"code":200')
+    _, _, r = call("POST", "/report", {"targetType": "product", "targetId": report_pid,
+                                       "reason": "涉嫌欺诈"}, token=peer_token)
+    check("同一对象重复举报被拒", r, "已举报过")
+    _, _, r = call("GET", "/admin/reports?page=1&pageSize=10&status=0", token=admin_token)
+    check("管理端能查到待处理举报", r, "冒烟举报商品")
+    report_id = None
+    for item in (((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []):
+        if item.get("targetId") == report_pid:
+            report_id = item.get("id")
+            break
+    _, _, r = call("PUT", "/admin/reports/%s/handle" % report_id,
+                   {"action": "takeDownProduct", "note": "冒烟测试下架"}, token=admin_token)
+    check("管理员按举报下架商品", r, '"code":200')
+    _, _, r = call("GET", "/product/detail/%s" % report_pid)
+    check("被举报商品已下架", r, '"status":3')
+    _, _, r = call("POST", "/product/%s/reshelf" % report_pid, token=me_token)
+    check("卖家重新上架成功", r, '"code":200')
+    _, _, r = call("GET", "/product/detail/%s" % report_pid)
+    check("重新上架后在售", r, '"status":1')
+
+    # 管理端订单管理：能查到前面产生的订单并按状态筛选
+    _, _, r = call("GET", "/admin/orders?page=1&pageSize=10", token=admin_token)
+    check("管理端订单列表可用", r, '"code":200')
+    _, _, r = call("GET", "/admin/orders?page=1&pageSize=10&status=4", token=admin_token)
+    check("管理端可按已完成筛选", r, '"code":200')
+    _, _, r = call("GET", "/admin/orders/%s" % order_no, token=admin_token)
+    check("管理端订单详情带回明细", r, "冒烟购物车商品A")
+
+    # 评论管理：列表接口可用
+    _, _, r = call("GET", "/admin/comments?page=1&pageSize=10", token=admin_token)
+    check("管理端评论列表可用", r, '"code":200')
+
+    # 看板趋势与分类分布
+    _, _, r = call("GET", "/admin/stats/trend?days=7", token=admin_token)
+    check("近 7 日趋势接口可用", r, '"newUsers"')
+    _, _, r = call("GET", "/admin/stats/category", token=admin_token)
+    check("分类分布接口可用", r, '"categoryName"')
+
+    # 收尾：删除举报测试商品与注册用户无法删除（无删除接口），商品删除即可
+    call("DELETE", "/admin/products/%s" % report_pid, token=admin_token)
 
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)

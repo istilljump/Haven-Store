@@ -42,6 +42,10 @@ public class AdminMessageVO implements Serializable {
     @ApiModelProperty("接收群体")
     private String userType;
 
+    /** 群发批次号（同一次群发的记录共享；历史数据可能为空） */
+    @ApiModelProperty("群发批次号")
+    private String batchNo;
+
     /** 送达人数（同组记录数） */
     @ApiModelProperty("送达人数")
     private Integer receiverCount;

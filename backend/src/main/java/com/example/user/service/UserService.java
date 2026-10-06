@@ -62,4 +62,15 @@ public interface UserService {
      * @param avatarUrl 头像地址（由上传接口返回）
      */
     void updateAvatar(String avatarUrl);
+
+    /**
+     * 加载用于鉴权的用户实体（Redis 缓存优先，未命中回源数据库并重建缓存）
+     * <p>
+     * 供 JWT 拦截器在每个请求上校验账号状态（禁用账号的 Token 立即失效），
+     * 密码字段不参与缓存
+     *
+     * @param userId 用户 ID
+     * @return 用户实体；用户不存在时返回 null
+     */
+    User getAuthUser(Long userId);
 }

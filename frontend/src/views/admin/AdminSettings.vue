@@ -49,10 +49,13 @@
                   <el-upload
                     class="upload-demo"
                     drag
-                    :auto-upload="false"
+                    action="/api/admin/upload"
+                    :headers="uploadHeaders"
                     :show-file-list="false"
                     accept="image/*"
-                    :on-change="handleLogoChange"
+                    :before-upload="beforeLogoUpload"
+                    :on-success="handleLogoSuccess"
+                    :on-error="handleLogoError"
                   >
                     <el-icon class="el-icon--upload"><upload-filled /></el-icon>
                     <div class="el-upload__text">
@@ -60,15 +63,15 @@
                     </div>
                     <template #tip>
                       <div class="el-upload__tip">
-                        只能上传jpg/png文件，且不超过5MB
+                        支持jpg/png/gif/webp，不超过5MB；上传后立即生效为可访问地址
                       </div>
                     </template>
                   </el-upload>
                   <div v-if="settings.site.logo" class="logo-preview">
                     <img :src="settings.site.logo" alt="Logo预览" />
-                    <el-button 
-                      type="danger" 
-                      size="small" 
+                    <el-button
+                      type="danger"
+                      size="small"
                       link
                       @click="removeLogo"
                     >
@@ -268,14 +271,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Check, UploadFilled } from '@element-plus/icons-vue'
 import adminApi from '@/api/admin'
-import { validateEmail, validatePhone } from '@/utils/validate'
+import { validateEmail } from '@/utils/validate'
+import { getToken } from '@/utils/auth'
 
 const activeTab = ref('site')
 const loading = ref(false)
+
+// el-upload 直传 /api/admin/upload 不走 axios 拦截器，手动带 Token
+const uploadHeaders = computed(() => ({ Authorization: 'Bearer ' + (getToken() || '') }))
+
+// 客服电话校验：400 热线 / 固话（区号-号码）/ 手机号均可
+const isValidContactPhone = (phone) => {
+  return /^(400[-]?\d{3}[-]?\d{4}|0\d{2,3}-?\d{7,8}|1[3-9]\d{9})$/.test(phone)
+}
 
 // 默认设置
 const defaultSettings = {
@@ -327,27 +339,34 @@ const loadSettings = async () => {
   }
 }
 
-// 处理Logo上传
-const handleLogoChange = (file) => {
-  const isImage = file.raw.type.startsWith('image/')
-  const isLt5M = file.raw.size / 1024 / 1024 < 5
-
+// Logo 上传前校验
+const beforeLogoUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt5M = file.size / 1024 / 1024 < 5
   if (!isImage) {
     ElMessage.error('只能上传图片文件!')
     return false
   }
-  
   if (!isLt5M) {
     ElMessage.error('图片大小不能超过 5MB!')
     return false
   }
+  return true
+}
 
-  // 生成预览URL
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    settings.site.logo = e.target.result
+// 上传成功：后端返回可直接访问的图片地址（此前只做本地 dataURL 预览，保存后其它设备看不到）
+const handleLogoSuccess = (response) => {
+  const url = response && response.data
+  if (!url) {
+    ElMessage.error('Logo 上传失败')
+    return
   }
-  reader.readAsDataURL(file.raw)
+  settings.site.logo = url
+  ElMessage.success('Logo 已上传，记得点击「保存设置」')
+}
+
+const handleLogoError = () => {
+  ElMessage.error('Logo 上传失败，请稍后重试')
 }
 
 // 删除Logo
@@ -378,18 +397,17 @@ const saveSettings = async () => {
       return
     }
     
-    if (!validatePhone(settings.contact.phone)) {
-      ElMessage.error('请输入正确的手机号码')
+    if (!isValidContactPhone(settings.contact.phone)) {
+      ElMessage.error('客服电话须为 400 热线、座机（区号-号码）或手机号')
       return
     }
-    
+
     // 保存到后端
     await adminApi.updateAdminSettings(settings)
-    
+
     ElMessage.success('系统设置保存成功')
   } catch (error) {
-    console.error('保存系统设置失败:', error)
-    ElMessage.error('保存系统设置失败')
+    // 保存失败的原因已由请求拦截器统一弹出
   } finally {
     loading.value = false
   }

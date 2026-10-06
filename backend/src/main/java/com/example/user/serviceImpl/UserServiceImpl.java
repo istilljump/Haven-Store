@@ -1,6 +1,9 @@
 package com.example.user.serviceImpl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.example.admin.dto.SystemSettingDTO;
+import com.example.admin.service.SystemSettingService;
 import com.example.common.BusinessException;
 import com.example.common.RedisKeyConst;
 import com.example.common.Result;
@@ -54,6 +57,9 @@ public class UserServiceImpl implements UserService {
     /** Redis 操作工具 */
     private final RedisUtil redisUtil;
 
+    /** 系统设置服务：登录锁定、密码强度、会话时效均从后台设置读取 */
+    private final SystemSettingService systemSettingService;
+
     /** Token 有效期（毫秒，从配置文件读取），用于同步设置用户信息缓存的过期时间 */
     @Value("${jwt.expiration}")
     private Long tokenExpiration;
@@ -84,6 +90,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("该手机号已被注册");
         }
         // 4. 构建用户实体：密码 BCrypt 加密存储，设置默认头像与正常状态
+        validatePasswordPolicy(dto.getPassword(), "密码");
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setPassword(passwordUtil.encode(dto.getPassword()));
@@ -108,11 +115,14 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public Result<LoginUserVO> login(LoginDTO dto) {
+        // 0. 登录锁定校验：失败次数达到后台设置上限后，锁定时长内拒绝登录（防暴力破解）
+        assertNotLocked(dto.getUsername());
         // 1. 根据用户名查询用户
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
         // 用户不存在：统一提示，不暴露“账号不存在”细节，防止账号枚举
         if (user == null) {
+            recordLoginFailure(dto.getUsername());
             throw new BusinessException("用户名或密码错误");
         }
         // 2. 校验账号状态
@@ -121,12 +131,16 @@ public class UserServiceImpl implements UserService {
         }
         // 3. 密码比对（BCrypt 密文比对，全程不记录密码内容）
         if (!passwordUtil.matches(dto.getPassword(), user.getPassword())) {
+            recordLoginFailure(dto.getUsername());
             throw new BusinessException("用户名或密码错误");
         }
-        // 4. 生成 JWT Token
-        String token = jwtUtil.generateToken(user.getId());
+        // 登录成功：清掉失败计数
+        redisUtil.deleteQuietly(RedisKeyConst.LOGIN_FAIL_KEY + dto.getUsername());
+        // 4. 生成 JWT Token：会话超时时间在后台设置中启用时以其为准，否则用配置默认值
+        String token = jwtUtil.generateToken(user.getId(), resolveSessionTtlMillis());
         // 5. 缓存用户信息到 Redis，过期时间与 Token 有效期保持一致（后续可用于强制下线等场景）
-        //    用安全版本写入：Redis 只是缓存，不可用时登录流程必须照常完成
+        //    密码字段不落缓存；用安全版本写入：Redis 只是缓存，不可用时登录流程必须照常完成
+        user.setPassword(null);
         redisUtil.setQuietly(RedisKeyConst.USER_INFO_KEY + user.getId(), user, tokenExpiration, TimeUnit.MILLISECONDS);
         // 6. 封装脱敏的登录返回信息（不含密码、手机号等敏感字段）
         LoginUserVO loginUserVO = LoginUserVO.builder()
@@ -165,16 +179,20 @@ public class UserServiceImpl implements UserService {
             if (!UserStatusEnum.ENABLE.getCode().equals(user.getStatus())) {
                 throw new BusinessException("账号已被禁用，请联系管理员");
             }
-            // 4. 重建缓存，过期时间与 Token 有效期保持一致
+            // 4. 重建缓存：密码不落缓存，过期时间与 Token 有效期保持一致
+            user.setPassword(null);
             redisUtil.setQuietly(RedisKeyConst.USER_INFO_KEY + userId, user, tokenExpiration, TimeUnit.MILLISECONDS);
         }
-        // 5. 密码脱敏：任何返回结果都不允许出现密码字段
+        // 5. 密码脱敏：任何返回结果都不允许出现密码字段（历史缓存条目可能仍带密码）
         user.setPassword(null);
         return Result.success(toUserInfoVO(user));
     }
 
     /**
      * 修改当前登录用户的资料
+     * <p>
+     * 说明：使用 UpdateWrapper 逐字段显式赋值——updateById 会忽略 null 字段，
+     * 无法表达「清空邮箱/简介」的语义；这里约定空白字符串即清空该栏
      */
     @Override
     public void updateCurrentUserInfo(UserUpdateDTO dto) {
@@ -189,13 +207,15 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        User update = new User();
-        update.setId(userId);
-        update.setNickname(dto.getNickname());
-        update.setPhone(StringUtils.hasText(dto.getPhone()) ? dto.getPhone() : null);
-        update.setEmail(StringUtils.hasText(dto.getEmail()) ? dto.getEmail() : null);
-        update.setBio(StringUtils.hasText(dto.getBio()) ? dto.getBio() : null);
-        userMapper.updateById(update);
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<User>().eq(User::getId, userId);
+        // 昵称未填写时保持原值不变；手机号/邮箱/简介空白即清空
+        if (StringUtils.hasText(dto.getNickname())) {
+            wrapper.set(User::getNickname, dto.getNickname());
+        }
+        wrapper.set(User::getPhone, StringUtils.hasText(dto.getPhone()) ? dto.getPhone() : null);
+        wrapper.set(User::getEmail, StringUtils.hasText(dto.getEmail()) ? dto.getEmail() : null);
+        wrapper.set(User::getBio, StringUtils.hasText(dto.getBio()) ? dto.getBio() : null);
+        userMapper.update(null, wrapper);
 
         // 资料变更后清掉缓存，避免个人中心读到旧数据
         redisUtil.deleteQuietly(RedisKeyConst.USER_INFO_KEY + userId);
@@ -224,6 +244,7 @@ public class UserServiceImpl implements UserService {
         if (dto.getOldPassword().equals(dto.getNewPassword())) {
             throw new BusinessException("新密码不能与原密码相同");
         }
+        validatePasswordPolicy(dto.getNewPassword(), "新密码");
 
         User update = new User();
         update.setId(userId);
@@ -261,6 +282,113 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
         }
         return userId;
+    }
+
+    /**
+     * 加载用于鉴权的用户实体（Redis 缓存优先，未命中回源数据库并重建缓存）
+     * <p>
+     * 供 JWT 拦截器在每个请求上校验账号状态：禁用账号的 Token 立即失效，
+     * 不再出现「禁用后 7 天内仍可下单发帖」的窗口期。
+     * 密码字段不参与缓存，也不会随本方法外泄
+     */
+    @Override
+    public User getAuthUser(Long userId) {
+        User user = redisUtil.getQuietly(RedisKeyConst.USER_INFO_KEY + userId);
+        if (user == null) {
+            user = userMapper.selectById(userId);
+            if (user != null) {
+                user.setPassword(null);
+                redisUtil.setQuietly(RedisKeyConst.USER_INFO_KEY + userId, user, tokenExpiration, TimeUnit.MILLISECONDS);
+            }
+        }
+        return user;
+    }
+
+    /**
+     * 校验账号是否处于登录锁定状态（防暴力破解）
+     * <p>
+     * 锁定 Key 由 {@link #recordLoginFailure} 在失败次数达到上限时写入；
+     * Redis 不可用时按未锁定处理，不影响正常登录
+     */
+    private void assertNotLocked(String username) {
+        SystemSettingDTO.SecuritySetting security = currentSecuritySetting();
+        int lockMinutes = security == null || security.getLockDuration() == null
+                ? 30 : security.getLockDuration();
+        if (redisUtil.hasKeyQuietly(RedisKeyConst.LOGIN_LOCK_KEY + username)) {
+            throw new BusinessException("登录失败次数过多，账号已锁定，请 " + lockMinutes + " 分钟后再试");
+        }
+    }
+
+    /**
+     * 记录一次登录失败：计数达到后台设置上限时写入锁定 Key
+     */
+    private void recordLoginFailure(String username) {
+        SystemSettingDTO.SecuritySetting security = currentSecuritySetting();
+        int attempts = security == null || security.getLoginAttempts() == null
+                ? 5 : security.getLoginAttempts();
+        int lockMinutes = security == null || security.getLockDuration() == null
+                ? 30 : security.getLockDuration();
+        Long count = redisUtil.incrementQuietly(RedisKeyConst.LOGIN_FAIL_KEY + username, lockMinutes, TimeUnit.MINUTES);
+        if (count != null && count >= attempts) {
+            // 达到上限：写入锁定 Key 并清零计数（锁定 Key 自带过期时间，到期自动解锁）
+            redisUtil.setQuietly(RedisKeyConst.LOGIN_LOCK_KEY + username, 1, lockMinutes, TimeUnit.MINUTES);
+            redisUtil.deleteQuietly(RedisKeyConst.LOGIN_FAIL_KEY + username);
+            log.warn("账号登录失败次数达到上限，已临时锁定，用户名：{}，锁定时长：{} 分钟", username, lockMinutes);
+        }
+    }
+
+    /**
+     * 解析会话有效期（毫秒）：安全设置启用会话超时时以其为准，否则用配置默认值
+     */
+    private long resolveSessionTtlMillis() {
+        SystemSettingDTO.SecuritySetting security = currentSecuritySetting();
+        Integer timeoutMinutes = security == null ? null : security.getSessionTimeout();
+        if (timeoutMinutes != null && timeoutMinutes > 0) {
+            return timeoutMinutes * 60L * 1000L;
+        }
+        return tokenExpiration;
+    }
+
+    /**
+     * 校验密码强度（依据后台「安全设置」的 passwordStrength）
+     * <ul>
+     *   <li>low：仅要求非空（长度校验由 DTO 注解完成）</li>
+     *   <li>medium：须同时包含字母与数字</li>
+     *   <li>high：长度不少于 8 位，且同时包含大写字母、小写字母与数字</li>
+     * </ul>
+     *
+     * @param password 待校验的明文密码
+     * @param label    提示语中的字段名（密码/新密码）
+     */
+    private void validatePasswordPolicy(String password, String label) {
+        if (!StringUtils.hasText(password)) {
+            return;
+        }
+        SystemSettingDTO.SecuritySetting security = currentSecuritySetting();
+        String strength = security == null || !StringUtils.hasText(security.getPasswordStrength())
+                ? "medium" : security.getPasswordStrength();
+        boolean hasLetter = password.matches(".*[a-zA-Z].*");
+        boolean hasDigit = password.matches(".*\\d.*");
+        if ("high".equals(strength)) {
+            boolean hasUpper = password.matches(".*[A-Z].*");
+            boolean hasLower = password.matches(".*[a-z].*");
+            if (password.length() < 8 || !hasUpper || !hasLower || !hasDigit) {
+                throw new BusinessException(label + "强度不足：须至少 8 位，且同时包含大写字母、小写字母和数字");
+            }
+        } else if ("medium".equals(strength)) {
+            if (!hasLetter || !hasDigit) {
+                throw new BusinessException(label + "强度不足：须同时包含字母和数字");
+            }
+        }
+        // low：不做额外要求
+    }
+
+    /**
+     * 读取当前安全设置（设置服务内部已兜底默认值，不会返回 null 的 DTO）
+     */
+    private SystemSettingDTO.SecuritySetting currentSecuritySetting() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings == null ? null : settings.getSecurity();
     }
 
     /**

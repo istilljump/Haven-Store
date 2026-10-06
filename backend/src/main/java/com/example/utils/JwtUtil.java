@@ -34,14 +34,28 @@ public class JwtUtil {
     private Long expiration;
 
     /**
-     * 根据用户 ID 生成 JWT Token
+     * 根据用户 ID 生成 JWT Token（使用配置的默认有效期）
      *
      * @param userId 用户 ID
      * @return 签名后的 Token 字符串
      */
     public String generateToken(Long userId) {
+        return generateToken(userId, expiration);
+    }
+
+    /**
+     * 根据用户 ID 生成 JWT Token（自定义有效期）
+     * <p>
+     * 供登录流程使用：管理后台「安全设置」的会话超时时间生效时，
+     * 以设置值为准；未启用时回落到配置文件默认值
+     *
+     * @param userId   用户 ID
+     * @param ttlMillis Token 有效期（毫秒）
+     * @return 签名后的 Token 字符串
+     */
+    public String generateToken(Long userId, long ttlMillis) {
         Date now = new Date();
-        Date expireDate = new Date(now.getTime() + expiration);
+        Date expireDate = new Date(now.getTime() + ttlMillis);
         return Jwts.builder()
                 // 将用户 ID 作为 Token 主题（Subject）保存
                 .setSubject(String.valueOf(userId))

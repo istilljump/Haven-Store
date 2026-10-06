@@ -2,6 +2,143 @@
 
 基于Spring Boot + Vue.js的全栈二手交易平台，支持商品发布、附近商品搜索、AI智能估价、商品评价、收藏与购物车、下单支付、私信与商品咨询、系统消息等功能。
 
+## 🔄 复现性声明与 10 分钟极速复现指南
+
+### 复现性声明
+
+本项目承诺：**在满足下述环境要求的前提下，任何人从仓库零起步，都能在 10 分钟内将系统完整跑起来，并通过 336 项自动化冒烟断言验证功能与预期一致。** 为此我们做了四件事：
+
+1. **环境即代码**：数据库结构（12 张表）与种子数据全部由 `backend/scripts/01-schema.sql` 一个脚本确定，不依赖任何手工建库步骤；后端/前端依赖版本分别由 `pom.xml` 与 `package-lock.json` 锁定。
+2. **配置有默认值、可被环境变量覆盖**：所有敏感或环境相关配置（数据库口令、JWT 密钥等）都写成 `${VAR:默认值}` 形式——默认值保证零配置即可在本机跑通，部署时用环境变量覆盖即可，无需改动任何代码或配置文件。
+3. **行为有断言**：`tests/api_smoke_test.py` 覆盖 336 项断言（注册、发布、下单支付、私信、举报闭环、管理端全部页面、导出、设置生效等），`mvn test` 另有 66 项单元测试。复现是否成功不看"页面能打开"的感觉，看这两组测试是否全绿。
+4. **无外部服务依赖**：不依赖任何真实支付网关、短信/邮件服务或付费 AI 接口（AI 估值为本地规则模拟），MySQL 8 与 Redis 7 是仅有的两个外部依赖，且仓库附带免管理员一键拉起脚本。
+
+**已知非确定性因素**（不影响功能复现，仅影响具体数值）：AI 估价结果含 ±200 元随机波动（模拟 AI 不确定性）；所有时间戳取运行时刻；并发场景下商品被谁买走取决于竞争顺序。除此之外，相同输入必然得到相同输出。
+
+### ⏱ 10 分钟极速复现（Windows 一键路线）
+
+> 全程不需要管理员权限。每一步都标注了预期耗时，超时即说明环境有缺项，请对照下文依赖清单排查。
+
+| 步骤 | 操作 | 耗时 | 预期结果 |
+|---|---|---|---|
+| 1 | 克隆仓库 `git clone https://github.com/istilljump/Haven-Store.git && cd Haven-Store` | 1 min | 拿到全部源码 |
+| 2 | 双击 `scripts\start-dev-services.bat` | 1-2 min | 弹出 MySQL、Redis 两个窗口；首次运行自动建库 `secondhand_market` 并导入种子数据 |
+| 3 | 双击 `scripts\rebuild-backend.bat`（或 `cd backend && mvn clean package -DskipTests`） | 2-4 min | 生成 `backend/target/second-hand-market-1.0.0.jar` |
+| 4 | 双击 jar 或 `java -jar backend\target\second-hand-market-1.0.0.jar` | 15 s | 控制台出现 `Started SecondHandMarketApplication` |
+| 5 | `cd frontend && npm install`（首次） | 2-3 min | 依赖安装完成 |
+| 6 | `cd frontend && npm run dev` | 10 s | Vite 启动，浏览器打开 http://localhost:3000 |
+| 7 | 验证：`python tests/api_smoke_test.py` | 1 min | 输出 `通过: 336   失败: 0` |
+
+**验收账号**（由种子数据写入）：管理员 `admin / admin123`（后台 http://localhost:3000/admin），普通用户 `testuser1 / 123456`、`testuser2 / 123456`。种子数据自带 2 件在售商品（二手 iPhone 12、编程书籍套装）与 8 个分类。
+
+**Linux/Mac 路线**：`docker compose up -d`（仓库根目录的 `docker-compose.yml` 会自动建库导种子），随后后端 `mvn clean package -DskipTests && java -jar backend/target/*.jar`、前端 `npm install && npm run dev`，其余相同。
+
+### 📦 依赖清单
+
+| 组件 | 版本要求 | 用途 | 备注 |
+|---|---|---|---|
+| JDK | 8+（推荐 17/22，Docker 镜像基于 17） | 后端编译运行 | `mvn` 需在 PATH |
+| Maven | 3.6+ | 后端构建 | 仓库 `.tools/` 内自带 3.9.16 可用 |
+| Node.js | 18+（含 npm） | 前端构建与开发 | 前端版本锁定见 `frontend/package-lock.json` |
+| MySQL | 8.0+ | 业务数据库 | 建库脚本见 `backend/scripts/` |
+| Redis | 7+（6.x 可用） | 登录缓存/登录锁定/设置 | |
+| Python | 3.8+（仅测试用） | 运行冒烟测试 | 无第三方依赖，纯标准库 |
+
+后端关键依赖（完整清单见 `backend/pom.xml`）：Spring Boot **2.7.12**、MyBatis-Plus **3.5.3.1**、JJWT **0.11.5**、Knife4j **4.1.0**、mysql-connector-j **8.0.33**。前端关键依赖（完整清单见 `frontend/package.json`）：Vue **^3.4**、Element Plus **^2.4**、ECharts **^5.5**、Axios **^1.6**。
+
+### 🔑 环境变量模板
+
+将以下内容保存为启动前可用的环境变量（**所有项都有默认值，本机复现可以一个都不设**；部署到公网前必须覆盖带 ⚠️ 的项）：
+
+```bash
+# ===== 数据库 =====
+DB_HOST=localhost                    # MySQL 主机
+DB_PORT=3306                         # MySQL 端口
+DB_NAME=secondhand_market            # 库名（与建表脚本一致）
+DB_USERNAME=root                     # 数据库账号
+DB_PASSWORD=1234                     # ⚠️ 部署必改
+
+# ===== Redis =====
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# ===== JWT =====
+JWT_SECRET=change-me-to-a-random-secret-at-least-32-bytes   # ⚠️ 部署必改（HS256 要求 ≥32 字节）
+JWT_EXPIRATION=604800000             # Token 默认有效期（毫秒，7 天）；后台「安全设置」可覆盖
+
+# ===== 上传（可选，默认 ./uploads）=====
+FILE_UPLOAD_DIR=./uploads
+```
+
+设置方式（任选其一）：
+
+```bash
+# Linux / Mac
+export DB_PASSWORD='your-strong-password'
+export JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
+
+# Windows PowerShell
+$env:DB_PASSWORD='your-strong-password'
+$env:JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
+
+# Docker Compose：写入 backend.environment（见 docker-compose.yml）
+```
+
+### ✅ 复现成功的判定标准
+
+1. `curl http://localhost:8080/api/health` 返回 `{"code":200,...}`；
+2. 用 `testuser1 / 123456` 能登录前端并在商品列表看到「二手iPhone 12」；
+3. `python tests/api_smoke_test.py` 输出 **通过: 336 失败: 0**；
+4. `cd backend && mvn test` 输出 **Tests run: 66, Failures: 0, Errors: 0**。
+
+## 🆕 本轮升级一览（2026-10）
+
+### 安全与正确性（必修项）
+- **修复系统消息伪造漏洞**：移除任何登录用户可调用的 `POST /message/send`，群发能力只保留在管理后台
+- **禁用账号立即失效**：JWT 拦截器每个请求校验账号状态（Redis 缓存优先），禁用后无法继续下单/发帖/私信
+- **登录防爆破**：按后台「安全设置」失败 N 次锁定 M 分钟（Redis 计数）
+- **密码强度策略生效**：注册/改密按后台设置校验（low/medium/high）
+- **上传魔数校验**：文件头与扩展名不符即拒绝（防伪装脚本）；大小/类型白名单由后台「上传设置」驱动
+- **Redis 序列化加固**：反序列化类型白名单收敛 + 缓存不再存 BCrypt 密文
+- **支付/确认收货条件更新**：并发下不会重复推进订单状态
+- **CSV 公式注入防护**；修复分类排序假保存、设置页电话校验挡保存、Logo 假上传等假功能
+
+### 普通用户端新增
+- **真首页**：搜索框 + 分类导航 + 最新商品流 + 附近好物入口
+- **通知中心**（/notifications）：系统公告收件箱 + 顶栏铃铛角标
+- **订单详情页**（/orders/:orderNo）：买家与订单内商品卖家均可查看
+- **我的发布**（/my/products）：独立管理页，支持下架/重新上架/彻底删除/分页筛选
+- **AI 智能估价入口**：发布向导第 1 步一键回填建议价（后台可关闭）
+- **附近商品模式**：商品列表页一键定位按距离浏览
+- **评价与订单挂钩**：仅购买过（已支付/已完成）的用户可评价，评论带「已验证购买」标识
+- **商品举报**：详情页一键举报，与后台处理闭环
+- **搜索增强**：关键词覆盖标题/描述/品牌/型号 + 排序 UI（最新/价格升降）
+- **订单超时自动取消**：30 分钟未支付自动取消并释放商品（定时任务）
+- **私信体验**：发送乐观插入上屏、移动端上下堆叠布局
+
+### 管理员端新增
+- **订单管理**（/admin/orders）：全平台订单查询/详情/CSV 导出
+- **评论管理**（/admin/comments）：隐藏/恢复/删除评论
+- **举报处理台**（/admin/reports）：驳回举报 / 下架商品 / 隐藏评论，处理留痕
+- **用户管理增强**：编辑资料（昵称/手机号/角色）、重置密码
+- **数据看板**：近 7 日新增趋势折线图 + 商品分类分布饼图（ECharts）
+- **系统设置落库并真实生效**：新表 `system_setting`；上传限制、价格上限、AI 估价开关、登录锁定、会话超时（JWT 时效）、商品自动下架（autoOfflineHours）全部接入业务；公开配置接口 `GET /api/public/settings` 供前端读取站点信息
+
+### 体验优化
+- 全站共享组件：`AppImage`（坏链兜底+懒加载）、`ProductCard`（统一商品卡片）
+- 顶栏全局请求进度条、favicon、页面标题、移动端汉堡菜单（前台+后台）
+- 清理死代码与遗留假接口（孤儿发布页、fetch 版登录、后端不存在的 /user/** 封装等）
+- ESLint/Prettier 配置补齐；`@element-plus/icons-vue`、`echarts` 显式声明依赖
+- 分类列表 Redis 缓存（管理端变更自动驱逐）；评分改 SQL AVG
+
+### 数据库升级
+- 全新安装直接执行 `backend/scripts/01-schema.sql`（已含全部 12 张表）
+- **老库升级执行一次 `backend/scripts/02-upgrade.sql`**：`system_message` 加群发批次号 `batch_no`，新增 `report`（举报）与 `system_setting`（系统设置）两张表
+
+### 测试
+- 冒烟测试 `tests/api_smoke_test.py` 扩至 336 项断言，覆盖注册、举报闭环、管理端订单/评论、看板趋势、设置生效等新能力
+- 修复从未通过过的 66 项单元测试（对齐服务契约与估价随机波动），`mvn test` 全绿
+
 ## 🚀 快速开始
 
 ### 环境要求

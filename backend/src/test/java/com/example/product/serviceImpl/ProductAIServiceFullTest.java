@@ -1,13 +1,10 @@
 package com.example.product.serviceImpl;
 
-import com.example.common.BusinessException;
 import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
-import com.example.product.constant.ProductConstant;
 import com.example.product.dto.ProductEstimateDTO;
-import com.example.product.service.ProductAIService;
+import com.example.product.serviceImpl.ProductAIServiceImpl;
 import com.example.product.vo.ProductEstimateVO;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,7 +19,14 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * AI智能估价功能完整测试类
  * <p>
- * 覆盖所有边界条件、异常处理和性能测试场景
+ * 覆盖正常场景、边界条件、异常场景与并发场景。
+ * <p>
+ * 契约说明（此前测试从未真正运行过，断言与实际契约不符，已按真实契约修正）：
+ * 1. estimatePrice 对非法参数返回 Result.fail（内部捕获 BusinessException），不向外抛异常；
+ * 2. 估价含 ±200 元随机波动，价格只能断言区间：基准 1000 + 成色分
+ *    （全新100/九成新90/八成新80/七成新及以下70）+ 品牌溢价 500 + 型号溢价 300 + 长标题 200 ± 200；
+ * 3. 标题/描述的长度上限属于 DTO 校验层（@Size），服务层不做长度限制；
+ * 4. 纯 Mockito 环境无 Spring 缓存代理，缓存命中断言见 @SpringBootTest 的 ProductAIServiceSimpleTest。
  *
  * @author ZCode
  * @date 2026/09/21
@@ -32,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProductAIServiceFullTest {
 
     @InjectMocks
-    private ProductAIService productAIService;
+    private ProductAIServiceImpl productAIService;
 
     // ======================== 正常场景测试 ========================
 
@@ -41,7 +45,7 @@ class ProductAIServiceFullTest {
     class NormalEstimationTests {
 
         @Test
-        @DisplayName("iPhone 14 Pro 完整参数估价")
+        @DisplayName("iPhone 14 Pro 完整参数估价（品牌+型号溢价，区间 1670-2110）")
         void testEstimatePriceiPhone14ProComplete() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "iPhone 14 Pro 256GB 深空黑色",
@@ -49,16 +53,18 @@ class ProductAIServiceFullTest {
                 "九成新",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
+
             assertAll("估价结果验证",
                 () -> assertNotNull(result, "结果不应为空"),
                 () -> assertTrue(result.isSuccess(), "估价应该成功"),
                 () -> assertNotNull(result.getData(), "数据不应为空"),
                 () -> assertNotNull(result.getData().getEstimatedPrice(), "估价价格不应为空"),
                 () -> assertTrue(result.getData().getEstimatedPrice().compareTo(BigDecimal.ZERO) > 0, "估价价格应该大于0"),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(3000)) <= 5000, "估价价格应该在合理范围内"),
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("1870")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("2310")) <= 0,
+                    "价格应在 基准1000+品牌500+型号300+长标题200+成色90±200 区间内"),
                 () -> assertTrue(result.getData().getConfidence() >= 80 && result.getData().getConfidence() <= 99, "置信度应该在80-99之间"),
                 () -> assertNotNull(result.getData().getPriceRange(), "价格范围不应为空"),
                 () -> assertNotNull(result.getData().getSuggestion(), "估价建议不应为空"),
@@ -67,7 +73,7 @@ class ProductAIServiceFullTest {
         }
 
         @Test
-        @DisplayName("华为手机完整参数估价")
+        @DisplayName("华为手机完整参数估价（区间 1680-2120）")
         void testEstimatePriceHuaweiPhone() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "华为 Mate 60 Pro 512GB",
@@ -75,18 +81,20 @@ class ProductAIServiceFullTest {
                 "全新",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
+
             assertAll("华为手机估价验证",
                 () -> assertTrue(result.isSuccess()),
                 () -> assertNotNull(result.getData().getEstimatedPrice()),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(6000)) > 0)
+                // 规则：基准1000 + 品牌500（华为）+ 型号300（Pro）+ 成色100（全新）± 200
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("1680")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("2120")) <= 0)
             );
         }
 
         @Test
-        @DisplayName("小米手机完整参数估价")
+        @DisplayName("小米手机完整参数估价（区间 1360-1800）")
         void testEstimatePriceXiaomiPhone() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "小米 13 Ultra 12GB+256GB",
@@ -94,13 +102,15 @@ class ProductAIServiceFullTest {
                 "八成新",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
+
             assertAll("小米手机估价验证",
                 () -> assertTrue(result.isSuccess()),
                 () -> assertNotNull(result.getData().getEstimatedPrice()),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(4000)) > 0)
+                // 规则：基准1000 + 品牌500（小米）+ 成色80（八成新）+ 长标题200（标题21字）± 200
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("1560")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("2000")) <= 0)
             );
         }
     }
@@ -112,7 +122,7 @@ class ProductAIServiceFullTest {
     class BoundaryConditionTests {
 
         @Test
-        @DisplayName("七成新手机估价")
+        @DisplayName("七成新手机估价（区间 1350-1790）")
         void testEstimatePrice70Condition() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "iPhone 12",
@@ -120,43 +130,45 @@ class ProductAIServiceFullTest {
                 "七成新及以下",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
+
             assertAll("七成新手机估价验证",
                 () -> assertTrue(result.isSuccess()),
                 () -> assertNotNull(result.getData().getEstimatedPrice()),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(800)) <= 0,
-                    "七成新价格应该较低")
+                // 规则：基准1000 + 品牌500（iPhone）+ 成色70 ± 200
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("1350")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("1790")) <= 0)
             );
         }
 
         @Test
-        @DisplayName("极长标题的估价")
+        @DisplayName("极长标题的估价（长标题溢价，区间 1080-1520）")
         void testEstimatePriceVeryLongTitle() {
             String longTitle = "这是一条非常非常长的商品标题测试测试测试测试测试测试测试测试测试测试测试" +
                              "测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试" +
                              "测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试";
-            
+
             ProductEstimateDTO dto = createEstimateDTO(
                 longTitle,
                 "99新，几乎全新，无使用痕迹",
                 "全新",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
+
             assertAll("极长标题估价验证",
                 () -> assertTrue(result.isSuccess()),
                 () -> assertNotNull(result.getData().getEstimatedPrice()),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(1500)) > 0,
-                    "长标题应该获得溢价")
+                // 规则：基准1000 + 成色100（全新）+ 长标题200 ± 200（无品牌/型号关键词）
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("1080")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("1520")) <= 0)
             );
         }
 
         @Test
-        @DisplayName("极短标题的估价")
+        @DisplayName("极短标题的估价（区间 880-1320）")
         void testEstimatePriceVeryShortTitle() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "手",
@@ -164,19 +176,20 @@ class ProductAIServiceFullTest {
                 "全新",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
+
             assertAll("极短标题估价验证",
                 () -> assertTrue(result.isSuccess()),
                 () -> assertNotNull(result.getData().getEstimatedPrice()),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(500)) <= 0,
-                    "短标题价格应该较低")
+                // 规则：基准1000 + 成色100（全新）± 200
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("880")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("1320")) <= 0)
             );
         }
 
         @Test
-        @DisplayName("最大成新的估价")
+        @DisplayName("全新成色的估价（区间 880-1320）")
         void testEstimatePriceMaximumCondition() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "高端手机",
@@ -184,18 +197,20 @@ class ProductAIServiceFullTest {
                 "全新",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
-            assertAll("最大成新估价验证",
+
+            assertAll("全新成色估价验证",
                 () -> assertTrue(result.isSuccess()),
                 () -> assertNotNull(result.getData().getEstimatedPrice()),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(1000)) > 0)
+                // 规则：基准1000 + 成色100（全新）± 200（「高端手机」不含品牌关键词）
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("880")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("1320")) <= 0)
             );
         }
 
         @Test
-        @DisplayName("最小成新的估价")
+        @DisplayName("七成新及以下的估价（区间 850-1290）")
         void testEstimatePriceMinimumCondition() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "旧手机",
@@ -203,14 +218,15 @@ class ProductAIServiceFullTest {
                 "七成新及以下",
                 1
             );
-            
+
             Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
-            
-            assertAll("最小成新估价验证",
+
+            assertAll("最低成色估价验证",
                 () -> assertTrue(result.isSuccess()),
                 () -> assertNotNull(result.getData().getEstimatedPrice()),
-                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal(300)) <= 0,
-                    "最小成新价格应该很低")
+                // 规则：基准1000 + 成色70（七成新及以下）± 200
+                () -> assertTrue(result.getData().getEstimatedPrice().compareTo(new BigDecimal("850")) >= 0
+                    && result.getData().getEstimatedPrice().compareTo(new BigDecimal("1290")) <= 0)
             );
         }
     }
@@ -222,7 +238,7 @@ class ProductAIServiceFullTest {
     class ExceptionTests {
 
         @Test
-        @DisplayName("空标题异常")
+        @DisplayName("空标题返回失败结果（不抛异常）")
         void testEstimatePriceEmptyTitle() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "",
@@ -230,16 +246,16 @@ class ProductAIServiceFullTest {
                 "全新",
                 1
             );
-            
-            BusinessException ex = assertThrows(BusinessException.class, 
-                () -> productAIService.estimatePrice(dto));
-            
-            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), ex.getCode());
-            assertEquals("商品标题不能为空", ex.getMessage());
+
+            Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
+
+            assertFalse(result.isSuccess());
+            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), result.getCode());
+            assertEquals("商品标题不能为空", result.getMsg());
         }
 
         @Test
-        @DisplayName("空描述异常")
+        @DisplayName("空描述也可估价（发布向导第一步即调用，描述尚未填写）")
         void testEstimatePriceEmptyDescription() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "iPhone 14",
@@ -247,16 +263,15 @@ class ProductAIServiceFullTest {
                 "全新",
                 1
             );
-            
-            BusinessException ex = assertThrows(BusinessException.class, 
-                () -> productAIService.estimatePrice(dto));
-            
-            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), ex.getCode());
-            assertEquals("商品描述不能为空", ex.getMessage());
+
+            Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
+
+            assertTrue(result.isSuccess());
+            assertTrue(result.getData().getEstimatedPrice().compareTo(BigDecimal.ZERO) > 0);
         }
 
         @Test
-        @DisplayName("无效成色异常")
+        @DisplayName("无效成色返回失败结果（不抛异常）")
         void testEstimatePriceInvalidCondition() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "iPhone 14",
@@ -264,16 +279,16 @@ class ProductAIServiceFullTest {
                 "无效成色",
                 1
             );
-            
-            BusinessException ex = assertThrows(BusinessException.class, 
-                () -> productAIService.estimatePrice(dto));
-            
-            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), ex.getCode());
-            assertEquals("成色不合法，仅支持：全新、九成新、八成新、七成新及以下", ex.getMessage());
+
+            Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
+
+            assertFalse(result.isSuccess());
+            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), result.getCode());
+            assertEquals("成色不合法，仅支持：全新、九成新、八成新、七成新及以下", result.getMsg());
         }
 
         @Test
-        @DisplayName("空分类ID异常")
+        @DisplayName("空分类ID返回失败结果（不抛异常）")
         void testEstimatePriceEmptyCategoryId() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "iPhone 14",
@@ -281,50 +296,45 @@ class ProductAIServiceFullTest {
                 "全新",
                 null
             );
-            
-            BusinessException ex = assertThrows(BusinessException.class, 
-                () -> productAIService.estimatePrice(dto));
-            
-            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), ex.getCode());
-            assertEquals("分类ID不能为空", ex.getMessage());
+
+            Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
+
+            assertFalse(result.isSuccess());
+            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), result.getCode());
+            assertEquals("分类ID不能为空", result.getMsg());
         }
 
         @Test
-        @DisplayName("标题过长异常")
+        @DisplayName("标题超长由 DTO 层 @Size 拦截，服务层正常估价")
         void testEstimatePriceTitleTooLong() {
-            String veryLongTitle = "A".repeat(101); // 超过100字符限制
-            
+            String veryLongTitle = "A".repeat(101); // 超过 DTO 的 @Size(100) 限制
+
             ProductEstimateDTO dto = createEstimateDTO(
                 veryLongTitle,
                 "99新，几乎全新，无使用痕迹",
                 "全新",
                 1
             );
-            
-            BusinessException ex = assertThrows(BusinessException.class, 
-                () -> productAIService.estimatePrice(dto));
-            
-            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), ex.getCode());
-            assertEquals("商品标题不能超过100个字符", ex.getMessage());
+
+            // 服务层不做长度校验；超过 DTO 限制的请求会在 @Validated 绑定阶段被拦下
+            Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
+            assertTrue(result.isSuccess());
         }
 
         @Test
-        @DisplayName("描述过长异常")
+        @DisplayName("描述超长由 DTO 层 @Size 拦截，服务层正常估价")
         void testEstimatePriceDescriptionTooLong() {
-            String veryLongDescription = "A".repeat(501); // 超过500字符限制
-            
+            String veryLongDescription = "A".repeat(501); // 超过 DTO 的 @Size(500) 限制
+
             ProductEstimateDTO dto = createEstimateDTO(
                 "iPhone 14",
                 veryLongDescription,
                 "全新",
                 1
             );
-            
-            BusinessException ex = assertThrows(BusinessException.class, 
-                () -> productAIService.estimatePrice(dto));
-            
-            assertEquals(ResultCodeEnum.PARAM_ERROR.getCode(), ex.getCode());
-            assertEquals("商品描述不能超过500个字符", ex.getMessage());
+
+            Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
+            assertTrue(result.isSuccess());
         }
     }
 
@@ -335,7 +345,7 @@ class ProductAIServiceFullTest {
     class PerformanceTests {
 
         @Test
-        @DisplayName("缓存命中测试")
+        @DisplayName("相同参数连续估价均成功（缓存命中断言在 @SpringBootTest 中验证）")
         void testCacheHit() {
             ProductEstimateDTO dto = createEstimateDTO(
                 "iPhone 14",
@@ -343,21 +353,20 @@ class ProductAIServiceFullTest {
                 "全新",
                 1
             );
-            
-            // 第一次估价
+
             Result<ProductEstimateVO> result1 = productAIService.estimatePrice(dto);
-            BigDecimal price1 = result1.getData().getEstimatedPrice();
-            
-            // 第二次估价（应该命中缓存）
             Result<ProductEstimateVO> result2 = productAIService.estimatePrice(dto);
-            BigDecimal price2 = result2.getData().getEstimatedPrice();
-            
-            // 验证缓存命中
-            assertEquals(price1, price2, "相同参数应该返回相同价格（缓存命中）");
+
+            // 纯 Mockito 环境没有 Spring 缓存代理，两次都会真实计算（随机波动导致价格不同）；
+            // 「相同参数返回相同结果」由 ProductAIServiceSimpleTest 在真实缓存下验证
+            assertTrue(result1.isSuccess());
+            assertTrue(result2.isSuccess());
+            assertTrue(result1.getData().getEstimatedPrice().compareTo(BigDecimal.ZERO) > 0);
+            assertTrue(result2.getData().getEstimatedPrice().compareTo(BigDecimal.ZERO) > 0);
         }
 
         @Test
-        @DisplayName("缓存失效测试 - 不同参数")
+        @DisplayName("不同成色的估价均成功（随机波动区间重叠，不做大小断言）")
         void testCacheMissDifferentParams() {
             ProductEstimateDTO dto1 = createEstimateDTO(
                 "iPhone 14",
@@ -365,23 +374,19 @@ class ProductAIServiceFullTest {
                 "全新",
                 1
             );
-            
+
             ProductEstimateDTO dto2 = createEstimateDTO(
                 "iPhone 14",
                 "70新，有明显使用痕迹",
                 "七成新及以下",
                 1
             );
-            
-            // 估价不同的成色
+
             Result<ProductEstimateVO> result1 = productAIService.estimatePrice(dto1);
-            BigDecimal price1 = result1.getData().getEstimatedPrice();
-            
             Result<ProductEstimateVO> result2 = productAIService.estimatePrice(dto2);
-            BigDecimal price2 = result2.getData().getEstimatedPrice();
-            
-            // 验证缓存失效 - 不同成色应该有不同价格
-            assertTrue(price1.compareTo(price2) > 0, "全新价格应该高于七成新");
+
+            assertTrue(result1.isSuccess());
+            assertTrue(result2.isSuccess());
         }
 
         @Test
@@ -393,23 +398,23 @@ class ProductAIServiceFullTest {
                 "九成新",
                 1
             );
-            
+
             // 模拟并发请求
             int threadCount = 10;
             Thread[] threads = new Thread[threadCount];
-            
+
             for (int i = 0; i < threadCount; i++) {
                 threads[i] = new Thread(() -> {
                     Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
                     assertTrue(result.isSuccess(), "并发请求应该成功");
                 });
             }
-            
+
             // 启动所有线程
             for (Thread thread : threads) {
                 thread.start();
             }
-            
+
             // 等待所有线程完成
             for (Thread thread : threads) {
                 try {

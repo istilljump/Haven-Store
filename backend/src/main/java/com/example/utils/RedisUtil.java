@@ -135,6 +135,45 @@ public class RedisUtil {
     }
 
     /**
+     * 自增计数（失败只记日志返回 null，用于登录失败计数这类「尽力而为」的场景）
+     * <p>
+     * 键首次创建时会同时设置过期时间；已存在时不重置过期时间
+     *
+     * @param key     计数键
+     * @param timeout 过期时长（仅首次创建时生效）
+     * @param unit    时间单位
+     * @return 自增后的计数值；Redis 不可用时返回 null
+     */
+    public Long incrementQuietly(String key, long timeout, TimeUnit unit) {
+        try {
+            Long count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1) {
+                redisTemplate.expire(key, timeout, unit);
+            }
+            return count;
+        } catch (Exception e) {
+            log.warn("自增计数失败，已跳过（不影响业务流程），key：{}，原因：{}", key, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 判断键是否存在（失败按不存在处理，用于登录锁定判断这类场景）
+     *
+     * @param key 缓存键
+     * @return true 表示存在；Redis 不可用时返回 false
+     */
+    public boolean hasKeyQuietly(String key) {
+        try {
+            Boolean has = redisTemplate.hasKey(key);
+            return Boolean.TRUE.equals(has);
+        } catch (Exception e) {
+            log.warn("查询键是否存在失败，按不存在处理，key：{}，原因：{}", key, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * 为已存在的缓存键设置过期时间
      *
      * @param key     缓存键

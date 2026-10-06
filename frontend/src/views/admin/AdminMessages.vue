@@ -249,8 +249,8 @@
                 <el-icon color="#67c23a"><Bell /></el-icon>
               </div>
               <div class="stats-info">
-                <div class="stats-number">{{ sentCount }}</div>
-                <div class="stats-label">已发送</div>
+                <div class="stats-number">{{ stats.today }}</div>
+                <div class="stats-label">今日新增</div>
               </div>
             </div>
           </el-card>
@@ -262,8 +262,8 @@
                 <el-icon color="#e6a23c"><Clock /></el-icon>
               </div>
               <div class="stats-info">
-                <div class="stats-number">{{ pendingCount }}</div>
-                <div class="stats-label">发送中</div>
+                <div class="stats-number">{{ stats.allCount }}</div>
+                <div class="stats-label">全员公告</div>
               </div>
             </div>
           </el-card>
@@ -275,8 +275,8 @@
                 <el-icon color="#909399"><Document /></el-icon>
               </div>
               <div class="stats-info">
-                <div class="stats-number">{{ todayCount }}</div>
-                <div class="stats-label">今日新增</div>
+                <div class="stats-number">{{ stats.userCount }}</div>
+                <div class="stats-label">普通用户公告</div>
               </div>
             </div>
           </el-card>
@@ -333,21 +333,26 @@ const sendRules = {
   ]
 }
 
-// 统计数据
-const sentCount = computed(() => 
-  messageList.value.filter(m => m.status === 2).length
-)
-
-const pendingCount = computed(() => 
-  messageList.value.filter(m => m.status === 1).length
-)
-
-const todayCount = computed(() => {
-  const today = new Date().toDateString()
-  return messageList.value.filter(m => 
-    new Date(m.createTime).toDateString() === today
-  ).length
+// 统计卡片：单独拉一次大分页（公告为聚合后的列表，量级很小），
+// 不再对「当前页」做 computed —— 之前那组数字只反映当前页，会误导
+const stats = reactive({
+  today: 0,
+  allCount: 0,
+  userCount: 0
 })
+
+const loadStats = async () => {
+  try {
+    const response = await adminApi.getAdminMessages({ page: 1, pageSize: 200 })
+    const records = response.records || []
+    const today = new Date().toDateString()
+    stats.today = records.filter(m => new Date(m.createTime).toDateString() === today).length
+    stats.allCount = records.filter(m => m.userType === 'all').length
+    stats.userCount = records.filter(m => m.userType === 'user').length
+  } catch (error) {
+    // 统计失败不影响列表
+  }
+}
 
 // 加载消息列表
 const loadMessages = async () => {
@@ -391,9 +396,9 @@ const sendMessage = async () => {
     ElMessage.success('消息发送成功')
     sendDialog.value = false
     loadMessages()
+    loadStats()
   } catch (error) {
-    console.error('发送消息失败:', error)
-    ElMessage.error('发送消息失败')
+    // 失败原因由拦截器统一弹出
   } finally {
     loading.value = false
   }
@@ -432,8 +437,9 @@ const handleDeleteMessage = async (message) => {
     await adminApi.deleteMessage(message.id)
     ElMessage.success('公告已删除')
     loadMessages()
+    loadStats()
   } catch (error) {
-    console.error('删除公告失败:', error)
+    // 失败原因由拦截器提示
   }
 }
 
@@ -510,6 +516,7 @@ const formatDateTime = (timeStr) => {
 // 初始化
 onMounted(() => {
   loadMessages()
+  loadStats()
 })
 </script>
 

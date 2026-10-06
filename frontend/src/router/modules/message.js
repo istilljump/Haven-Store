@@ -1,5 +1,5 @@
 /**
- * 私信路由配置
+ * 消息路由配置（私信中心 + 系统通知中心）
  */
 const messageRoutes = [
   {
@@ -9,6 +9,16 @@ const messageRoutes = [
     component: () => import('@/views/user/MessageCenter.vue'),
     meta: {
       title: '我的私信',
+      requiresAuth: true
+    }
+  },
+  {
+    // 通知中心：系统公告与通知的收件箱
+    path: 'notifications',
+    name: 'Notifications',
+    component: () => import('@/views/user/Notifications.vue'),
+    meta: {
+      title: '通知中心',
       requiresAuth: true
     }
   }

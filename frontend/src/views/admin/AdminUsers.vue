@@ -110,31 +110,38 @@
               {{ formatDateTime(row.createTime) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="150" align="center">
+          <el-table-column label="操作" width="290" align="center">
             <template #default="{ row }">
-              <el-button 
+              <el-button
+                type="primary"
+                size="small"
+                @click="openEditDialog(row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                type="warning"
+                size="small"
+                plain
+                @click="openResetPasswordDialog(row)"
+              >
+                重置密码
+              </el-button>
+              <el-button
                 v-if="row.status === 1 && !row.isAdmin"
-                type="danger" 
-                size="small" 
+                type="danger"
+                size="small"
                 @click="handleDisableUser(row)"
               >
                 禁用
               </el-button>
-              <el-button 
+              <el-button
                 v-else-if="row.status === 0 && !row.isAdmin"
-                type="success" 
-                size="small" 
+                type="success"
+                size="small"
                 @click="handleEnableUser(row)"
               >
                 启用
-              </el-button>
-              <el-button 
-                type="info" 
-                size="small" 
-                link
-                @click="viewUserDetail(row)"
-              >
-                详情
               </el-button>
             </template>
           </el-table-column>
@@ -253,6 +260,65 @@
       </template>
     </el-dialog>
 
+    <!-- 编辑用户对话框 -->
+    <el-dialog
+      v-model="editDialog"
+      :title="`编辑用户：${editForm.username}`"
+      width="460px"
+      @close="editFormRef?.clearValidate()"
+    >
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="90px">
+        <el-form-item label="用户名">
+          <el-input :model-value="editForm.username" disabled />
+        </el-form-item>
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="editForm.nickname" maxlength="30" placeholder="用户展示的昵称" clearable />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="editForm.phone" placeholder="留空表示清空手机号" clearable />
+        </el-form-item>
+        <el-form-item label="角色" prop="isAdmin">
+          <el-radio-group v-model="editForm.isAdmin">
+            <el-radio :label="false">普通用户</el-radio>
+            <el-radio :label="true">管理员</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editDialog = false">取消</el-button>
+          <el-button type="primary" :loading="editLoading" @click="submitEditUser">保存</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 重置密码对话框 -->
+    <el-dialog
+      v-model="resetPasswordDialog"
+      :title="`重置密码：${resetPasswordUser?.username || ''}`"
+      width="420px"
+      @close="resetPasswordFormRef?.clearValidate()"
+    >
+      <el-form ref="resetPasswordFormRef" :model="resetPasswordForm" :rules="resetPasswordRules" label-width="90px">
+        <el-form-item label="新密码" prop="password">
+          <el-input
+            v-model="resetPasswordForm.password"
+            type="password"
+            placeholder="6-20 个字符，重置后请转告用户"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="resetPasswordDialog = false">取消</el-button>
+          <el-button type="warning" :loading="resetPasswordLoading" @click="submitResetPassword">
+            确认重置
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <!-- 确认对话框 -->
     <el-dialog
       v-model="confirmDialog"
@@ -319,6 +385,95 @@ const createRules = {
 
 // 选中的用户
 const selectedUser = ref(null)
+
+// ==================== 编辑用户 ====================
+const editDialog = ref(false)
+const editLoading = ref(false)
+const editFormRef = ref()
+const editForm = reactive({
+  id: null,
+  username: '',
+  nickname: '',
+  phone: '',
+  isAdmin: false
+})
+const editRules = {
+  nickname: [
+    { max: 30, message: '昵称不能超过 30 个字符', trigger: 'blur' }
+  ],
+  phone: [
+    { pattern: /^$|^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }
+  ]
+}
+
+const openEditDialog = (user) => {
+  editForm.id = user.id
+  editForm.username = user.username
+  editForm.nickname = user.nickname || ''
+  editForm.phone = user.phone || ''
+  editForm.isAdmin = !!user.isAdmin
+  editDialog.value = true
+}
+
+const submitEditUser = async () => {
+  try {
+    await editFormRef.value.validate()
+  } catch (error) {
+    return
+  }
+  editLoading.value = true
+  try {
+    await adminApi.updateUser(editForm.id, {
+      nickname: editForm.nickname,
+      phone: editForm.phone,
+      isAdmin: editForm.isAdmin
+    })
+    ElMessage.success('用户资料已更新')
+    editDialog.value = false
+    loadUsers()
+  } catch (error) {
+    // 失败原因（手机号被占用等）由拦截器提示
+  } finally {
+    editLoading.value = false
+  }
+}
+
+// ==================== 重置密码 ====================
+const resetPasswordDialog = ref(false)
+const resetPasswordLoading = ref(false)
+const resetPasswordFormRef = ref()
+const resetPasswordUser = ref(null)
+const resetPasswordForm = reactive({ password: '' })
+const resetPasswordRules = {
+  password: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度须为 6-20 个字符', trigger: 'blur' }
+  ]
+}
+
+const openResetPasswordDialog = (user) => {
+  resetPasswordUser.value = user
+  resetPasswordForm.password = ''
+  resetPasswordDialog.value = true
+}
+
+const submitResetPassword = async () => {
+  try {
+    await resetPasswordFormRef.value.validate()
+  } catch (error) {
+    return
+  }
+  resetPasswordLoading.value = true
+  try {
+    await adminApi.resetUserPassword(resetPasswordUser.value.id, { password: resetPasswordForm.password })
+    ElMessage.success(`已重置 "${resetPasswordUser.value.username}" 的密码`)
+    resetPasswordDialog.value = false
+  } catch (error) {
+    // 失败原因由拦截器提示
+  } finally {
+    resetPasswordLoading.value = false
+  }
+}
 
 // 确认对话框相关
 const confirmTitle = ref('')

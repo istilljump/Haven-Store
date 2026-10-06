@@ -51,6 +51,8 @@ export const useUserStore = defineStore('user', () => {
   // 谁拿到最新值谁写入，这样在私信中心读完消息后角标能立即消失，不必等下一轮轮询。
   // 这里只存状态、不引入 API 调用，避免 store -> api -> utils/request -> store 的循环依赖。
   const unreadMessageCount = ref(0)
+  // 未读系统消息（公告/通知）数：头部铃铛角标与通知中心页共用
+  const systemUnreadCount = ref(0)
   // 购物车件数：与未读私信同理，头部角标与购物车页共用这一份状态
   const cartItemCount = ref(0)
 
@@ -79,6 +81,7 @@ export const useUserStore = defineStore('user', () => {
     token.value = null
     // 退出登录后角标必须清零，否则下一个登录的人会看到上一个人的未读数
     unreadMessageCount.value = 0
+    systemUnreadCount.value = 0
     cartItemCount.value = 0
     removeToken()
     removeUserInfo()
@@ -86,6 +89,10 @@ export const useUserStore = defineStore('user', () => {
 
   const setUnreadMessageCount = (count) => {
     unreadMessageCount.value = Number(count) || 0
+  }
+
+  const setSystemUnreadCount = (count) => {
+    systemUnreadCount.value = Number(count) || 0
   }
 
   const setCartItemCount = (count) => {
@@ -248,6 +255,8 @@ export const useUserStore = defineStore('user', () => {
     error,
     unreadMessageCount,
     setUnreadMessageCount,
+    systemUnreadCount,
+    setSystemUnreadCount,
     cartItemCount,
     setCartItemCount,
     

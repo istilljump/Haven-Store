@@ -63,8 +63,10 @@ class ProductAIServiceSimpleTest {
         dto.setProductCondition("全新");
         dto.setCategoryId(1);
 
-        // 执行估价，应该抛出异常
-        assertThrows(Exception.class, () -> productAIService.estimatePrice(dto));
+        // 契约：非法参数不抛异常，而是返回带业务错误码的失败结果
+        Result<ProductEstimateVO> result = productAIService.estimatePrice(dto);
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
     }
 
     @Test

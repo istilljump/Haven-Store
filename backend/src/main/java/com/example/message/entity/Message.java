@@ -29,6 +29,9 @@ public class Message {
 
     /** 接收群体（all 所有用户 / admin 仅管理员 / user 仅普通用户；管理后台群发时标记） */
     private String receiverType;
+
+    /** 群发批次号：同一次群发产生的所有记录共享一个批次号，用于聚合展示与整组删除 */
+    private String batchNo;
     
     /** 消息标题 */
     private String title;

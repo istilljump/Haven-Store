@@ -29,7 +29,7 @@
     <div v-else class="order-list">
       <div v-for="order in orders" :key="order.orderNo" class="order-card">
         <div class="order-head">
-          <span class="order-no">订单号：{{ order.orderNo }}</span>
+          <span class="order-no" @click="$router.push(`/orders/${order.orderNo}`)">订单号：{{ order.orderNo }}</span>
           <span class="order-time">{{ order.createTime }}</span>
           <el-tag class="order-status" :type="statusTagType(order.status)" size="small">
             {{ order.statusDesc }}
@@ -66,6 +66,13 @@
             共 {{ order.itemCount }} 件，实付 <em>{{ formatMoney(order.totalAmount) }}</em>
           </span>
           <div class="order-actions">
+            <el-button
+              text
+              type="primary"
+              @click="$router.push(`/orders/${order.orderNo}`)"
+            >
+              查看详情
+            </el-button>
             <template v-if="role === 'buyer'">
               <el-button
                 v-if="order.status === 1"

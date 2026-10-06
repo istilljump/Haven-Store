@@ -51,26 +51,33 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store'
-import { getToken } from '@/utils/auth'
 
 export default {
   name: 'Login',
   setup() {
     const router = useRouter()
+    const route = useRoute()
     const userStore = useUserStore()
     const loginFormRef = ref()
-    
+
     const loading = ref(false)
-    
+
     const loginForm = reactive({
       username: '',
       password: ''
     })
-    
+
+    // 注册成功跳转过来时带上用户名，免得重复输入
+    onMounted(() => {
+      if (route.query.username) {
+        loginForm.username = String(route.query.username)
+      }
+    })
+
     const rules = {
       username: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -81,34 +88,33 @@ export default {
         { min: 6, max: 20, message: '密码长度应在6-20个字符之间', trigger: 'blur' }
       ]
     }
-    
+
     const handleLogin = async () => {
       if (!loginFormRef.value) return
-      
+
       try {
         await loginFormRef.value.validate()
         loading.value = true
-        
+
         // 调用用户登录action
         await userStore.login(loginForm)
-        
+
         ElMessage.success('登录成功')
-        
-        // 检查是否有重定向URL
-        const redirect = new URLSearchParams(window.location.search).get('redirect')
+
+        // 检查是否有重定向URL（路由守卫拼接的 redirect 参数）
+        const redirect = route.query.redirect
         if (redirect) {
-          router.push(redirect)
+          router.push(String(redirect))
         } else {
           router.push('/home')
         }
       } catch (error) {
-        console.error('登录失败:', error)
-        ElMessage.error(error.message || '登录失败')
+        // 登录失败的原因（密码错误/账号锁定/被禁用）已由 axios 拦截器统一弹出，这里不再重复提示
       } finally {
         loading.value = false
       }
     }
-    
+
     return {
       loginFormRef,
       loading,

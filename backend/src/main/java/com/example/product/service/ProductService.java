@@ -128,6 +128,35 @@ public interface ProductService {
     void offlineProduct(Long productId);
 
     /**
+     * 重新上架自己发布的商品
+     * <p>
+     * 仅「已下架」状态可重新上架；已售出的商品回到在售会造成交易纠纷，明确拒绝
+     *
+     * @param productId 商品 ID
+     */
+    void reshelfProduct(Long productId);
+
+    /**
+     * 彻底删除自己发布的商品（物理删除）
+     * <p>
+     * 仅「已下架」状态允许删除，同时清理商品图片、评论与收藏/购物车关系，避免孤儿数据；
+     * 已售出商品涉及订单快照与交易凭证，不允许删除
+     *
+     * @param productId 商品 ID
+     */
+    void purgeProduct(Long productId);
+
+    /**
+     * 彻底删除商品（物理删除，含全部关联数据）
+     * <p>
+     * 供管理员删除接口复用：不做属主与状态校验（调用方自行校验权限），
+     * 统一清理图片、评论与收藏/购物车关系
+     *
+     * @param productId 商品 ID
+     */
+    void hardDeleteProduct(Long productId);
+
+    /**
      * 分页查询商品评论（游客可访问）
      *
      * @param productId 商品 ID
@@ -140,7 +169,8 @@ public interface ProductService {
     /**
      * 发表商品评论
      * <p>
-     * 需要登录；不允许评价自己发布的商品；同一用户对同一商品只能评价一次
+     * 需要登录；不允许评价自己发布的商品；同一用户对同一商品只能评价一次；
+     * 仅购买过该商品（订单已支付或已完成）的用户可评价
      *
      * @param productId 商品 ID
      * @param dto       评论入参

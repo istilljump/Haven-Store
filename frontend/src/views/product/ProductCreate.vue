@@ -38,14 +38,28 @@
             </el-form-item>
 
             <el-form-item label="商品价格" prop="price">
-              <el-input-number 
-                v-model="form.price" 
-                :min="0" 
-                :max="999999" 
-                :precision="2" 
+              <el-input-number
+                v-model="form.price"
+                :min="0"
+                :max="999999"
+                :precision="2"
                 style="width: 200px"
               />
               <span class="currency">元</span>
+              <el-button
+                v-if="autoEstimateEnabled"
+                class="estimate-button"
+                type="success"
+                plain
+                size="small"
+                :loading="estimating"
+                :disabled="!form.title || !form.categoryId || !form.condition"
+                @click="estimatePrice"
+              >
+                <el-icon><MagicStick /></el-icon>
+                AI 智能估价
+              </el-button>
+              <span v-if="autoEstimateEnabled" class="estimate-hint">填写标题/分类/成色后可用</span>
             </el-form-item>
 
             <el-form-item label="原价" prop="originalPrice">
@@ -120,22 +134,24 @@
                 :headers="uploadHeaders"
                 list-type="picture-card"
                 accept="image/*"
-                :limit="9"
+                :limit="uploadMaxImages"
                 :auto-upload="true"
+                :before-upload="beforeImageUpload"
                 :on-change="handleImageChange"
                 :on-remove="handleImageRemove"
                 :on-success="handleUploadSuccess"
                 :on-error="handleUploadError"
+                :on-exceed="handleExceed"
                 :file-list="imageList"
               >
                 <el-icon><Plus /></el-icon>
               </el-upload>
-              
+
               <div class="image-tips">
-                <p>• 最多可上传9张图片</p>
+                <p>• 最多可上传{{ uploadMaxImages }}张图片</p>
                 <p>• 建议上传清晰实物图</p>
-                <p>• 单张图片大小不超过5MB</p>
-                <p>• 支持JPG、PNG格式</p>
+                <p>• 单张图片大小不超过{{ uploadMaxFileSizeMB }}MB</p>
+                <p>• 支持 JPG、PNG、GIF、WebP 格式</p>
               </div>
             </el-form-item>
 
@@ -266,16 +282,18 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Location } from '@element-plus/icons-vue'
+import { Plus, Location, MagicStick } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { getToken } from '@/utils/auth'
 import productApi from '@/api/product'
+import { getPublicSettings } from '@/api/public'
 
 export default {
   name: 'ProductCreate',
   components: {
     Plus,
-    Location
+    Location,
+    MagicStick
   },
   setup() {
     const router = useRouter()
@@ -297,6 +315,13 @@ export default {
     const locating = ref(false)
     const categoryOptions = ref([])
     const categoryLoading = ref(false)
+
+    // AI 估价（后端 /product/estimate，规则模拟；管理后台可通过「交易设置」关闭）
+    const estimating = ref(false)
+
+    // 上传限制（管理后台「上传设置」驱动，取不到时用默认值）
+    const uploadMaxImages = ref(9)
+    const uploadMaxFileSizeMB = ref(5)
     
     const form = reactive({
       title: '',
@@ -374,8 +399,6 @@ export default {
           console.error('表单验证失败:', error)
         }
       } else if (currentStep.value === 1) {
-        // 说明：后端尚未提供图片上传接口（商品表 cover_image 也暂未开放写入），
-        // 因此这里只做提示，不阻塞流程，避免用户卡在图片步骤无法发布
         if (form.images.length === 0) {
           ElMessage.warning('未选择商品图片，商品将没有封面图')
         }
@@ -390,22 +413,60 @@ export default {
         currentStep.value--
       }
     }
-    
-    const handleImageChange = (file) => {
-      // 限制图片数量
-      if (imageList.value.length >= 9) {
-        ElMessage.warning('最多只能上传9张图片')
+
+    /**
+     * AI 智能估价：把后端返回的建议价回填到价格框
+     */
+    const estimatePrice = async () => {
+      estimating.value = true
+      try {
+        const result = await productApi.estimateProductPrice({
+          title: form.title.trim(),
+          description: form.description || form.title.trim(),
+          productCondition: form.condition,
+          categoryId: form.categoryId
+        })
+        if (result && result.estimatedPrice) {
+          form.price = Number(result.estimatedPrice)
+          ElMessage.success(`AI 建议价约 ${result.estimatedPrice} 元（${result.suggestion || '仅供参考'}）`)
+        } else {
+          ElMessage.warning('暂时拿不到估价建议，请手动定价')
+        }
+      } catch (error) {
+        // 功能未开启等错误由拦截器提示
+      } finally {
+        estimating.value = false
+      }
+    }
+
+    /**
+     * el-upload 真正的上传前拦截：返回 false 会取消本次上传
+     * （此前写在 on-change 里 return false 拦不住自动上传，超限文件照样会发请求）
+     */
+    const beforeImageUpload = (file) => {
+      const maxSizeBytes = uploadMaxFileSizeMB.value * 1024 * 1024
+      if (file.size > maxSizeBytes) {
+        ElMessage.error(`图片大小不能超过 ${uploadMaxFileSizeMB.value}MB`)
         return false
       }
-      
-      // 检查图片大小
-      const isLt5M = file.size / 1024 / 1024 < 5
-      if (!isLt5M) {
-        ElMessage.error('图片大小不能超过5MB')
+      const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      if (file.type && !allowed.includes(file.type)) {
+        ElMessage.error('仅支持 JPG、PNG、GIF、WebP 格式的图片')
         return false
       }
-      
       return true
+    }
+
+    /**
+     * 数量超限提示（el-upload 的 limit 触发）
+     */
+    const handleExceed = () => {
+      ElMessage.warning(`最多只能上传 ${uploadMaxImages.value} 张图片`)
+    }
+
+    const handleImageChange = (file, fileList) => {
+      // 与 imageList 保持同步（新增文件还没有 url，上传成功后回填）
+      imageList.value = fileList
     }
     
     const handleImageRemove = (file) => {
@@ -614,10 +675,28 @@ export default {
     }
 
     // 分类下拉的数据来自后端「启用状态的分类」，不再硬编码
+    // 同时读取前台公开配置：上传限制（管理后台可调）与 AI 估价开关
+    const autoEstimateEnabled = ref(true)
     onMounted(async () => {
       await loadCategories()
       if (isEdit.value) {
         await loadProductForEdit()
+      }
+      try {
+        const settings = await getPublicSettings()
+        if (settings) {
+          if (settings.uploadMaxImages) {
+            uploadMaxImages.value = Number(settings.uploadMaxImages)
+          }
+          if (settings.uploadMaxFileSizeKB) {
+            uploadMaxFileSizeMB.value = Math.max(1, Math.round(Number(settings.uploadMaxFileSizeKB) / 1024))
+          }
+          if (settings.autoEstimate === false) {
+            autoEstimateEnabled.value = false
+          }
+        }
+      } catch (error) {
+        // 公开配置拿不到就用默认值
       }
     })
     
@@ -634,6 +713,13 @@ export default {
       locating,
       categoryOptions,
       categoryLoading,
+      estimating,
+      estimatePrice,
+      autoEstimateEnabled,
+      uploadMaxImages,
+      uploadMaxFileSizeMB,
+      beforeImageUpload,
+      handleExceed,
       nextStep,
       prevStep,
       handleImageChange,
@@ -688,6 +774,16 @@ export default {
 .currency {
   margin-left: 10px;
   color: #666;
+}
+
+.estimate-button {
+  margin-left: 14px;
+}
+
+.estimate-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #909399;
 }
 
 .image-uploader {
