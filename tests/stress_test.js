@@ -96,10 +96,14 @@ const makeRequest = (url, method, payload, headers, results, index) => {
   const options = {
     hostname: new URL(url).hostname,
     port: new URL(url).port || (url.startsWith('https') ? 443 : 80),
-    path: new URL(url).pathname,
+    // 此前只取 pathname，会丢弃 ?page=1 这类查询串，导致带参压测实际打到无参接口
+    path: new URL(url).pathname + new URL(url).search,
     method: method,
     headers: headers
   };
+  if (payload && method !== 'GET' && method !== 'HEAD' && options.headers) {
+    options.headers['Content-Type'] = 'application/json';
+  }
 
   const req = lib.request(options, (res) => {
     let data = '';
@@ -176,13 +180,13 @@ const runStressTest = (args) => {
     if (completed === totalRequests) {
       clearInterval(progressInterval);
       process.stdout.write('\n');
-      analyzeResults(results);
+      analyzeResults(results, startTime, args);
     }
   }, 100);
 };
 
 // 分析测试结果
-const analyzeResults = (results) => {
+const analyzeResults = (results, startTime, runArgs) => {
   const completed = results.filter(r => r !== undefined);
   const successCount = completed.filter(r => r.success).length;
   const failureCount = completed.length - successCount;
@@ -252,7 +256,18 @@ const analyzeResults = (results) => {
     const percentage = (count / completed.length * 100).toFixed(2);
     console.log(`HTTP ${status}: ${count} 个请求 (${percentage}%)`);
   });
-  
+
+  // 统计错误信息（此前引用了外层函数作用域的 errorCounts，会抛 ReferenceError）
+  const errorCounts = {};
+  results.forEach(r => {
+    if (r && r.error) {
+      if (!errorCounts[r.error]) {
+        errorCounts[r.error] = 0;
+      }
+      errorCounts[r.error]++;
+    }
+  });
+
   if (Object.keys(errorCounts).length > 0) {
     console.log('\n=== 错误统计 ===');
     Object.entries(errorCounts).forEach(([error, count]) => {
@@ -271,10 +286,10 @@ const analyzeResults = (results) => {
   const report = {
     timestamp: new Date().toISOString(),
     config: {
-      threads: args.threads,
-      requests: args.requests,
-      url: args.url,
-      method: args.method
+      threads: runArgs.threads,
+      requests: runArgs.requests,
+      url: runArgs.url,
+      method: runArgs.method
     },
     results: {
       totalRequests: completed.length,
