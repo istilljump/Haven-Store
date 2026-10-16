@@ -116,8 +116,9 @@ logs/
 *.ppt
 *.pptx
 *.pdf
-# 例外：技术文档是交付物，需要入库
+# 例外：技术文档与作品介绍文档是交付物，需要入库
 !reports/Haven-Store技术文档*.pdf
+!reports/Haven-Store作品介绍文档*.pdf
 
 # 压测报告产物（tests/stress_test.js 输出，可再生成，不入库）
 reports/stress/
