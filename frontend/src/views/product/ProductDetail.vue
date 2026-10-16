@@ -65,9 +65,9 @@
               </div>
               <div class="meta-item">
                 <span class="label">发布时间:</span>
-                <span class="value" :title="product.publishTime">{{
-                  formatTime(product.publishTime)
-                }}</span>
+                <!-- 发布时间是查证用的绝对信息，不用「刚刚/N分钟前」这类相对说法：
+                     新发布的商品永远显示「刚刚」，反而看不出到底是哪天挂上去的 -->
+                <span class="value">{{ formatDate(product.publishTime) || '暂无' }}</span>
               </div>
               <div class="meta-item">
                 <span class="label">浏览次数:</span>
@@ -202,7 +202,7 @@
                     orDash(product.remarks)
                   }}</el-descriptions-item>
                   <el-descriptions-item label="发布时间">{{
-                    product.publishTime || '暂无'
+                    formatDate(product.publishTime) || '暂无'
                   }}</el-descriptions-item>
                   <el-descriptions-item label="卖家">{{
                     orDash(product.seller.username)
@@ -393,7 +393,7 @@ import reportApi from '@/api/report'
 import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store/index'
 import { REPORT_REASONS } from '@/utils/constants'
-import { formatRelativeTime } from '@/utils/format'
+import { formatDate, formatRelativeTime } from '@/utils/format'
 
 export default {
   name: 'ProductDetail',
@@ -840,6 +840,7 @@ export default {
       goToEdit,
       isOwner,
       formatTime,
+      formatDate,
       reportDialogVisible,
       reportSubmitting,
       reportReasons,

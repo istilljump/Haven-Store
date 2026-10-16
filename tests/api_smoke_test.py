@@ -553,12 +553,25 @@ def main():
     _, _, r = call("GET", "/product/search?categoryId=1")
     check("按分类筛选（手机数码）", r, "二手iPhone 12")
 
-    _, _, r = call("GET", "/product/search?minPrice=1000")
-    check("价格下限筛选生效", r, "二手iPhone 12")
-    _, _, r = call("GET", "/product/search?minPrice=1000&maxPrice=2000")
-    check("价格区间无命中", r, '"total":0')
-    _, _, r = call("GET", "/product/search?maxPrice=200")
-    check("价格上限筛选生效", r, "编程书籍套装")
+    # 价格筛选：断言「结果与筛选条件一致」而不是「某个商品必须出现在第一页」。
+    # 首页按发布时间倒序，库里商品一多，指定商品就会掉出第一页，绝对命中写法会假失败
+    _, _, r = call("GET", "/product/search?minPrice=1000&page=1&pageSize=50")
+    prices = [float(rec.get("price") or 0) for rec in ((r.get("data") or {}).get("records") or [])]
+    check("价格下限筛选：结果非空且全部不低于 1000",
+          {"ok": bool(prices) and min(prices) >= 1000}, '{"ok":true}')
+
+    _, _, r = call("GET", "/product/search?maxPrice=200&page=1&pageSize=50")
+    prices = [float(rec.get("price") or 0) for rec in ((r.get("data") or {}).get("records") or [])]
+    check("价格上限筛选：结果非空且全部不高于 200",
+          {"ok": bool(prices) and max(prices) <= 200}, '{"ok":true}')
+
+    # 无命中：先取当前最贵商品的价格，再往更高处要一个区间，必然为空。
+    # 不写死价格区间，避免断言依赖库里恰好没有某个价位的商品
+    _, _, r = call("GET", "/product/search?sort=priceDesc&page=1&pageSize=1")
+    top_price = float((((r.get("data") or {}).get("records") or [{}])[0]).get("price") or 0)
+    floor_price = top_price + 1
+    _, _, r = call("GET", "/product/search?minPrice=%s&maxPrice=%s" % (floor_price, floor_price + 100))
+    check("价格区间无命中时返回空列表", r, '"total":0')
 
     _, _, r = call("GET", "/product/search?sort=priceAsc&page=1&pageSize=10")
     check("价格升序排序", r, '"code":200')
@@ -719,9 +732,15 @@ def main():
     check("未登录访问我的发布被拒（401）", r, '"code":401')
 
     if ext_id:
+        # 分类 ID 按名称现查，不写死种子数据的自增 ID：
+        # 分类是被增删过的可变数据，写死 ID 后一旦重建分类就必然假失败
+        _, _, r = call("GET", "/product/categories", token=admin_token)
+        edit_category_id = next((c.get("id") for c in (r.get("data") or [])
+                                if c.get("name") == "电脑办公"), None)
+        check("编辑用分类（电脑办公）存在", {"found": edit_category_id is not None}, '{"found":true}')
         _, _, r = call("PUT", "/product/%d" % ext_id,
                        {"title": "扩展字段商品-已改", "description": "编辑后的描述内容",
-                        "categoryId": 2, "price": 777.00, "originalPrice": 999.00,
+                        "categoryId": edit_category_id, "price": 777.00, "originalPrice": 999.00,
                         "productCondition": "九成新", "tradeType": "线上"}, token=admin_token)
         check("PUT 编辑自己的商品", r, '"code":200')
         _, _, r = call("GET", "/product/detail/%d" % ext_id, token=admin_token)
@@ -981,12 +1000,16 @@ def main():
     me_id = ((r.get("data") or {}).get("id") if isinstance(r, dict) else None)
     check("取得 testuser1 的用户ID", me_id, None)
 
-    _, _, r = call("POST", "/user/login", {"username": "testuser2", "password": DEMO_PASSWORD})
+    # 对端账号用第 8 节创建的一次性用户，而不是演示账号 testuser2：
+    # 私信与下单测试都会留下会话、订单，本节收尾还要删掉脚本用过的会话；
+    # 借用演示账号会连带删掉演示数据里的真实会话，并让测试订单混进演示账号的历史
+    _, _, r = call("POST", "/user/login", {"username": new_name, "password": DEMO_PASSWORD})
     peer_token = (r.get("data") or {}).get("token") if isinstance(r, dict) else None
     peer_id = ((r.get("data") or {}).get("userId") if isinstance(r, dict) else None)
-    check("testuser2 登录成功", peer_token, None)
+    peer_name = ((r.get("data") or {}).get("nickname") if isinstance(r, dict) else None)
+    check("测试对端账号（一次性用户）登录成功", peer_token, None)
 
-    # 先清掉本脚本自己要用的两个会话（与 testuser2 的普通私信、以及针对商品 1 的咨询），
+    # 先清掉本脚本自己要用的两个会话（与对端的普通私信、以及针对商品 1 的咨询），
     # 断言随后只针对这两个会话，不去假设账号里没有别人手工产生的会话
     call("DELETE", "/message/private/chat?peerId=%d" % peer_id, token=me_token)
     call("DELETE", "/message/private/chat?peerId=%d&productId=1" % peer_id, token=me_token)
@@ -1026,11 +1049,17 @@ def main():
     check("不能咨询自己发布的商品", r, "不能咨询自己发布的商品")
 
     # 普通私信：不带商品上下文
+    # 未读数按「相对变化」断言：库里可能本来就有别人发来的未读消息（演示数据/上次运行的残留），
+    # 写死绝对值会在有历史数据的库上假失败
+    _, _, r = call("GET", "/message/private/unread/count", token=peer_token)
+    unread_before = int((r.get("data") if isinstance(r, dict) else 0) or 0)
     _, _, r = call("POST", "/message/private/send",
                    {"toUserId": peer_id, "content": "冒烟私信内容"}, token=me_token)
     check("发送普通私信", r, '"code":200')
     _, _, r = call("GET", "/message/private/unread/count", token=peer_token)
-    check("接收方未读数为 1", {"n": (r.get("data") if isinstance(r, dict) else None)}, '"n":1')
+    check("发送后接收方未读数 +1",
+          {"n": int((r.get("data") if isinstance(r, dict) else -1) or 0), "before": unread_before},
+          '"n":%d' % (unread_before + 1))
 
     _, _, r = call("GET", "/message/private/conversations", token=me_token)
     check("会话列表含对方昵称", r, '"peerName"')
@@ -1043,7 +1072,9 @@ def main():
     check("接收方拉到聊天记录", r, "冒烟私信内容")
     check("他人消息 self 为 false", r, '"self":false')
     _, _, r = call("GET", "/message/private/unread/count", token=peer_token)
-    check("读过之后未读数归零", {"n": (r.get("data") if isinstance(r, dict) else None)}, '"n":0')
+    check("读过之后本条未读被清掉",
+          {"n": int((r.get("data") if isinstance(r, dict) else -1) or 0), "before": unread_before},
+          '"n":%d' % unread_before)
 
     _, _, r = call("POST", "/message/private/send",
                    {"toUserId": me_id, "content": "冒烟私信回复"}, token=peer_token)
@@ -1068,6 +1099,23 @@ def main():
     check("按商品拉咨询记录", r, "冒烟咨询内容")
     _, _, r = call("GET", "/message/private/chat?peerId=%d" % me_id, token=peer_token)
     check("不带商品ID拉不到咨询消息", r, "冒烟私信内容")
+
+    # 卖家回复：会话键含商品，卖家回话必须带同一个 productId；此时会话已存在，应放行。
+    # 否则卖家永远无法在商品咨询里回话（此前一律按「不能咨询自己发布的商品」拒绝）
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "productId": 1, "content": "冒烟卖家回复"},
+                   token=me_token)
+    check("卖家可在已存在的商品会话中回复", r, '"code":200')
+    _, _, r = call("GET", "/message/private/chat?peerId=%d&productId=1" % peer_id,
+                   token=me_token)
+    check("卖家回复落在同一商品会话", r, "冒烟卖家回复")
+    # 同一条规则的另一面：商品 2 也是我发布的，但该会话尚不存在，卖家不得主动开口
+    # （先清掉可能残留的旧会话，保证断言与历史数据无关）
+    call("DELETE", "/message/private/chat?peerId=%d&productId=2" % peer_id, token=me_token)
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "productId": 2, "content": "凭空咨询自己的商品"},
+                   token=me_token)
+    check("无会话时卖家仍不能对自己商品开口", r, "不能咨询自己发布的商品")
 
     # 删除会话：双向删除，且只删掉被指定的那个会话
     _, _, r = call("DELETE", "/message/private/chat?peerId=%d&productId=1" % me_id,
@@ -1157,7 +1205,7 @@ def main():
     # 金额比较用数值而不是字符串：BigDecimal 序列化后 100.00 会写成 100.0
     check("订单金额等于商品价格",
           {"v": float((r.get("data") or {}).get("totalAmount"))}, '"v":100.0')
-    check("买家昵称已回填", r, '"buyerName":"测试用户2"')
+    check("买家昵称已回填", r, '"buyerName":"%s"' % peer_name)
     check("订单明细为下单时的标题快照", r, "冒烟购物车商品A")
     check("买家留言已保存", r, "冒烟测试留言")
 
@@ -1177,7 +1225,7 @@ def main():
     check("可按待支付筛选到它", r, order_no)
     _, _, r = call("GET", "/order/sold?page=1&pageSize=50", token=me_token)
     check("卖家视角能看到这笔订单", r, order_no)
-    check("卖家视角带回买家昵称", r, '"buyerName":"测试用户2"')
+    check("卖家视角带回买家昵称", r, '"buyerName":"%s"' % peer_name)
 
     _, _, r = call("POST", "/order/%s/pay" % order_no, token=me_token)
     check("他人不能支付我的订单（403）", r, '"code":403')
@@ -1193,7 +1241,7 @@ def main():
     # 卖家（商品的发布者）现在可以查看含自己商品订单的详情
     _, _, r = call("GET", "/order/%s" % order_no, token=me_token)
     check("卖家可以查看含自己商品订单的详情", r, '"code":200')
-    check("卖家视角带回买家昵称", r, '"buyerName":"测试用户2"')
+    check("卖家视角带回买家昵称", r, '"buyerName":"%s"' % peer_name)
     # 与该订单无关的第三方（管理员）仍然不能查看
     _, _, r = call("GET", "/order/%s" % order_no, token=admin_token)
     check("无关第三方不能查看订单（403）", r, '"code":403')

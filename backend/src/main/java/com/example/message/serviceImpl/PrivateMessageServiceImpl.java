@@ -67,7 +67,11 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
         if (userMapper.selectById(dto.getToUserId()) == null) {
             throw new BusinessException("接收者不存在");
         }
-        // 3. 商品咨询需校验商品存在且不是自己发布的
+        // 3. 商品咨询需校验商品存在，并按商品归属决定谁能开口：
+        //    - 买家（非发布者）：只能咨询该商品的发布者，否则会话会挂在与买家无关的商品上；
+        //    - 卖家（发布者本人）：只允许在「该商品会话已存在」的前提下回复。
+        //      卖家在商品会话里回话必须带商品 ID（会话键含商品），一律拒绝会让卖家永远无法回话；
+        //      但也不能完全放开，否则从自己的商品详情页点「私信联系」就能凭空开出一条自我咨询会话。
         Long productId = dto.getProductId();
         if (productId != null) {
             Product product = productMapper.selectById(productId);
@@ -75,7 +79,11 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
                 throw new BusinessException("咨询的商品不存在");
             }
             if (me.equals(product.getUserId())) {
-                throw new BusinessException("不能咨询自己发布的商品");
+                if (!hasConversationAboutProduct(me, dto.getToUserId(), productId)) {
+                    throw new BusinessException("不能咨询自己发布的商品");
+                }
+            } else if (!dto.getToUserId().equals(product.getUserId())) {
+                throw new BusinessException("只能向该商品的发布者发起咨询");
             }
         }
         // 4. 内容去掉首尾空白后不允许为空（@NotBlank 拦不住纯空白以外的边界，这里再兜一次）
@@ -269,6 +277,25 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
         return first + PrivateMessageConstant.CONVERSATION_KEY_SEPARATOR
                 + second + PrivateMessageConstant.CONVERSATION_KEY_SEPARATOR
                 + productPart;
+    }
+
+    /**
+     * 判断两个用户之间是否已存在某个商品会话
+     * <p>
+     * 复用会话键而不是按收发方向拼条件：会话键本身就是「双方 + 商品」的同一性标识，
+     * 用它查一次即可，既与 listConversations / deleteConversation 的口径一致，
+     * 也不会因为 OR 条件写错而漏判
+     *
+     * @param oneUserId   一方用户 ID
+     * @param otherUserId 另一方用户 ID
+     * @param productId   商品 ID
+     * @return 该会话已有任意一条消息时返回 true
+     */
+    private boolean hasConversationAboutProduct(Long oneUserId, Long otherUserId, Long productId) {
+        QueryWrapper<PrivateMessage> wrapper = new QueryWrapper<>();
+        wrapper.eq("conversation_key", buildConversationKey(oneUserId, otherUserId, productId));
+        Long count = privateMessageMapper.selectCount(wrapper);
+        return count != null && count > 0;
     }
 
     /**

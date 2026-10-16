@@ -65,9 +65,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Monitor, User, Lock } from '@element-plus/icons-vue'
 import adminApi from '@/api/admin'
-import { setToken, setUserInfo } from '@/utils/auth'
+import { useUserStore } from '@/store/index'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loginFormRef = ref()
 const loading = ref(false)
 
@@ -103,15 +104,11 @@ const handleLogin = async () => {
     // { userId, username, nickname, avatar, token, isAdmin }
     const response = await adminApi.adminLogin(loginForm)
 
-    // 保存Token和用户信息（结构统一，管理端与用户端共用同一份存储）
-    setToken(response.token)
-    setUserInfo({
-      userId: response.userId,
-      username: response.username,
-      nickname: response.nickname,
-      avatar: response.avatar,
-      isAdmin: response.isAdmin
-    })
+    // 保存登录态：统一写入 store（其内部再落 localStorage）。
+    // 管理端顶栏等组件依赖这份响应式数据；若只写 localStorage，
+    // 与 /admin/login 共用同一个 AdminLayout 实例的页面不会重新挂载，
+    // 顶栏就会停留在上一个账号的昵称上
+    userStore.applyLoginResult(response)
 
     ElMessage.success('管理员登录成功')
 

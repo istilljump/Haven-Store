@@ -41,6 +41,10 @@ export function formatRelativeTime(date) {
   const now = new Date()
   const target = new Date(date)
   const diffMs = now - target
+  // 解析失败或时间在未来时不要按「刚刚」展示：前者会把脏数据伪装成最新时间，
+  // 后者会让时钟不一致的数据凭空变新。解析失败返回空串，未来时间退回绝对时间。
+  if (isNaN(diffMs)) return ''
+  if (diffMs < 0) return formatDate(date)
   const diffSeconds = Math.floor(diffMs / 1000)
   const diffMinutes = Math.floor(diffSeconds / 60)
   const diffHours = Math.floor(diffMinutes / 60)

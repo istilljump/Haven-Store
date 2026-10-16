@@ -116,6 +116,23 @@ export const useUserStore = defineStore('user', () => {
     setUserInfo(userInfo.value)
   }
 
+  /**
+   * 写入一次登录成功的结果
+   *
+   * 登录接口（/user/login、/admin/login）返回的都是扁平结构 LoginUserVO，
+   * 用户端与管理端共用这一处归一化，避免各自拼结构导致字段不一致；
+   * 同时清零上一账号留下的角标计数，否则换账号登录后会看到别人的未读数。
+   *
+   * @param {Object} raw - 登录接口原始返回（含 token）
+   */
+  const applyLoginResult = (raw) => {
+    setToken(raw.token)
+    setUserInfo(normalizeUserInfo(raw))
+    unreadMessageCount.value = 0
+    systemUnreadCount.value = 0
+    cartItemCount.value = 0
+  }
+
   // Actions
   const login = async (loginData) => {
     try {
@@ -127,8 +144,7 @@ export const useUserStore = defineStore('user', () => {
       // 保存Token和用户信息
       // 注意：/user/login 返回的是扁平结构（LoginUserVO），没有嵌套的 userInfo 字段，
       // 此前写成 response.userInfo 会存进 undefined，导致登录后导航栏仍显示未登录
-      setToken(response.token)
-      setUserInfo(normalizeUserInfo(response))
+      applyLoginResult(response)
 
       return response
     } catch (err) {
@@ -277,6 +293,7 @@ export const useUserStore = defineStore('user', () => {
     setError,
     clearError,
     updateUserInfo,
+    applyLoginResult,
 
     // Actions
     login,

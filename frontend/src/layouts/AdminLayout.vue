@@ -139,18 +139,20 @@ import {
   Collection,
   Bell
 } from '@element-plus/icons-vue'
-import { getUserInfo, removeToken, removeUserInfo } from '@/utils/auth'
+import { useUserStore } from '@/store/index'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 // 移动端侧边栏滑出开关
 const sidebarOpen = ref(false)
 
 // 当前登录用户信息
-// 唯一数据源是 utils/auth 的 getUserInfo（即登录时写入 localStorage 的 LoginUserVO），
-// 与路由守卫读取的是同一份数据，避免出现「守卫认为已登录、页面认为未登录」的错位
-const userInfo = ref(getUserInfo() || {})
+// 身份统一取自 store（响应式）：/admin/login 与其它 /admin/** 页面共用同一个
+// AdminLayout 实例，管理员登录后布局不会重新挂载，若读的是 localStorage 快照，
+// 顶栏就会一直停在上一个账号的昵称上（刷新才恢复）
+const userInfo = computed(() => userStore.user || {})
 
 // 当前路由标题
 const currentRouteTitle = computed(() => {
@@ -202,8 +204,9 @@ const handleLogout = () => {
     type: 'warning'
   })
     .then(() => {
-      removeToken()
-      removeUserInfo()
+      // 走 store 统一清理：Token、用户信息与各类未读角标一起归零，
+      // 否则下一位登录者会看到上一位的角标数字
+      userStore.clearUser()
       ElMessage.success('退出成功')
       router.push('/admin/login')
     })
@@ -212,11 +215,6 @@ const handleLogout = () => {
 
 // 说明：/admin/** 的登录态与管理员角色校验已统一收敛到 router/index.js 的全局守卫，
 // 组件内不再重复注册守卫（此前每次挂载都注册一遍，且用的是错误的 localStorage key）
-
-// 初始化：以 localStorage 中的最新数据校准一次，避免 store 与本地存储不同步
-onMounted(() => {
-  userInfo.value = getUserInfo() || {}
-})
 </script>
 
 <style scoped>
