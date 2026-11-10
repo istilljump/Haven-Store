@@ -1454,6 +1454,123 @@ def main():
     _, _, r = call("POST", "/product/%s/price" % stale_id, {"price": 45.00}, token=me_token)
     check("演示价格已还原为 45 元", r, '"code":200')
 
+    # ---------- 33. 增强搜索：补全 / 纠错 / 行情标签 / 埋点 ----------
+    section("33. 增强搜索")
+    # 补全：词库前缀命中 + 品类标签 + 成交热提示（种子成交中 2 件标题含「教材」）
+    _, _, r = call("GET", "/search/suggest?q=%s" % urllib.parse.quote("教"))
+    check("搜索补全接口可用", r, '"code":200')
+    check("补全命中词库词「教材」", r, '"word":"教材"')
+    check("补全附带品类标签", r, '"tagLabel":"图书教材"')
+    check("补全附带成交热提示", r, "近期成交")
+    # 拼音补全（全拼/首字母）
+    _, _, r = call("GET", "/search/suggest?q=jiaoc")
+    check("拼音前缀命中（jiaoc→教材）", r, '"word":"教材"')
+    # 本地词表纠错建议
+    _, _, r = call("GET", "/search/suggest?q=%s" % urllib.parse.quote("自形车"))
+    check("纠错建议（自形车→自行车）", r, '"corrected":"自行车"')
+    # 增强搜索：纠错生效 + 行情标签 + 埋点（主校区图书教材中位价 25 为种子确定性数值）
+    _, _, r = call("GET", "/search/products?keyword=%s&campusId=1&page=1&pageSize=12" % urllib.parse.quote("教材"))
+    check("增强搜索接口可用", r, '"code":200')
+    check("结果内嵌品类中位价", r, '"marketMedian":25')
+    _slog = ((r.get("data") or {}).get("logId") if isinstance(r, dict) else None)
+    check("搜索埋点已写入（返回 logId）", _slog, None)
+    _recs = (((r.get("data") or {}).get("page") or {}).get("records") or []) if isinstance(r, dict) else []
+    _pid_hit = _recs[0].get("id") if _recs else None
+    _, _, r = call("POST", "/search/log/click", {"logId": _slog, "productId": _pid_hit})
+    check("点击信标回传成功", r, '"code":200')
+    # 搜索自动纠错：自形车 → 自行车
+    _, _, r = call("GET", "/search/products?keyword=%s" % urllib.parse.quote("自形车"))
+    check("搜索自动纠错生效", r, '"corrected":"自行车"')
+    # 进阶开关（缺省关闭）：成色参数被忽略——主校区在售含八成新商品
+    _, _, r = call("GET", "/search/products?campusId=1&productCondition=%s" % urllib.parse.quote("全新"))
+    check("进阶开关关闭时成色参数被忽略", r, '"productCondition":"八成新"')
+    # 进阶开关开启：读全量设置 → 翻转 → 验证 → 还原（设置保存为整体替换，必须全量写回）
+    _, _, r = call("GET", "/admin/settings", token=admin_token)
+    check("读取全量设置准备翻转成色筛选", r, '"trade"')
+    _full_settings = (r.get("data") or {})
+    _trade_cf = dict(_full_settings.get("trade") or {}, searchConditionFilter=True)
+    _, _, r = call("PUT", "/admin/settings", dict(_full_settings, trade=_trade_cf), token=admin_token)
+    check("开启成色二次筛选成功", r, '"code":200')
+    _, _, r = call("GET", "/search/products?campusId=1&productCondition=%s" % urllib.parse.quote("八成新"))
+    check("开关开启后成色筛选生效", r, '"productCondition":"八成新"')
+    _cf_ok = all((i.get("productCondition") == "八成新")
+                 for i in (((r.get("data") or {}).get("page") or {}).get("records") or []))
+    check("筛选结果全部为指定成色", {"ok": _cf_ok}, '"ok":true')
+    _trade_cf["searchConditionFilter"] = False
+    _, _, r = call("PUT", "/admin/settings", dict(_full_settings, trade=_trade_cf), token=admin_token)
+    check("成色筛选开关已还原为关闭", r, '"code":200')
+
+    # ---------- 34. 场景化推荐：三位置与可解释文案 ----------
+    section("34. 场景化推荐")
+    _, _, r = call("GET", "/recommend/home?campusId=1")
+    check("首页冷启动推荐可用", r, '"code":200')
+    check("推荐项强制携带推荐原因", r, '"reason"')
+    check("R1 文案为校区成交活跃", r, "近期成交活跃")
+    # 互补推荐：搜「教材」（结果含滞销教材）→ 排除结果里的滞销教材 → 推荐编程书籍套装
+    _, _, r = call("GET", "/recommend/complementary?keyword=%s&campusId=1&excludeIds=%s" % (urllib.parse.quote("教材"), stale_id))
+    check("搜索后互补推荐可用", r, "编程书籍套装")
+    check("互补推荐文案带搜索词", r, "经常和「教材」一起交易")
+    # 字典未命中 → 空列表不凑数
+    _, _, r = call("GET", "/recommend/complementary?keyword=%s" % urllib.parse.quote("不存在的神秘词"))
+    check("字典未命中返回空不凑数", r, '"data":[]')
+    # 详情页：同校同款（种子商品 2 与滞销教材同为图书教材·八成新·主校区；
+    # 滞销商品 ID 按标题从「我的发布」解析，兼容新库（id=18）与老库（自增顺延））
+    _, _, r = call("GET", "/recommend/for-product/%s" % stale_id)
+    check("详情页推荐可用", r, "编程书籍套装")
+    check("R4 文案为同校区同成色同类", r, "同校区·八成新·同类闲置")
+    _, _, r = call("GET", "/recommend/for-product/999999")
+    check("详情页商品不存在返回 null", r, '"data":null')
+    # 推荐总开关：关闭后统一返回 null（同样全量读改写）
+    _, _, r = call("GET", "/admin/settings", token=admin_token)
+    _full_settings = (r.get("data") or {})
+    _trade_re = dict(_full_settings.get("trade") or {}, recommendEnabled=False)
+    call("PUT", "/admin/settings", dict(_full_settings, trade=_trade_re), token=admin_token)
+    _, _, r = call("GET", "/recommend/home?campusId=1")
+    check("推荐总开关关闭后接口返回 null", r, '"data":null')
+    _trade_re["recommendEnabled"] = True
+    _, _, r = call("PUT", "/admin/settings", dict(_full_settings, trade=_trade_re), token=admin_token)
+    check("推荐总开关已还原为开启", r, '"code":200')
+    _, _, r = call("GET", "/recommend/home?campusId=1")
+    check("开关还原后推荐恢复", r, '"reason"')
+
+    # ---------- 35. 行情看板与数据飞轮 ----------
+    section("35. 行情看板与数据飞轮")
+    _, _, r = call("GET", "/market/campus-summary?campusId=1&topN=3")
+    check("本校行情看板可用", r, '"code":200')
+    check("看板含品类名与中位价", r, '"medianPrice"')
+    check("TOP1 为成交最活跃的手机数码", r, '"categoryName":"手机数码"')
+    # 数据飞轮（相对断言）：运动户外·八成新 种子样本 3 → 走真实 API 成交一笔 → 4
+    _cond6 = urllib.parse.quote("八成新")
+    _, _, r = call("GET", "/market/summary?categoryId=6&condition=" + _cond6)
+    _before = ((r.get("data") or {}).get("sampleSize") if isinstance(r, dict) else None)
+    check("飞轮前行情样本可读（≥3）",
+          {"ok": isinstance(_before, int) and _before >= 3}, '"ok":true')
+    _, _, r = call("POST", "/product/add", {
+        "title": "冒烟飞轮瑜伽垫", "categoryId": 6, "price": 50.00,
+        "productCondition": "八成新", "tradeType": "线下", "campusId": 1,
+        "description": "数据飞轮演示成交", "address": "江畔大学主校区体育馆",
+        "longitude": 114.3548, "latitude": 30.5415, "images": []}, token=me_token)
+    fly_pid = ((r.get("data") or {}).get("productId") if isinstance(r, dict) else None)
+    check("飞轮演示商品发布成功", fly_pid, None)
+    _, _, r = call("GET", "/search/products?keyword=%s&campusId=1" % urllib.parse.quote("瑜伽垫"))
+    _flog = ((r.get("data") or {}).get("logId") if isinstance(r, dict) else None)
+    call("POST", "/search/log/click", {"logId": _flog, "productId": fly_pid})
+    _, _, r = call("POST", "/order/create", {"productIds": [fly_pid]}, token=peer_token)
+    fly_no = ((r.get("data") or {}).get("orderNo") if isinstance(r, dict) else None)
+    check("飞轮订单创建成功", fly_no, None)
+    _, _, r = call("POST", "/order/%s/pay" % fly_no, token=peer_token)
+    check("飞轮订单支付成功", r, '"code":200')
+    _, _, r = call("GET", "/market/summary?categoryId=6&condition=" + _cond6)
+    _after = ((r.get("data") or {}).get("sampleSize") if isinstance(r, dict) else None)
+    check("成交后行情样本自动 +1（数据飞轮）",
+          {"grown": isinstance(_before, int) and isinstance(_after, int) and _after == _before + 1},
+          '"grown":true')
+    _, _, r = call("GET", "/search/log/list?keyword=%s" % urllib.parse.quote("瑜伽垫"))
+    check("搜索埋点可查", r, "瑜伽垫")
+    check("点击→成交归因成功（dealFlag=1）", r, '"dealFlag":1')
+    # 收尾：删除飞轮商品（行情样本回落），用例可重复执行
+    call("DELETE", "/admin/products/%s" % fly_pid, token=admin_token)
+
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)
     # 把演示账号 testuser1 的资料恢复为初始状态（邮箱与简介在种子里为空）
