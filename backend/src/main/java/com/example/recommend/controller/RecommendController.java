@@ -1,5 +1,7 @@
 package com.example.recommend.controller;
 
+import com.example.admin.dto.SystemSettingDTO;
+import com.example.admin.service.SystemSettingService;
 import com.example.common.Result;
 import com.example.recommend.service.RecommendService;
 import com.example.recommend.vo.RecommendItemVO;
@@ -33,6 +35,18 @@ public class RecommendController {
     /** 场景化推荐服务对象 */
     private final RecommendService recommendService;
 
+    /** 系统设置服务（推荐总开关的前置门卫：必须在缓存读取之前拦截，否则缓存会绕过开关语义） */
+    private final SystemSettingService systemSettingService;
+
+    /**
+     * 推荐总开关（后台「交易设置」的 recommendEnabled，缺省开启）；
+     * 与服务层门卫构成双保险——控制器层先行拦截，保证关闭后立即生效
+     */
+    private boolean recommendEnabled() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings.getTrade() == null || !Boolean.FALSE.equals(settings.getTrade().getRecommendEnabled());
+    }
+
     /**
      * 首页冷启动推荐
      *
@@ -42,6 +56,9 @@ public class RecommendController {
     @ApiOperation(value = "首页冷启动推荐", notes = "无需登录；R1 校区成交活跃 → R2 本校高频品类 → 本校/校园最新闲置兜底，条目带推荐原因")
     @GetMapping("/home")
     public Result<List<RecommendItemVO>> home(@RequestParam(required = false) Long campusId) {
+        if (!recommendEnabled()) {
+            return Result.success(null);
+        }
         return Result.success(recommendService.homeRecommend(campusId));
     }
 
@@ -59,6 +76,9 @@ public class RecommendController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long campusId,
             @RequestParam(required = false) List<Long> excludeIds) {
+        if (!recommendEnabled()) {
+            return Result.success(null);
+        }
         return Result.success(recommendService.complementaryRecommend(keyword, campusId, excludeIds));
     }
 
@@ -71,6 +91,9 @@ public class RecommendController {
     @ApiOperation(value = "详情页推荐", notes = "无需登录；R4 同校区+同品类+同成色三梯队 → R5 互补闲置，条目带推荐原因")
     @GetMapping("/for-product/{productId}")
     public Result<List<RecommendItemVO>> forProduct(@PathVariable Long productId) {
+        if (!recommendEnabled()) {
+            return Result.success(null);
+        }
         return Result.success(recommendService.productRecommend(productId));
     }
 }

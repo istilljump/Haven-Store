@@ -45,6 +45,15 @@ public class CacheConfig {
     /** AI 估价结果缓存名 */
     public static final String CACHE_ESTIMATIONS = "productEstimations";
 
+    /** 搜索补全缓存名（词库静态 + 热度统计，短 TTL 兼顾飞轮即时性） */
+    public static final String CACHE_SUGGEST = "searchSuggest";
+
+    /** 场景化推荐缓存名（R1~R5 统计查询复用，短 TTL） */
+    public static final String CACHE_RECOMMEND = "recommend";
+
+    /** 推荐短缓存 TTL（分钟）：交易与行情随时在变，缓存只为削峰不为长期复用 */
+    private static final long SHORT_TTL_MINUTES = 5;
+
     /**
      * 基于 Redis 的缓存管理器
      */
@@ -62,6 +71,8 @@ public class CacheConfig {
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
         cacheConfigs.put(CACHE_CATEGORIES, baseConfig(keyPair, valuePair).entryTtl(Duration.ofMinutes(10)));
         cacheConfigs.put(CACHE_ESTIMATIONS, baseConfig(keyPair, valuePair).entryTtl(Duration.ofMinutes(30)));
+        cacheConfigs.put(CACHE_SUGGEST, baseConfig(keyPair, valuePair).entryTtl(Duration.ofMinutes(SHORT_TTL_MINUTES)));
+        cacheConfigs.put(CACHE_RECOMMEND, baseConfig(keyPair, valuePair).entryTtl(Duration.ofMinutes(SHORT_TTL_MINUTES)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(baseConfig(keyPair, valuePair).entryTtl(Duration.ofMinutes(10)))

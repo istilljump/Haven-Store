@@ -91,6 +91,10 @@ public class SearchServiceImpl implements SearchService, SearchLogService {
     private final SystemSettingService systemSettingService;
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(
+            cacheNames = com.example.config.CacheConfig.CACHE_SUGGEST,
+            key = "#q + '|' + (#campusId ?: 0)",
+            unless = "#result == null || #result.items.isEmpty()")
     public SearchSuggestResultVO suggest(String q, Long campusId, int limit) {
         int max = limit <= 0 ? DEFAULT_SUGGEST_LIMIT : limit;
         SearchSuggestResultVO result = new SearchSuggestResultVO();

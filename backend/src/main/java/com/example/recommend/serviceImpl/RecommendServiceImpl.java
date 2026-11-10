@@ -62,6 +62,10 @@ public class RecommendServiceImpl implements RecommendService {
     private final SystemSettingService systemSettingService;
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(
+            cacheNames = com.example.config.CacheConfig.CACHE_RECOMMEND,
+            key = "'home|' + (#campusId ?: 0)",
+            unless = "#result == null || #result.isEmpty()")
     public List<RecommendItemVO> homeRecommend(Long campusId) {
         if (!recommendEnabled()) {
             return null;
@@ -123,6 +127,10 @@ public class RecommendServiceImpl implements RecommendService {
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(
+            cacheNames = com.example.config.CacheConfig.CACHE_RECOMMEND,
+            key = "'compl|' + #keyword + '|' + (#campusId ?: 0) + '|' + (#excludeIds != null ? #excludeIds.toString() : '')",
+            unless = "#result == null || #result.isEmpty()")
     public List<RecommendItemVO> complementaryRecommend(String keyword, Long campusId, List<Long> excludeIds) {
         if (!recommendEnabled() || !StringUtils.hasText(keyword)) {
             return null;
@@ -181,6 +189,10 @@ public class RecommendServiceImpl implements RecommendService {
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(
+            cacheNames = com.example.config.CacheConfig.CACHE_RECOMMEND,
+            key = "'prod|' + #productId",
+            unless = "#result == null || #result.isEmpty()")
     public List<RecommendItemVO> productRecommend(Long productId) {
         if (!recommendEnabled() || productId == null) {
             return null;
