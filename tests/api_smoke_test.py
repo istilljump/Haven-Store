@@ -586,7 +586,8 @@ def main():
     check("含卖家用户名", r, "testuser1")
     check("含卖家在售数", r, '"sellerProductCount"')
     check("含成色与交易方式", r, '"productCondition"')
-    check("含线下交易地址", r, "北京市朝阳区")
+    # 种子商品 1 的线下地址本轮随校园场景化更新为校区坐标（见 01-schema.sql 种子）
+    check("含线下交易地址", r, "江畔大学主校区")
 
     views_before = ((r.get("data") or {}).get("viewCount") or 0) if isinstance(r, dict) else 0
     _, _, r2 = call("GET", "/product/detail/1")
@@ -1353,6 +1354,105 @@ def main():
 
     # 收尾：删除举报测试商品与注册用户无法删除（无删除接口），商品删除即可
     call("DELETE", "/admin/products/%s" % report_pid, token=admin_token)
+
+    # ---------- 31. 成交行情与数据驱动定价 ----------
+    # 依据 01-schema.sql 的历史成交种子：手机数码·九成新窗口内 5 件（中位价 3600）。
+    # 本脚本前面章节支付过的「冒烟」商品会临时并入样本，因此只断言
+    # 「依据类型 / 样本量下限 / 确定性一致」，不断言中位价精确值（避免与灌数顺序耦合）
+    section("31. 成交行情与数据驱动定价")
+    _, _, r = call("POST", "/product/estimate",
+                   {"title": "冒烟行情估价测试甲", "description": "行情估价验证",
+                    "productCondition": "九成新", "categoryId": 1}, token=me_token)
+    check("行情估价返回成功", r, '"code":200')
+    check("估价依据为平台成交行情", r, '"basisType":"MARKET_DATA"')
+    _sample = ((r.get("data") or {}).get("sampleSize") if isinstance(r, dict) else None)
+    check("行情样本量不少于3件", {"ok": isinstance(_sample, int) and _sample >= 3}, '"ok":true')
+    check("估价带回可解释依据", r, "成交区间")
+    check("估价带回中位价", r, '"marketMedian"')
+    _price_a = ((r.get("data") or {}).get("estimatedPrice") if isinstance(r, dict) else None)
+
+    # 换一个标题（不同缓存键）再估一次：两条路径都取同一份行情，建议价必须一致——
+    # 这是「同数据同结果」的确定性契约，也证明结果不是缓存碰巧相同
+    _, _, r = call("POST", "/product/estimate",
+                   {"title": "冒烟行情估价测试乙换标题避免命中缓存", "description": "行情估价验证",
+                    "productCondition": "九成新", "categoryId": 1}, token=me_token)
+    _price_b = ((r.get("data") or {}).get("estimatedPrice") if isinstance(r, dict) else None)
+    check("不同标题同行情估价结果一致（确定性）",
+          {"same": _price_a is not None and _price_b is not None
+           and float(_price_a) == float(_price_b)}, '"same":true')
+
+    # 降级路径：该成色窗口内无成交样本，必须明示走规则基线而不是假装智能
+    _, _, r = call("POST", "/product/estimate",
+                   {"title": "冒烟行情降级测试", "description": "无成交样本",
+                    "productCondition": "七成新及以下", "categoryId": 1}, token=me_token)
+    check("无样本成色降级为规则基线", r, '"basisType":"RULE_BASELINE"')
+    check("降级路径明示数据积累中", r, "数据积累中")
+
+    # 行情查询接口（游客可用）
+    _cond = urllib.parse.quote("九成新")
+    _, _, r = call("GET", "/market/summary?categoryId=1&condition=%s" % _cond)
+    check("行情查询接口可用（游客）", r, '"code":200')
+    check("行情接口返回成交依据", r, '"basisType":"MARKET_DATA"')
+
+    # 详情页：行情卡 + 划算指数 + 校区信息
+    _, _, r = call("GET", "/product/detail/1")
+    check("详情页带回成交行情", r, '"marketBasis"')
+    check("详情页带回价格分位", r, '"pricePosition"')
+    check("详情页带回校区名称", r, "江畔大学·主校区")
+
+    # ---------- 32. 校园场景与降价建议 ----------
+    section("32. 校园场景与降价建议")
+    _, _, r = call("GET", "/campus/list")
+    check("校区列表可用（游客）", r, '"code":200')
+    check("校区种子包含江畔大学主校区", r, "江畔大学·主校区")
+    campus_id = None
+    for _item in ((r.get("data") or []) if isinstance(r, dict) else []):
+        if "主校区" in (_item.get("name") or ""):
+            campus_id = _item.get("id")
+            break
+    check("能定位主校区ID", campus_id, None)
+    _, _, r = call("GET", "/campus/%s/meet-points" % campus_id)
+    check("主校区面交点列表可用", r, "东门快递驿站")
+    _, _, r = call("GET", "/campus/nearest-meet-point?campusId=%s&longitude=114.3565&latitude=30.5402" % campus_id)
+    check("最近面交点推荐为东门快递驿站", r, "东门快递驿站")
+    _dist = ((r.get("data") or {}).get("distanceMeters") if isinstance(r, dict) else None)
+    check("面交点距离为合理数值（0~1000米）",
+          {"ok": isinstance(_dist, int) and 0 < _dist < 1000}, '"ok":true')
+
+    # 校区筛选：返回商品全部属于该校区，且主校区在售商品不少于 2 件（种子商品 1/2/18）
+    _, _, r = call("GET", "/product/search?campusId=%s&page=1&pageSize=50" % campus_id)
+    check("按校区筛选商品可用", r, '"code":200')
+    _records = ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []
+    check("筛选结果全部属于该校区",
+          {"all": bool(_records) and all(item.get("campusId") == campus_id for item in _records)},
+          '"all":true')
+    _total = ((r.get("data") or {}).get("total") if isinstance(r, dict) else 0)
+    check("主校区在售商品不少于2件", {"ok": isinstance(_total, int) and _total >= 2}, '"ok":true')
+
+    # 降价建议：种子商品「高等数学教材（第七版）」挂牌 20 天、定价 45 高于行情中位价 25 的九折，
+    # 「我的发布」必须给出建议价 22（25 × 0.9 向下取整）；改价后还原，保持演示数据稳定
+    _, _, r = call("GET", "/product/mine?page=1&pageSize=50", token=me_token)
+    stale = None
+    for _item in ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []:
+        if _item.get("title") == "高等数学教材（第七版）":
+            stale = _item
+            break
+    check("滞销演示商品在「我的发布」中", stale, None)
+    check("滞销商品带降价建议",
+          stale.get("priceSuggestion") if stale else None, None)
+    _suggest = ((stale.get("priceSuggestion") or {}).get("suggestedPrice") if stale else None)
+    check("建议价为行情九折取整 22", {"v": float(_suggest)} if _suggest is not None else None, '"v":22.0')
+    check("建议附行情依据说明",
+          (stale.get("priceSuggestion") or {}).get("reason") if stale else None, "中位价")
+    stale_id = stale.get("id") if stale else None
+    _, _, r = call("POST", "/product/%s/price" % stale_id, {"price": 22.00}, token=me_token)
+    check("卖家一键采纳降价建议成功", r, '"code":200')
+    _, _, r = call("GET", "/product/detail/%s" % stale_id)
+    check("改价后详情页价格已更新", r, '"price":22')
+    _, _, r = call("POST", "/product/%s/price" % stale_id, {"price": 45.00}, token=peer_token)
+    check("非卖家改价被拒（403）", r, '"code":403')
+    _, _, r = call("POST", "/product/%s/price" % stale_id, {"price": 45.00}, token=me_token)
+    check("演示价格已还原为 45 元", r, '"code":200')
 
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)

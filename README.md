@@ -1,21 +1,42 @@
-# 二手商品交易市场
+# 闲置港湾 Haven-Store
 
 [![CI](https://github.com/istilljump/Haven-Store/actions/workflows/ci.yml/badge.svg)](https://github.com/istilljump/Haven-Store/actions/workflows/ci.yml)
 
-基于Spring Boot + Vue.js的全栈二手交易平台，支持商品发布、附近商品搜索、AI智能估价、商品评价、收藏与购物车、下单支付、私信与商品咨询、系统消息等功能。
+> **毕业不甩卖，闲置有归宿。** 面向校园与同城的闲置循环平台——用平台真实成交行情帮卖家定对价，用校区与安全面交点让线下交易更省心。
+
+二手交易最难的不是"上架一个商品"，而是三件事：**卖家的闲置不知道值多少钱、同城面交约在哪里不放心、买家不知道眼前的价格亏不亏**。Haven-Store 把平台自己的成交记录变成定价行情——发布时给出可解释的建议价（"近 90 天同类成交 5 件，¥2,900~¥4,200，中位价 ¥3,600"），挂久了没人问就主动提示降价；把"附近"做成校区筛选与推荐面交点；再用已验证购买评价和举报闭环兜住信任。每一笔成交又回流为行情数据——**交易越多，估价越准的数据飞轮**。
+
+技术栈：Spring Boot + MyBatis-Plus + MySQL 8 + Redis 7 · Vue 3 + Element Plus + ECharts · 全链路「发布 → 估价 → 校区浏览 → 私信咨询 → 下单锁货 → 面单交收 → 评价 → 举报处理」闭环，零配置 10 分钟跑通、由 370 项自动化冒烟断言验收。
+
+## 🌟 招牌能力（2026-11 新增）
+
+### ① 数据驱动定价（AI 定价助手 2.0）
+
+- **成交行情估价**：以平台自身 `order_item` 成交快照为样本，按「分类 × 成色」聚合近 90 天成交，取**中位价**为建议价，依据（样本量/区间/中位价）逐条透出——不接外部 AI，纯统计口径，可解释、可断言、可复现
+- **诚实降级**：同类成交样本不足（后台可设阈值，默认 3 件）时明示"数据积累中，按规则基线估价"，不假装智能
+- **买家侧划算指数**：详情页显示「低于近期 X% 的同类成交价」（价格分位）
+- **卖家侧降价建议**：滞销商品（挂牌超 N 天且价格高于行情九折）在「我的发布」提示"建议降至 ¥X"并可一键采纳（`POST /product/{id}/price`，定价权始终在卖家手里）
+- **确定性契约**：估价不再含随机波动，同输入必同输出
+- **全部可开关**：后台「交易设置」提供 行情估价 / 划算指数 / 降价建议 / 滞销天数 / 最小样本量 五项配置，缺省开启
+
+### ② 校园 LBS 场景化
+
+- **校区维度**：商品可挂到校区（`campus` 表，含中心坐标），列表页校区筛选，附近模式可取校区中心为圆心
+- **安全面交点**：种子内置快递驿站/图书馆前/校门口等推荐面交位置，详情页按 Haversine 球面距离推荐"距商品最近的面交点"，同城面交有明确赴约地点
+- **校园演示数据**：开箱即用的历史成交种子让行情、划算指数、降价建议三个能力装完就能演示
 
 ## 🔄 复现性声明与 10 分钟极速复现指南
 
 ### 复现性声明
 
-本项目承诺：**在满足下述环境要求的前提下，任何人从仓库零起步，都能在 10 分钟内将系统完整跑起来，并通过 340 项自动化冒烟断言验证功能与预期一致。** 为此我们做了四件事：
+本项目承诺：**在满足下述环境要求的前提下，任何人从仓库零起步，都能在 10 分钟内将系统完整跑起来，并通过 370 项自动化冒烟断言验证功能与预期一致。** 为此我们做了四件事：
 
-1. **环境即代码**：数据库结构（12 张表）与种子数据全部由 `backend/sql/01-schema.sql` 一个脚本确定，不依赖任何手工建库步骤；后端/前端依赖版本分别由 `pom.xml` 与 `package-lock.json` 锁定。
+1. **环境即代码**：数据库结构（14 张表：业务 12 张 + 校区 + 面交点）与种子数据（含历史成交行情样本）全部由 `backend/sql/01-schema.sql` 一个脚本确定，不依赖任何手工建库步骤；后端/前端依赖版本分别由 `pom.xml` 与 `package-lock.json` 锁定。
 2. **配置有默认值、可被环境变量覆盖**：所有敏感或环境相关配置（数据库口令、JWT 密钥等）都写成 `${VAR:默认值}` 形式——默认值保证零配置即可在本机跑通，部署时用环境变量覆盖即可，无需改动任何代码或配置文件。
-3. **行为有断言**：`tests/api_smoke_test.py` 覆盖 340 项断言（注册、发布、下单支付、私信、举报闭环、管理端全部页面、导出、设置生效等），`mvn test` 另有 66 项单元测试。复现是否成功不看"页面能打开"的感觉，看这两组测试是否全绿。
-4. **无外部服务依赖**：不依赖任何真实支付网关、短信/邮件服务或付费 AI 接口（AI 估值为本地规则模拟），MySQL 8 与 Redis 7 是仅有的两个外部依赖，且仓库附带免管理员一键拉起脚本。
+3. **行为有断言**：`tests/api_smoke_test.py` 覆盖 370 项断言（注册、发布、行情估价、校区筛选、面交点推荐、降价建议、下单支付、私信、举报闭环、管理端全部页面、导出、设置生效等），`mvn test` 另有 73 项单元测试（含行情聚合的精确值断言）。复现是否成功不看"页面能打开"的感觉，看这两组测试是否全绿。
+4. **无外部服务依赖**：不依赖任何真实支付网关、短信/邮件服务或付费 AI 接口（估值为平台成交数据的统计模型 + 规则基线降级），MySQL 8 与 Redis 7 是仅有的两个外部依赖，且仓库附带免管理员一键拉起脚本。
 
-**已知非确定性因素**（不影响功能复现，仅影响具体数值）：AI 估价结果含 ±200 元随机波动（模拟 AI 不确定性）；所有时间戳取运行时刻；并发场景下商品被谁买走取决于竞争顺序。除此之外，相同输入必然得到相同输出。
+**已知非确定性因素**（不影响功能复现，仅影响具体数值）：所有时间戳取运行时刻（行情种子按 `NOW()` 相对天数写入，统计窗口因此始终有效）；并发场景下商品被谁买走取决于竞争顺序。估价本身**不含随机波动**——同数据必得同结果。除此之外，相同输入必然得到相同输出。
 
 ### ⏱ 10 分钟极速复现（Windows 一键路线）
 
@@ -29,7 +50,7 @@
 | 4 | 双击 jar 或 `java -jar backend\target\second-hand-market-1.0.0.jar` | 15 s | 控制台出现 `Started SecondHandMarketApplication` |
 | 5 | `cd frontend && npm install`（首次） | 2-3 min | 依赖安装完成 |
 | 6 | `cd frontend && npm run dev` | 10 s | Vite 启动，浏览器打开 http://localhost:3000 |
-| 7 | 验证：`python tests/api_smoke_test.py` | 1 min | 输出 `通过: 340   失败: 0` |
+| 7 | 验证：`python tests/api_smoke_test.py` | 1 min | 输出 `通过: 370   失败: 0` |
 
 **验收账号**（由种子数据写入）：管理员 `admin / admin123`（后台 http://localhost:3000/admin），普通用户 `testuser1 / 123456`、`testuser2 / 123456`。种子数据自带 2 件在售商品（二手 iPhone 12、编程书籍套装）与 8 个分类。
 
@@ -90,10 +111,24 @@ $env:JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
 
 1. `curl http://localhost:8080/api/health` 返回 `{"code":200,...}`；
 2. 用 `testuser1 / 123456` 能登录前端并在商品列表看到「二手iPhone 12」；
-3. `python tests/api_smoke_test.py` 输出 **通过: 340 失败: 0**；
-4. `cd backend && mvn test` 输出 **Tests run: 66, Failures: 0, Errors: 0**。
+3. `python tests/api_smoke_test.py` 输出 **通过: 370 失败: 0**；
+4. `cd backend && mvn test` 输出 **Tests run: 73, Failures: 0, Errors: 0**。
 
-## 🆕 本轮升级一览（2026-10）
+## 🆕 本轮升级一览（2026-11 · 定位重塑）
+
+> 本轮把项目从「通用二手平台」重塑为「校园闲置循环平台 × 数据驱动定价」，方案全文见 `docs/011-项目定位重塑方案.md`。
+
+- **品牌叙事**：中文副品牌「闲置港湾 Haven-Store」+ 口号"毕业不甩卖，闲置有归宿"，落地到首页/登录页/页面标题/站点设置
+- **新模块 `market`（成交行情）**：`GET /market/summary` 查询「分类×成色」近 90 天成交基线（样本量/区间/中位价，游客可用）；估价双路径 = 成交中位价（MARKET_DATA）→ 样本不足降级规则基线（RULE_BASELINE）；**移除 ±200 随机抖动**
+- **新模块 `campus`（校园场景）**：`GET /campus/list`、`GET /campus/{id}/meet-points`、`GET /campus/nearest-meet-point`（Haversine 距离）；`product.campus_id` + 列表校区筛选 + 发布向导选校区 + 详情页推荐面交点
+- **新接口**：`POST /product/{id}/price`（卖家改价，仅卖家/仅在售）；`/product/search` 新增 `campusId` 参数
+- **详情页新字段**：`marketBasis`（行情基线）、`pricePosition`（价格分位）、`campusName`；「我的发布」新字段 `priceSuggestion`（降价建议）
+- **设置扩展**：`trade.marketBasis / dealBadge / priceSuggest / staleDays / minSampleSize` 五项后台开关（缺省开启，老配置缺字段按缺省处理）；公开配置接口同步透出
+- **数据库**：14 张表（+`campus`、`meet_point`），`product` 加 `campus_id`；种子新增历史成交 15 件（四个「分类×成色」组合的中位价开箱可演示）与滞销演示商品 1 件；老库执行 `backend/sql/03-upgrade.sql` 幂等升级
+- **测试**：冒烟 340 → **370**（新增行情估价确定性、降级路径、校区筛选、面交点距离、降价建议与改价权限等断言）；单测 66 → **73**（新增 `MarketDataServiceImplTest`，估价改精确值断言）
+- **前端**：发布向导估价依据展示、详情页行情卡+划算指数+面交点、列表校区筛选、我的发布一键降价、品牌文案与站点名
+
+## 🆕 上一轮升级一览（2026-10）
 
 ### 安全与正确性（必修项）
 - **修复系统消息伪造漏洞**：移除任何登录用户可调用的 `POST /message/send`，群发能力只保留在管理后台
@@ -134,8 +169,9 @@ $env:JWT_SECRET='a-very-long-random-secret-at-least-32-bytes'
 - 分类列表 Redis 缓存（管理端变更自动驱逐）；评分改 SQL AVG
 
 ### 数据库升级
-- 全新安装直接执行 `backend/sql/01-schema.sql`（已含全部 12 张表）
-- **老库升级执行一次 `backend/sql/02-upgrade.sql`**：`system_message` 加群发批次号 `batch_no`，新增 `report`（举报）与 `system_setting`（系统设置）两张表
+- 全新安装直接执行 `backend/sql/01-schema.sql`（已含全部 14 张表与行情/校园种子）
+- **2026-10 老库升级执行一次 `backend/sql/02-upgrade.sql`**：`system_message` 加群发批次号 `batch_no`，新增 `report`（举报）与 `system_setting`（系统设置）两张表
+- **2026-11 老库升级执行一次 `backend/sql/03-upgrade.sql`**：新增 `campus`（校区）与 `meet_point`（面交点）表、`product.campus_id` 列、历史成交行情种子与滞销演示商品，并幂等同步品牌文案；可重复执行
 
 ### 测试
 - 冒烟测试 `tests/api_smoke_test.py` 扩至 336 项断言，覆盖注册、举报闭环、管理端订单/评论、看板趋势、设置生效等新能力
@@ -197,6 +233,7 @@ chmod +x scripts/deploy.sh
 |---|---|
 | `scripts/start-project.bat` | 一键启动：检查 MySQL/Redis（没运行会自动拉起）→ 起后端 → 起前端。之后浏览器打开 http://localhost:3000 |
 | `scripts/start-dev-services.bat` | 单独启动本机 MySQL 与 Redis（start-project.bat 会自动调用，也可单独双击） |
+| `scripts/stop-dev-services.bat` | 一键停止：结束后端/前端进程，安全关闭 Redis 与 MySQL（数据落盘）；与 start-dev-services.bat 配对使用 |
 | `scripts/rebuild-backend.bat` | 改过 Java 代码后重新编译打包（本机专用路径） |
 | `scripts/init-database.bat` | 初始化/重置数据库（会清空数据，慎用） |
 
@@ -420,10 +457,12 @@ Haven-Store/
 ├── backend/                 # Spring Boot后端
 │   ├── src/
 │   │   ├── main/
-│   │   │   ├── java/com/example/
+│   │   │   ├── java/com/example/   # 按业务分包：product/order/cart/message/user/admin/category/report
+│   │   │   │                        #   + market（成交行情：估价与划算指数的数据底座）
+│   │   │   │                        #   + campus（校园场景：校区与安全面交点）
 │   │   │   └── resources/
 │   │   └── test/
-│   ├── sql/                 # MySQL 建表脚本（01-schema.sql 建表+种子，02-upgrade.sql 老库升级）
+│   ├── sql/                 # MySQL 建表脚本（01-schema 建表+种子；02/03-upgrade 老库增量升级，均可重复执行）
 │   ├── legacy/              # 已废弃 SQL 归档（勿用，见其 README）
 │   ├── pom.xml
 │   └── Dockerfile
