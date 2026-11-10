@@ -72,6 +72,9 @@ public class SystemSettingDTO implements Serializable {
         trade.setPriceSuggest(true);
         trade.setStaleDays(14);
         trade.setMinSampleSize(3);
+        // 本轮新增：增强搜索与场景推荐的可选开关
+        trade.setRecommendEnabled(true);
+        trade.setSearchConditionFilter(false);
         dto.setTrade(trade);
 
         ContactSetting contact = new ContactSetting();
@@ -139,6 +142,10 @@ public class SystemSettingDTO implements Serializable {
         private Integer staleDays;
         /** 行情最小样本量（同类成交样本低于该值时不做行情估价与建议） */
         private Integer minSampleSize;
+        /** 是否启用场景化推荐（首页/搜索后/详情页三处推荐区块总开关） */
+        private Boolean recommendEnabled;
+        /** 是否启用搜索结果按成色二次筛选（进阶能力，缺省关闭） */
+        private Boolean searchConditionFilter;
     }
 
     /** 联系方式 */

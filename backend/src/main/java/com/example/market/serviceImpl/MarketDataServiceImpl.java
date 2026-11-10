@@ -3,6 +3,8 @@ package com.example.market.serviceImpl;
 import com.example.market.mapper.MarketDataMapper;
 import com.example.market.service.MarketDataService;
 import com.example.market.vo.MarketBasisVO;
+import com.example.market.vo.MarketCategoryStatVO;
+import com.example.market.vo.MarketDealStat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,7 +12,12 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 成交行情服务实现类
@@ -69,6 +76,72 @@ public class MarketDataServiceImpl implements MarketDataService {
         // 「低于该价格」= 成交价严格大于该价格的样本占比，与「低于近期 X% 成交价」的文案语义一致
         long above = prices.stream().filter(p -> p.compareTo(price) > 0).count();
         return (int) Math.round(above * 100.0 / prices.size());
+    }
+
+    @Override
+    public List<MarketDealStat> getDealStats(List<Integer> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return marketDataMapper.selectDealStats(categoryIds, STATISTICS_WINDOW_DAYS);
+    }
+
+    @Override
+    public List<MarketCategoryStatVO> getCampusTopCategories(Long campusId, int topN) {
+        if (campusId == null || topN <= 0) {
+            return new ArrayList<>();
+        }
+        List<Map<String, Object>> rows = marketDataMapper.selectCampusCategoryDeals(
+                campusId, STATISTICS_WINDOW_DAYS);
+        if (rows == null || rows.isEmpty()) {
+            return new ArrayList<>();
+        }
+        // 按品类聚合：件数 + 中位价（rows 量级 = 种子成交几十条，内存聚合毫秒级）
+        Map<Object, List<Map<String, Object>>> grouped = rows.stream()
+                .filter(r -> r.get("categoryId") != null)
+                .collect(Collectors.groupingBy(r -> r.get("categoryId"), LinkedHashMap::new, Collectors.toList()));
+        List<MarketCategoryStatVO> stats = new ArrayList<>();
+        for (Map.Entry<Object, List<Map<String, Object>>> entry : grouped.entrySet()) {
+            List<BigDecimal> prices = entry.getValue().stream()
+                    .map(r -> toBigDecimal(r.get("price")))
+                    .filter(p -> p != null)
+                    .sorted()
+                    .collect(Collectors.toList());
+            if (prices.isEmpty()) {
+                continue;
+            }
+            MarketCategoryStatVO vo = new MarketCategoryStatVO();
+            vo.setCategoryId(((Number) entry.getKey()).intValue());
+            Object name = entry.getValue().get(0).get("categoryName");
+            vo.setCategoryName(name == null ? null : String.valueOf(name));
+            vo.setDealCount(prices.size());
+            vo.setMedianPrice(median(prices));
+            stats.add(vo);
+        }
+        // 成交件数倒序，并列按品类 ID 升序（确定性，可断言）
+        stats.sort(Comparator.comparingInt(MarketCategoryStatVO::getDealCount).reversed()
+                .thenComparingInt(MarketCategoryStatVO::getCategoryId));
+        return stats.size() > topN ? new ArrayList<>(stats.subList(0, topN)) : stats;
+    }
+
+    /**
+     * Map 行的成交价安全转 BigDecimal
+     */
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue());
+        }
+        try {
+            return new BigDecimal(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

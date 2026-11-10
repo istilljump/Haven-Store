@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 成交行情数据访问层
@@ -44,4 +45,46 @@ public interface MarketDataMapper {
     List<BigDecimal> selectDealPrices(@Param("categoryId") Integer categoryId,
                                       @Param("condition") String condition,
                                       @Param("days") int days);
+
+    /**
+     * 批量取多个品类的成交明细（品类 × 成色 × 价格）
+     * <p>
+     * 供增强搜索给整页商品一次性附加行情标签，避免逐商品 N+1
+     *
+     * @param categoryIds 品类 ID 集合
+     * @param days        统计窗口（天）
+     * @return 明细行列表
+     */
+    @Select("<script>SELECT p.category_id AS categoryId, p.product_condition AS productCondition, "
+            + "oi.price AS price "
+            + "FROM order_item oi "
+            + "INNER JOIN product_order po ON po.id = oi.order_id "
+            + "INNER JOIN product p ON p.id = oi.product_id "
+            + "WHERE po.status IN (2, 4) "
+            + "AND po.pay_time IS NOT NULL "
+            + "AND po.pay_time &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY) "
+            + "AND p.category_id IN "
+            + "<foreach collection='categoryIds' item='cid' open='(' separator=',' close=')'>#{cid}</foreach>"
+            + "</script>")
+    List<com.example.market.vo.MarketDealStat> selectDealStats(@Param("categoryIds") List<Integer> categoryIds,
+                                                               @Param("days") int days);
+
+    /**
+     * 校区内成交明细（品类 × 价格），供首页「本校行情速览」聚合 TOP 品类
+     *
+     * @param campusId 校区 ID
+     * @param days     统计窗口（天）
+     * @return [{categoryId, categoryName, price}]
+     */
+    @Select("SELECT p.category_id AS categoryId, c.name AS categoryName, oi.price AS price "
+            + "FROM order_item oi "
+            + "INNER JOIN product_order po ON po.id = oi.order_id "
+            + "INNER JOIN product p ON p.id = oi.product_id "
+            + "INNER JOIN category c ON c.id = p.category_id "
+            + "WHERE po.status IN (2, 4) "
+            + "AND po.pay_time IS NOT NULL "
+            + "AND po.pay_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY) "
+            + "AND p.campus_id = #{campusId}")
+    List<Map<String, Object>> selectCampusCategoryDeals(@Param("campusId") Long campusId,
+                                                        @Param("days") int days);
 }

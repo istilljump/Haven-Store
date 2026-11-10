@@ -57,18 +57,20 @@ public interface ProductService {
      * <p>
      * 只返回在售状态（status=1）的商品；关键词对标题模糊匹配
      *
-     * @param keyword    关键词（商品标题，可为空）
-     * @param categoryId 分类 ID（可为空）
-     * @param campusId   校区 ID（可为空；传入时只返回该校区的商品）
-     * @param minPrice   价格下限（可为空）
-     * @param maxPrice   价格上限（可为空）
-     * @param sort       排序方式：latest 最新发布（默认）/ priceAsc 价格升序 / priceDesc 价格降序
-     * @param page       页码
-     * @param pageSize   每页条数
+     * @param keyword          关键词（商品标题，可为空）
+     * @param categoryId       分类 ID（可为空）
+     * @param campusId         校区 ID（可为空；传入时只返回该校区的商品）
+     * @param minPrice         价格下限（可为空）
+     * @param maxPrice         价格上限（可为空）
+     * @param sort             排序方式：latest 最新发布（默认）/ priceAsc 价格升序 / priceDesc 价格降序
+     * @param productCondition 成色筛选（可为空；由增强搜索在后台开关开启时传入）
+     * @param page             页码
+     * @param pageSize         每页条数
      * @return 商品分页数据
      */
     Page<ProductListVO> searchProducts(String keyword, Integer categoryId, Long campusId, BigDecimal minPrice,
-                                       BigDecimal maxPrice, String sort, Integer page, Integer pageSize);
+                                       BigDecimal maxPrice, String sort, String productCondition,
+                                       Integer page, Integer pageSize);
 
     /**
      * 修改自己发布的在售商品价格（「一键采纳降价建议」走此接口）

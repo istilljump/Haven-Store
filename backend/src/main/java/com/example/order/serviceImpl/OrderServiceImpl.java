@@ -41,6 +41,8 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+import com.example.search.service.SearchLogService;
+
 /**
  * 订单模块业务逻辑实现类
  *
@@ -70,6 +72,9 @@ public class OrderServiceImpl implements OrderService {
 
     /** 用户-商品关联数据访问对象（下单后把商品移出购物车） */
     private final UserProductRelationMapper userProductRelationMapper;
+
+    /** 搜索埋点服务（成交归因用；order→search 单向依赖，失败不影响支付） */
+    private final com.example.search.service.SearchLogService searchLogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -243,6 +248,17 @@ public class OrderServiceImpl implements OrderService {
         // 说明：此处为模拟支付，仅推进订单状态，项目未接入任何真实支付渠道，不产生真实扣款
         log.info("订单模拟支付成功，订单号：{}，买家ID：{}，金额：{}",
                 order.getOrderNo(), order.getBuyerId(), order.getTotalAmount());
+
+        // 搜索埋点成交归因（数据飞轮的一环）：把「点击过这些商品」的近期埋点标记为已成交。
+        // 事务外 try/catch：归因失败只告警，绝不影响支付主流程（order→search 单向依赖）
+        try {
+            List<Long> productIds = orderItemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
+                            .eq(OrderItem::getOrderId, order.getId()))
+                    .stream().map(OrderItem::getProductId).distinct().collect(Collectors.toList());
+            searchLogService.markDeals(productIds);
+        } catch (Exception e) {
+            log.warn("搜索埋点成交归因异常（忽略）：{}", e.getMessage());
+        }
     }
 
     @Override

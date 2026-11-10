@@ -82,4 +82,12 @@ public class ProductListVO implements Serializable {
     /** 降价建议（仅「我的发布」列表、且商品滞销时才有值；其他列表为 null） */
     @ApiModelProperty("降价建议")
     private PriceSuggestionVO priceSuggestion;
+
+    /** 该品类近 90 天成交中位价（仅增强搜索 /search/products 返回时才有值，卡片行情小字用） */
+    @ApiModelProperty("品类近期成交中位价")
+    private BigDecimal marketMedian;
+
+    /** 价格分位：低于该品类同成色近期 X% 成交价（仅增强搜索返回时才有值；样本不足为 null） */
+    @ApiModelProperty("价格分位")
+    private Integer pricePosition;
 }

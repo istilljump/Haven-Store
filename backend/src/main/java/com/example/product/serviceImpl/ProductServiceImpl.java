@@ -422,7 +422,8 @@ public class ProductServiceImpl implements ProductService {
      */
     @Override
     public Page<ProductListVO> searchProducts(String keyword, Integer categoryId, Long campusId, BigDecimal minPrice,
-                                              BigDecimal maxPrice, String sort, Integer page, Integer pageSize) {
+                                              BigDecimal maxPrice, String sort, String productCondition,
+                                              Integer page, Integer pageSize) {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
                 .eq(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode());
         if (StringUtils.hasText(keyword)) {
@@ -438,6 +439,9 @@ public class ProductServiceImpl implements ProductService {
         }
         if (campusId != null) {
             wrapper.eq(Product::getCampusId, campusId);
+        }
+        if (StringUtils.hasText(productCondition)) {
+            wrapper.eq(Product::getProductCondition, productCondition);
         }
         if (minPrice != null) {
             wrapper.ge(Product::getPrice, minPrice);

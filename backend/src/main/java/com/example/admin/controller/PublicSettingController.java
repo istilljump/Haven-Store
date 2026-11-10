@@ -53,6 +53,9 @@ public class PublicSettingController {
             data.put("marketBasis", !Boolean.FALSE.equals(settings.getTrade().getMarketBasis()));
             data.put("dealBadge", !Boolean.FALSE.equals(settings.getTrade().getDealBadge()));
             data.put("priceSuggest", !Boolean.FALSE.equals(settings.getTrade().getPriceSuggest()));
+            // 增强搜索与场景推荐的可选开关（推荐缺省开启，成色二次筛选缺省关闭）
+            data.put("recommendEnabled", !Boolean.FALSE.equals(settings.getTrade().getRecommendEnabled()));
+            data.put("searchConditionFilter", Boolean.TRUE.equals(settings.getTrade().getSearchConditionFilter()));
         }
         return Result.success(data);
     }

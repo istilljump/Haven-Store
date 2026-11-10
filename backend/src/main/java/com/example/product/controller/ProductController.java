@@ -142,7 +142,7 @@ public class ProductController {
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "12") Integer pageSize) {
-        return Result.success(productService.searchProducts(keyword, categoryId, campusId, minPrice, maxPrice, sort, page, pageSize));
+        return Result.success(productService.searchProducts(keyword, categoryId, campusId, minPrice, maxPrice, sort, null, page, pageSize));
     }
 
     /**
