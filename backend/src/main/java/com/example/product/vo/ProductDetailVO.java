@@ -170,4 +170,8 @@ public class ProductDetailVO implements Serializable {
     /** 成交行情基线（样本量/区间/中位价；无样本或开关关闭时为 null） */
     @ApiModelProperty("成交行情基线")
     private MarketBasisVO marketBasis;
+
+    /** 卖家信用画像（轮4：成交件数/评分/有效举报/信用分/等级；统计失败时为 null） */
+    @ApiModelProperty("卖家信用画像")
+    private CreditVO sellerCredit;
 }

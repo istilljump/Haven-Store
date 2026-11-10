@@ -116,14 +116,30 @@
             <div class="seller-section">
               <div class="seller-info">
                 <el-avatar :src="product.seller.avatar" size="small" />
-                <div class="seller-details">
-                  <div class="seller-name">{{ product.seller.username }}</div>
-                  <div class="seller-meta">
-                    <span>发布在售: {{ product.seller.productCount }} 件</span>
-                    <span v-if="product.contactPhone">|</span>
-                    <span v-if="product.contactPhone">联系电话: {{ product.contactPhone }}</span>
+                  <div class="seller-details">
+                    <div class="seller-name">{{ product.seller.username }}</div>
+                    <div class="seller-meta">
+                      <span>发布在售: {{ product.seller.productCount }} 件</span>
+                      <span v-if="product.contactPhone">|</span>
+                      <span v-if="product.contactPhone">联系电话: {{ product.contactPhone }}</span>
+                    </div>
+                    <!-- 可信交易轻量层：卖家信用画像（确定性公式，随交易即时变化） -->
+                    <div v-if="product.sellerCredit" class="seller-credit">
+                      <el-tag
+                        size="small"
+                        :type="product.sellerCredit.creditScore >= 85 ? 'success' : (product.sellerCredit.creditScore >= 70 ? 'primary' : 'info')"
+                      >
+                        信用 {{ product.sellerCredit.creditScore }} · {{ product.sellerCredit.level }}
+                      </el-tag>
+                      <span class="seller-credit-meta">
+                        成交 {{ product.sellerCredit.completedDeals }} 件 ·
+                        评分 {{ product.sellerCredit.avgRating === null ? '暂无' : product.sellerCredit.avgRating + ' 分' }}
+                        <template v-if="product.sellerCredit.validReports > 0">
+                          · 有效举报 {{ product.sellerCredit.validReports }} 次
+                        </template>
+                      </span>
+                    </div>
                   </div>
-                </div>
               </div>
             </div>
           </div>
@@ -511,7 +527,9 @@ export default {
       campusName: '',
       // 成交行情基线与价格分位（后端 dealBadge 开关控制，样本不足时为 null）
       marketBasis: null,
-      pricePosition: null
+      pricePosition: null,
+      // 卖家信用画像（轮4：可信交易轻量层，统计失败时为 null）
+      sellerCredit: null
     })
 
     // 推荐面交点（线下商品按商品坐标推荐，失败不影响详情）
@@ -669,7 +687,8 @@ export default {
           campusId: data.campusId || null,
           campusName: data.campusName || '',
           marketBasis: data.marketBasis || null,
-          pricePosition: data.pricePosition === undefined ? null : data.pricePosition
+          pricePosition: data.pricePosition === undefined ? null : data.pricePosition,
+          sellerCredit: data.sellerCredit || null
         })
         // 收藏状态由后端返回，未登录固定为 false
         isFavorited.value = data.favorited === true
@@ -1144,6 +1163,19 @@ export default {
 
 .trend-caption {
   width: 100%;
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 卖家信用画像（可信交易轻量层） */
+.seller-credit {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seller-credit-meta {
   font-size: 12px;
   color: #909399;
 }

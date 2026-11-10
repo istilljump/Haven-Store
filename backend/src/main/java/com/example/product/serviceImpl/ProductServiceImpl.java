@@ -36,6 +36,7 @@ import com.example.product.mapper.CommentMapper;
 import com.example.product.mapper.ProductImageMapper;
 import com.example.product.mapper.ProductMapper;
 import com.example.product.mapper.UserProductRelationMapper;
+import com.example.product.service.CreditService;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.CommentVO;
@@ -113,6 +114,9 @@ public class ProductServiceImpl implements ProductService {
 
     /** 校区数据访问对象：发布/编辑时校验校区合法性，详情页补齐校区名称 */
     private final CampusMapper campusMapper;
+
+    /** 卖家信用画像服务（轮4：可信交易轻量层，详情页展示） */
+    private final CreditService creditService;
 
     /** 分类启用状态标识（与 category.status 字段对应：1 启用，0 禁用） */
     private static final int CATEGORY_STATUS_ENABLE = 1;
@@ -566,6 +570,13 @@ public class ProductServiceImpl implements ProductService {
             }
         } catch (Exception e) {
             log.warn("成交行情读取失败，详情页不展示行情与划算指数：{}", e.getMessage());
+        }
+
+        // 卖家信用画像（轮4）：统计失败不阻断详情主流程
+        try {
+            vo.setSellerCredit(creditService.getCredit(product.getUserId()));
+        } catch (Exception e) {
+            log.warn("卖家信用画像统计失败，详情页不展示信用：{}", e.getMessage());
         }
         return vo;
     }

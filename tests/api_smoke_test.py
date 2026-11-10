@@ -1591,6 +1591,23 @@ def main():
     _, _, r = call("GET", "/market/trend?categoryId=1&condition=%s&days=0" % urllib.parse.quote("九成新"))
     check("非法窗口返回空列表", r, '"data":[]')
 
+    # ---------- 37. 卖家信用画像（可信交易轻量层） ----------
+    section("37. 卖家信用画像")
+    _, _, r = call("GET", "/credit/2")
+    check("信用接口可用（游客）", r, '"code":200')
+    check("信用接口返回成交件数", r, '"completedDeals"')
+    # 种子成交中卖家 testuser1 有 8 件（+冒烟前序章节成交），60 + N*3 + (5-3)*10 ≥ 100 → 夹取 100
+    _credit = ((r.get("data") or {}).get("creditScore") if isinstance(r, dict) else None)
+    check("信用分为满分 100（夹取上界）", {"v": _credit}, '"v":100')
+    check("信用等级为优秀", r, '"level":"优秀"')
+    _, _, r = call("GET", "/credit/999999")
+    check("不存在用户返回基线 60 分", r, '"creditScore":60')
+    check("基线等级为待积累", r, '"level":"待积累"')
+    # 详情页内嵌卖家信用画像
+    _, _, r = call("GET", "/product/detail/1")
+    check("详情页带回卖家信用画像", r, '"sellerCredit"')
+    check("详情页信用含成交与评分", r, '"completedDeals"')
+
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)
     # 把演示账号 testuser1 的资料恢复为初始状态（邮箱与简介在种子里为空）
