@@ -48,8 +48,8 @@ public class SystemSettingDTO implements Serializable {
         SystemSettingDTO dto = new SystemSettingDTO();
 
         SiteSetting site = new SiteSetting();
-        site.setName("Haven-Store");
-        site.setDescription("专业的二手商品交易平台");
+        site.setName("闲置港湾 Haven-Store");
+        site.setDescription("面向校园与同城的闲置循环平台——用真实成交行情定对价，用校区与面交点让面交更省心");
         site.setLogo("/logo.png");
         site.setIcp("京ICP备123456789号");
         dto.setSite(site);
@@ -66,6 +66,12 @@ public class SystemSettingDTO implements Serializable {
         trade.setEstimateConfidence(80);
         trade.setMaxPrice(1000000);
         trade.setAutoOfflineHours(0);
+        // 本轮新增：数据驱动定价的可选开关（缺省全开，老库旧 config_json 缺字段时同样按开启处理）
+        trade.setMarketBasis(true);
+        trade.setDealBadge(true);
+        trade.setPriceSuggest(true);
+        trade.setStaleDays(14);
+        trade.setMinSampleSize(3);
         dto.setTrade(trade);
 
         ContactSetting contact = new ContactSetting();
@@ -123,6 +129,16 @@ public class SystemSettingDTO implements Serializable {
         private Integer maxPrice;
         /** 商品自动下架时长（小时，0 表示不自动下架） */
         private Integer autoOfflineHours;
+        /** 是否启用成交行情估价（估价优先取平台成交中位价，关闭则走规则基线） */
+        private Boolean marketBasis;
+        /** 是否启用买家侧「划算指数」（详情页展示价格分位） */
+        private Boolean dealBadge;
+        /** 是否启用卖家侧「降价建议」（我的发布展示滞销降价提示） */
+        private Boolean priceSuggest;
+        /** 滞销判定天数（挂牌超过该天数且价格高于行情九折时提示降价） */
+        private Integer staleDays;
+        /** 行情最小样本量（同类成交样本低于该值时不做行情估价与建议） */
+        private Integer minSampleSize;
     }
 
     /** 联系方式 */

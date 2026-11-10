@@ -35,12 +35,12 @@ public class PublicSettingController {
      *
      * @return 站点信息 + 上传限制 + 估价开关
      */
-    @ApiOperation(value = "获取公开配置", notes = "无需登录；站点名称/描述/Logo、上传限制与 AI 估价开关")
+    @ApiOperation(value = "获取公开配置", notes = "无需登录；站点名称/描述/Logo、上传限制与估价/行情/划算指数/降价建议开关")
     @GetMapping("/settings")
     public Result<Map<String, Object>> getPublicSettings() {
         SystemSettingDTO settings = systemSettingService.get();
         Map<String, Object> data = new HashMap<>();
-        data.put("siteName", settings.getSite() == null ? "Haven-Store" : settings.getSite().getName());
+        data.put("siteName", settings.getSite() == null ? "闲置港湾 Haven-Store" : settings.getSite().getName());
         data.put("siteDescription", settings.getSite() == null ? null : settings.getSite().getDescription());
         data.put("siteLogo", settings.getSite() == null ? null : settings.getSite().getLogo());
         if (settings.getUpload() != null) {
@@ -49,6 +49,10 @@ public class PublicSettingController {
         }
         if (settings.getTrade() != null) {
             data.put("autoEstimate", !Boolean.FALSE.equals(settings.getTrade().getAutoEstimate()));
+            // 数据驱动定价的可选开关：前端据此决定是否展示行情卡与划算指数（缺省开启）
+            data.put("marketBasis", !Boolean.FALSE.equals(settings.getTrade().getMarketBasis()));
+            data.put("dealBadge", !Boolean.FALSE.equals(settings.getTrade().getDealBadge()));
+            data.put("priceSuggest", !Boolean.FALSE.equals(settings.getTrade().getPriceSuggest()));
         }
         return Result.success(data);
     }

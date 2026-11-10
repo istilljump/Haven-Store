@@ -7,6 +7,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 商品估价返回
@@ -43,4 +44,28 @@ public class ProductEstimateVO implements Serializable {
     /** 估价时间 */
     @ApiModelProperty("估价时间")
     private LocalDateTime estimateTime;
+
+    /** 依据类型：MARKET_DATA 平台成交行情 / RULE_BASELINE 规则基线（样本不足时降级） */
+    @ApiModelProperty("依据类型：MARKET_DATA/RULE_BASELINE")
+    private String basisType;
+
+    /** 参与估价的同类成交样本数（行情路径才有值） */
+    @ApiModelProperty("同类成交样本数")
+    private Integer sampleSize;
+
+    /** 同类成交中位价（行情路径才有值） */
+    @ApiModelProperty("同类成交中位价")
+    private BigDecimal marketMedian;
+
+    /** 同类成交最低价（行情路径才有值） */
+    @ApiModelProperty("同类成交最低价")
+    private BigDecimal marketMin;
+
+    /** 同类成交最高价（行情路径才有值） */
+    @ApiModelProperty("同类成交最高价")
+    private BigDecimal marketMax;
+
+    /** 可解释依据列表（逐条人类可读，前端直接展示） */
+    @ApiModelProperty("可解释依据列表")
+    private List<String> reasons;
 }
