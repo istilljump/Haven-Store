@@ -107,6 +107,10 @@ public class Product implements Serializable {
     @ApiModelProperty("纬度")
     private BigDecimal latitude;
 
+    /** 所属校区 ID（校园场景筛选与面交点推荐用；可为空，见 campus 表） */
+    @ApiModelProperty("所属校区ID")
+    private Long campusId;
+
     /** 创建时间（插入时由 MetaObjectHandler 自动填充） */
     @ApiModelProperty("创建时间（发布时间）")
     @TableField(fill = FieldFill.INSERT)

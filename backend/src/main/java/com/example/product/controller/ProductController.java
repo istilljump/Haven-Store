@@ -10,6 +10,7 @@ import com.example.product.dto.CommentAddDTO;
 import com.example.product.dto.ProductAddDTO;
 import com.example.product.dto.ProductEstimateDTO;
 import com.example.product.dto.ProductNearbyQueryDTO;
+import com.example.product.dto.ProductPriceDTO;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.CommentVO;
@@ -122,6 +123,7 @@ public class ProductController {
      *
      * @param keyword    关键词（商品标题）
      * @param categoryId 分类 ID
+     * @param campusId   校区 ID（可选，校园场景筛选）
      * @param minPrice   价格下限
      * @param maxPrice   价格上限
      * @param sort       排序方式：latest 最新发布（默认）/ priceAsc / priceDesc
@@ -129,17 +131,18 @@ public class ProductController {
      * @param pageSize   每页条数
      * @return 商品分页数据
      */
-    @ApiOperation(value = "搜索商品", notes = "无需登录；只返回在售商品，支持关键词、分类、价格区间与排序")
+    @ApiOperation(value = "搜索商品", notes = "无需登录；只返回在售商品，支持关键词、分类、校区、价格区间与排序")
     @GetMapping("/search")
     public Result<Page<ProductListVO>> search(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) Long campusId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "12") Integer pageSize) {
-        return Result.success(productService.searchProducts(keyword, categoryId, minPrice, maxPrice, sort, page, pageSize));
+        return Result.success(productService.searchProducts(keyword, categoryId, campusId, minPrice, maxPrice, sort, page, pageSize));
     }
 
     /**
@@ -165,6 +168,21 @@ public class ProductController {
     @PutMapping("/{productId}")
     public Result<Void> update(@PathVariable Long productId, @RequestBody @Validated ProductAddDTO dto) {
         productService.updateProduct(productId, dto);
+        return Result.success();
+    }
+
+    /**
+     * 修改自己发布的在售商品价格
+     *
+     * @param productId 商品 ID
+     * @param dto       改价入参（新价格）
+     * @return 操作结果
+     */
+    @ApiOperation(value = "商品改价", notes = "需要登录；仅发布者本人，且仅「在售」商品可改价（「一键采纳降价建议」走此接口）")
+    @PostMapping("/{productId}/price")
+    public Result<Void> updatePrice(@PathVariable Long productId,
+                                    @RequestBody @Validated ProductPriceDTO dto) {
+        productService.updateProductPrice(productId, dto.getPrice());
         return Result.success();
     }
 

@@ -131,4 +131,8 @@ public class ProductAddDTO implements Serializable {
     @DecimalMin(value = "-90", message = "纬度不能小于-90")
     @DecimalMax(value = "90", message = "纬度不能大于90")
     private BigDecimal latitude;
+
+    /** 所属校区 ID（可选；传入时校验校区存在且启用，校园筛选与面交点推荐用） */
+    @ApiModelProperty(value = "所属校区ID（可选）", example = "1")
+    private Long campusId;
 }

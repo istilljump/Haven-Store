@@ -6,12 +6,16 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.admin.dto.SystemSettingDTO;
 import com.example.admin.service.SystemSettingService;
+import com.example.campus.entity.Campus;
+import com.example.campus.mapper.CampusMapper;
 import com.example.category.entity.Category;
 import com.example.category.mapper.CategoryMapper;
 import com.example.common.BusinessException;
 import com.example.common.Result;
 import com.example.common.ResultCodeEnum;
 import com.example.config.CacheConfig;
+import com.example.market.service.MarketDataService;
+import com.example.market.vo.MarketBasisVO;
 import com.example.order.entity.OrderItem;
 import com.example.order.entity.ProductOrder;
 import com.example.order.enums.OrderStatusEnum;
@@ -35,6 +39,7 @@ import com.example.product.mapper.UserProductRelationMapper;
 import com.example.product.service.ProductAIService;
 import com.example.product.service.ProductService;
 import com.example.product.vo.CommentVO;
+import com.example.product.vo.PriceSuggestionVO;
 import com.example.product.vo.ProductAddVO;
 import com.example.product.vo.ProductDetailVO;
 import com.example.product.vo.ProductEstimateVO;
@@ -51,6 +56,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -101,6 +108,12 @@ public class ProductServiceImpl implements ProductService {
     /** 系统设置服务：价格上限、单次上传张数、AI 估价开关均从后台设置读取 */
     private final SystemSettingService systemSettingService;
 
+    /** 成交行情服务：详情页划算指数与「我的发布」降价建议的数据来源 */
+    private final MarketDataService marketDataService;
+
+    /** 校区数据访问对象：发布/编辑时校验校区合法性，详情页补齐校区名称 */
+    private final CampusMapper campusMapper;
+
     /** 分类启用状态标识（与 category.status 字段对应：1 启用，0 禁用） */
     private static final int CATEGORY_STATUS_ENABLE = 1;
 
@@ -115,6 +128,15 @@ public class ProductServiceImpl implements ProductService {
 
     /** 评论状态：正常（0 为隐藏） */
     private static final int COMMENT_STATUS_NORMAL = 1;
+
+    /** 降价建议：滞销判定默认天数（后台「交易设置」的 trade.staleDays 可覆盖） */
+    private static final int DEFAULT_STALE_DAYS = 14;
+
+    /** 降价建议：最小行情样本量默认值（后台「交易设置」的 trade.minSampleSize 可覆盖） */
+    private static final int DEFAULT_MIN_SAMPLE_SIZE = 3;
+
+    /** 降价建议：建议价 = 同类成交中位价 × 该折扣（向下取整），低于此价视为已有竞争力 */
+    private static final BigDecimal SUGGEST_FLOOR_RATIO = new BigDecimal("0.9");
 
     /**
      * 发布二手商品：
@@ -152,6 +174,8 @@ public class ProductServiceImpl implements ProductService {
         if (category == null) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品分类不存在");
         }
+        // 5.5 校区合法性校验（可选字段：传入时必须是存在且启用的校区）
+        validateCampus(dto);
         // 6. 线下交易联动校验：交易方式为线下时，地址、经度、纬度必须填写
         validateOfflineTrade(dto);
         // 7. 交易设置校验：价格上限与单次上传张数（来自管理后台「系统设置」）
@@ -225,6 +249,21 @@ public class ProductServiceImpl implements ProductService {
                 && dto.getImages().stream().filter(StringUtils::hasText).count() > settings.getUpload().getMaxImages()) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
                     "商品图片最多上传 " + settings.getUpload().getMaxImages() + " 张");
+        }
+    }
+
+    /**
+     * 校区合法性校验（发布与编辑共用）：
+     * 校区是可选字段，未传直接放行；传了就必须是存在且启用的校区，
+     * 防止前端传入不存在的 campusId 让筛选与面交点推荐指向空数据
+     */
+    private void validateCampus(ProductAddDTO dto) {
+        if (dto.getCampusId() == null) {
+            return;
+        }
+        Campus campus = campusMapper.selectById(dto.getCampusId());
+        if (campus == null || campus.getStatus() == null || campus.getStatus() != 1) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "所选校区不存在或已停用");
         }
     }
 
@@ -344,6 +383,7 @@ public class ProductServiceImpl implements ProductService {
         product.setContactName(dto.getContactName());
         product.setContactPhone(dto.getContactPhone());
         product.setCoverImage(dto.getCoverImage());
+        product.setCampusId(dto.getCampusId());
         // 线上交易：地址与经纬度强制置空，杜绝脏坐标入库（前端可能传 0 值或空字符串）
         if (ProductConstant.TRADE_TYPE_ONLINE.equals(dto.getTradeType())) {
             product.setAddress(null);
@@ -377,10 +417,11 @@ public class ProductServiceImpl implements ProductService {
     /**
      * 搜索在售商品
      * <p>
-     * 只返回在售商品：已售出与已下架的不出现在前台列表里
+     * 只返回在售商品：已售出与已下架的不出现在前台列表里；
+     * 传入 campusId 时只返回该校区商品（校园场景筛选）
      */
     @Override
-    public Page<ProductListVO> searchProducts(String keyword, Integer categoryId, BigDecimal minPrice,
+    public Page<ProductListVO> searchProducts(String keyword, Integer categoryId, Long campusId, BigDecimal minPrice,
                                               BigDecimal maxPrice, String sort, Integer page, Integer pageSize) {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
                 .eq(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode());
@@ -394,6 +435,9 @@ public class ProductServiceImpl implements ProductService {
         }
         if (categoryId != null) {
             wrapper.eq(Product::getCategoryId, categoryId);
+        }
+        if (campusId != null) {
+            wrapper.eq(Product::getCampusId, campusId);
         }
         if (minPrice != null) {
             wrapper.ge(Product::getPrice, minPrice);
@@ -430,6 +474,7 @@ public class ProductServiceImpl implements ProductService {
             vo.setStatus(p.getStatus());
             vo.setCategoryId(p.getCategoryId());
             vo.setCategoryName(categoryNameMap.get(p.getCategoryId()));
+            vo.setCampusId(p.getCampusId());
             User seller = sellerMap.get(p.getUserId());
             vo.setUsername(seller == null ? null : seller.getUsername());
             vo.setCreateTime(p.getCreateTime());
@@ -484,6 +529,11 @@ public class ProductServiceImpl implements ProductService {
         vo.setAddress(product.getAddress());
         vo.setLongitude(product.getLongitude());
         vo.setLatitude(product.getLatitude());
+        vo.setCampusId(product.getCampusId());
+        if (product.getCampusId() != null) {
+            Campus campus = campusMapper.selectById(product.getCampusId());
+            vo.setCampusName(campus == null ? null : campus.getName());
+        }
         vo.setViewCount(product.getViewCount() == null ? 1 : product.getViewCount() + 1);
         vo.setCreateTime(product.getCreateTime());
 
@@ -496,6 +546,22 @@ public class ProductServiceImpl implements ProductService {
                     new LambdaQueryWrapper<Product>()
                             .eq(Product::getUserId, seller.getId())
                             .eq(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode())));
+        }
+
+        // 成交行情与划算指数（后台「交易设置」的 dealBadge 总控；仅对在售商品计算，
+        // 行情不可用时不展示且不影响详情主流程，与「行情是加分项不是依赖项」的口径一致）
+        try {
+            if (isDealBadgeEnabled() && ProductStatusEnum.ON_SHELF.getCode().equals(product.getStatus())) {
+                MarketBasisVO basis = marketDataService.getBasis(
+                        product.getCategoryId(), product.getProductCondition());
+                if (basis != null) {
+                    vo.setMarketBasis(basis);
+                    vo.setPricePosition(marketDataService.cheaperThanPercent(
+                            product.getCategoryId(), product.getProductCondition(), product.getPrice()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("成交行情读取失败，详情页不展示行情与划算指数：{}", e.getMessage());
         }
         return vo;
     }
@@ -597,7 +663,100 @@ public class ProductServiceImpl implements ProductService {
 
         Page<ProductListVO> result = new Page<>(productPage.getCurrent(), productPage.getSize(), productPage.getTotal());
         result.setRecords(toVoList(productPage.getRecords()));
+        // 降价建议只出现在「我的发布」：滞销在售商品与同类成交行情对比后生成，普通搜索不受影响
+        attachPriceSuggestions(result.getRecords());
         return result;
+    }
+
+    /**
+     * 给「我的发布」列表附加降价建议
+     * <p>
+     * 规则：在售商品挂牌超过 staleDays 天（后台「交易设置」可调），且当前价高于
+     * 同类成交中位价的九折时，建议降价到「中位价 × 0.9」（向下取整）。
+     * 行情样本不足或开关（trade.priceSuggest）关闭时不给建议；单条计算失败不影响整页
+     */
+    private void attachPriceSuggestions(List<ProductListVO> records) {
+        try {
+            if (records == null || records.isEmpty()) {
+                return;
+            }
+            // 进阶能力做成可选开关：后台「交易设置」的 priceSuggest 总控
+            if (!isPriceSuggestEnabled()) {
+                return;
+            }
+            int staleDays = staleDaysSetting();
+            int minSample = minSampleSetting();
+            LocalDateTime staleBefore = LocalDateTime.now().minusDays(staleDays);
+            for (ProductListVO vo : records) {
+                try {
+                    // 只建议「在售 + 挂牌超过 staleDays + 分类成色齐全」的商品
+                    if (vo == null || !ProductStatusEnum.ON_SHELF.getCode().equals(vo.getStatus())
+                            || vo.getCreateTime() == null || vo.getCreateTime().isAfter(staleBefore)
+                            || vo.getCategoryId() == null || vo.getProductCondition() == null) {
+                        continue;
+                    }
+                    MarketBasisVO basis = marketDataService.getBasis(vo.getCategoryId(), vo.getProductCondition());
+                    if (basis == null || basis.getSampleSize() == null || basis.getSampleSize() < minSample) {
+                        continue;
+                    }
+                    BigDecimal floorPrice = basis.getMedianPrice()
+                            .multiply(SUGGEST_FLOOR_RATIO)
+                            .setScale(0, RoundingMode.FLOOR);
+                    // 已低于行情九折的商品不再建议降价（已经比行情有竞争力）
+                    if (vo.getPrice().compareTo(floorPrice) <= 0) {
+                        continue;
+                    }
+                    PriceSuggestionVO suggestion = new PriceSuggestionVO();
+                    suggestion.setSuggestedPrice(floorPrice);
+                    suggestion.setCurrentPrice(vo.getPrice());
+                    suggestion.setMarketMedian(basis.getMedianPrice());
+                    suggestion.setReason(String.format(
+                            "已挂牌超过%d天，近%d天同类成交中位价¥%s，建议降至¥%s提高成交概率",
+                            staleDays, basis.getDays(),
+                            basis.getMedianPrice().stripTrailingZeros().toPlainString(),
+                            floorPrice.toPlainString()));
+                    vo.setPriceSuggestion(suggestion);
+                } catch (Exception e) {
+                    log.warn("单件商品降价建议计算失败，商品ID：{}", vo == null ? null : vo.getId(), e);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("降价建议批量计算失败，本页暂不展示建议：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 交易设置快捷读取：划算指数开关（缺省开启，兼容老库旧 config_json 缺字段）
+     */
+    private boolean isDealBadgeEnabled() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings.getTrade() == null || !Boolean.FALSE.equals(settings.getTrade().getDealBadge());
+    }
+
+    /**
+     * 交易设置快捷读取：降价建议开关（缺省开启）
+     */
+    private boolean isPriceSuggestEnabled() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings.getTrade() == null || !Boolean.FALSE.equals(settings.getTrade().getPriceSuggest());
+    }
+
+    /**
+     * 交易设置快捷读取：滞销判定天数（缺省 14 天）
+     */
+    private int staleDaysSetting() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings.getTrade() == null || settings.getTrade().getStaleDays() == null
+                ? DEFAULT_STALE_DAYS : settings.getTrade().getStaleDays();
+    }
+
+    /**
+     * 交易设置快捷读取：行情最小样本量（缺省 3）
+     */
+    private int minSampleSetting() {
+        SystemSettingDTO settings = systemSettingService.get();
+        return settings.getTrade() == null || settings.getTrade().getMinSampleSize() == null
+                ? DEFAULT_MIN_SAMPLE_SIZE : settings.getTrade().getMinSampleSize();
     }
 
     /**
@@ -634,6 +793,7 @@ public class ProductServiceImpl implements ProductService {
         if (categoryMapper.selectById(dto.getCategoryId()) == null) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品分类不存在");
         }
+        validateCampus(dto);
         validateOfflineTrade(dto);
         validateTradeSettings(dto);
 
@@ -653,6 +813,7 @@ public class ProductServiceImpl implements ProductService {
         update.setRemark(dto.getRemark());
         update.setContactName(dto.getContactName());
         update.setContactPhone(dto.getContactPhone());
+        update.setCampusId(dto.getCampusId());
         // 未传封面图时保留原图，避免编辑一次就把图片弄丢
         if (StringUtils.hasText(dto.getCoverImage())) {
             update.setCoverImage(dto.getCoverImage());
@@ -674,6 +835,42 @@ public class ProductServiceImpl implements ProductService {
             saveProductImages(productId, dto);
         }
         log.info("商品修改成功，商品ID：{}，卖家用户ID：{}", productId, userId);
+    }
+
+    /**
+     * 修改自己发布的在售商品价格（「一键采纳降价建议」走此接口）
+     * <p>
+     * 越权校验与状态校验同 updateProduct：只能改自己的、仅「在售」可改价；
+     * 价格上限与发布/编辑同口径（后台「交易设置」的 maxPrice，0 表示不限制）
+     */
+    @Override
+    public void updateProductPrice(Long productId, BigDecimal price) {
+        Long userId = requireLoginUserId();
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "商品价格必须大于0");
+        }
+        Product exist = productMapper.selectById(productId);
+        if (exist == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (!userId.equals(exist.getUserId())) {
+            throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能修改自己发布的商品");
+        }
+        if (!ProductStatusEnum.ON_SHELF.getCode().equals(exist.getStatus())) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "仅「在售」商品可以改价");
+        }
+        SystemSettingDTO settings = systemSettingService.get();
+        if (settings.getTrade() != null && settings.getTrade().getMaxPrice() != null
+                && settings.getTrade().getMaxPrice() > 0
+                && price.compareTo(BigDecimal.valueOf(settings.getTrade().getMaxPrice())) > 0) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
+                    "商品价格不能超过平台上限 " + settings.getTrade().getMaxPrice() + " 元");
+        }
+        Product update = new Product();
+        update.setId(productId);
+        update.setPrice(price);
+        productMapper.updateById(update);
+        log.info("商品改价成功，商品ID：{}，新价格：{}，用户ID：{}", productId, price, userId);
     }
 
     /**
@@ -1023,6 +1220,7 @@ public class ProductServiceImpl implements ProductService {
             vo.setStatus(p.getStatus());
             vo.setCategoryId(p.getCategoryId());
             vo.setCategoryName(categoryNameMap.get(p.getCategoryId()));
+            vo.setCampusId(p.getCampusId());
             User seller = sellerMap.get(p.getUserId());
             vo.setUsername(seller == null ? null : seller.getUsername());
             vo.setCreateTime(p.getCreateTime());

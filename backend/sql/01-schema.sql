@@ -80,15 +80,47 @@ CREATE TABLE `product` (
     `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `status`            TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1在售 2已售出 3已下架',
     `view_count`        INT           NOT NULL DEFAULT 0      COMMENT '浏览次数（详情页每次访问累加）',
+    `campus_id`         BIGINT        DEFAULT NULL            COMMENT '所属校区ID（校园筛选与面交点推荐，关联 campus 表，可为空）',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
     KEY `idx_category_id` (`category_id`),
     KEY `idx_status` (`status`),
     KEY `idx_create_time` (`create_time`),
     KEY `idx_longitude` (`longitude`),
+    KEY `idx_campus_id` (`campus_id`),
     KEY `idx_status_category` (`status`, `category_id`),
     KEY `idx_status_price` (`status`, `price`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '二手商品表';
+
+-- ------------------------------------------------------------
+-- 校区表（校园场景的地理锚点：列表筛选、附近商品默认圆心）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `campus`;
+CREATE TABLE `campus` (
+    `id`               BIGINT        NOT NULL AUTO_INCREMENT COMMENT '校区ID',
+    `name`             VARCHAR(50)   NOT NULL                COMMENT '校区名称',
+    `center_longitude` DECIMAL(10,6) NOT NULL                COMMENT '中心经度（附近商品默认圆心）',
+    `center_latitude`  DECIMAL(10,6) NOT NULL                COMMENT '中心纬度',
+    `sort`             INT           NOT NULL DEFAULT 0      COMMENT '排序值（越小越靠前）',
+    `status`           TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1启用 0禁用',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '校区表';
+
+-- ------------------------------------------------------------
+-- 面交点表（校区内推荐的安全面交位置：快递驿站/图书馆前/校门口等）
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `meet_point`;
+CREATE TABLE `meet_point` (
+    `id`          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '面交点ID',
+    `campus_id`   BIGINT        NOT NULL                COMMENT '所属校区ID（关联 campus 表）',
+    `name`        VARCHAR(50)   NOT NULL                COMMENT '面交点名称',
+    `longitude`   DECIMAL(10,6) NOT NULL                COMMENT '经度',
+    `latitude`    DECIMAL(10,6) NOT NULL                COMMENT '纬度',
+    `description` VARCHAR(200)  DEFAULT NULL            COMMENT '位置说明',
+    `sort`        INT           NOT NULL DEFAULT 0      COMMENT '排序值',
+    PRIMARY KEY (`id`),
+    KEY `idx_campus_id` (`campus_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '面交点表';
 
 -- ------------------------------------------------------------
 -- 系统消息表（对应 com.example.message.entity.Message => @TableName("system_message")）
@@ -286,21 +318,107 @@ INSERT INTO `user` (`id`, `username`, `password`, `phone`, `nickname`, `status`,
     (2, 'testuser1', '$2a$10$1CX3LKmt/AGGOLn6lmtb6eyG1XtMrZYi7PB.9ZdtiLRQoZwUmGvU.', '13800138001', '测试用户1', 1, 0),
     (3, 'testuser2', '$2a$10$1CX3LKmt/AGGOLn6lmtb6eyG1XtMrZYi7PB.9ZdtiLRQoZwUmGvU.', '13800138002', '测试用户2', 1, 0);
 
+-- 校区种子（校园场景的地理锚点；坐标为演示用园区坐标）
+INSERT INTO `campus` (`id`, `name`, `center_longitude`, `center_latitude`, `sort`, `status`) VALUES
+    (1, '江畔大学·主校区', 114.352000, 30.538000, 1, 1),
+    (2, '江畔大学·东校区', 114.365000, 30.545000, 2, 1);
+
+-- 面交点种子（推荐的安全面交位置：人流大、有值班/监控的地点）
+INSERT INTO `meet_point` (`id`, `campus_id`, `name`, `longitude`, `latitude`, `description`, `sort`) VALUES
+    (1, 1, '东门快递驿站', 114.355000, 30.539000, '主校区东门内侧快递集中取件点，人流大，适合大件面交', 1),
+    (2, 1, '图书馆前广场', 114.351000, 30.537200, '图书馆正门广场，白天人流密集，视野开阔', 2),
+    (3, 1, '南门校门口', 114.349500, 30.534800, '南门保安亭旁，白天有保安值班', 3),
+    (4, 1, '体育馆东侧空地', 114.354800, 30.541500, '体育馆东侧空地，课后人流多', 4),
+    (5, 2, '东校区教育超市门口', 114.364000, 30.544000, '东校区教育超市门口，营业时间长', 1);
+
 -- 示例商品（testuser1 发布）
 -- 说明：cover_image 指向 frontend/public/images/products/ 下的图片，
 -- 这两张图与「二手iPhone 12」「编程书籍套装」对应，改动标题/价格时请同步替换图片
-INSERT INTO `product` (`user_id`, `title`, `description`, `category_id`, `price`, `original_price`,
+-- 商品 1 的坐标落在主校区东门快递驿站附近，用于「推荐面交点」演示
+INSERT INTO `product` (`id`, `user_id`, `title`, `description`, `category_id`, `price`, `original_price`,
                        `product_condition`, `trade_type`, `brand`, `model`, `purchase_time`, `features`,
                        `remark`, `contact_name`, `contact_phone`, `address`, `longitude`, `latitude`,
-                       `status`, `cover_image`) VALUES
-    (2, '二手iPhone 12', '95新，功能完好，无拆修，原装配件齐全，电池健康度90%以上。支持当面验机。',
+                       `campus_id`, `status`, `cover_image`, `create_time`) VALUES
+    (1, 2, '二手iPhone 12', '95新，功能完好，无拆修，原装配件齐全，电池健康度90%以上。支持当面验机。',
         1, 3500.00, 4599.00, '九成新', '线下', 'Apple', 'iPhone 12 128G', '2023-06-15',
         '支持验机,无拆修记录', '无磕碰无划痕，支持验机', '测试用户1', '13800138001',
-        '北京市朝阳区国贸CBD', 116.466240, 39.920800, 1, '/images/products/iphone-12.png'),
-    (2, '编程书籍套装', '包含算法、数据结构、计算机网络等经典教材共 6 本，无笔记无划线，书页保存完好。',
+        '江畔大学主校区东区9号宿舍楼', 114.356500, 30.540200, 1, 1, '/images/products/iphone-12.png', NOW() - INTERVAL 2 DAY),
+    (2, 2, '编程书籍套装', '包含算法、数据结构、计算机网络等经典教材共 6 本，无笔记无划线，书页保存完好。',
         3, 150.00, 420.00, '八成新', '线上', '机械工业出版社', '套装 6 册', '2022-09-01',
         '包装齐全,发票齐全', '整套出不单卖，可小刀', '测试用户1', '13800138001',
-        NULL, NULL, NULL, 1, '/images/products/programming-books.png');
+        NULL, NULL, NULL, 1, 1, '/images/products/programming-books.png', NOW() - INTERVAL 3 DAY);
+
+-- 历史成交种子（已售出商品 + 订单 + 明细快照）
+-- 用途：给「成交行情」提供确定性的样本数据——同分类同成色的中位价因此可预期，
+-- 详情页划算指数、发布页行情估价、「我的发布」降价建议开箱即可演示。
+-- 全部走真实业务表（product/product_order/order_item），时间用 NOW() 相对值，
+-- 保证安装后任意时刻执行都在 90 天统计窗口内。窗口内样本：
+--   手机数码·九成新 5 件（中位价 3600）  图书教材·八成新 4 件（中位价 25）
+--   电脑办公·九成新 3 件（中位价 220）   运动户外·八成新 3 件（中位价 65）
+INSERT INTO `product` (`id`, `user_id`, `title`, `description`, `category_id`, `price`,
+                       `product_condition`, `trade_type`, `campus_id`, `address`, `longitude`, `latitude`,
+                       `status`, `create_time`, `view_count`) VALUES
+    (3,  2, 'iPhone 13 128G 蓝色',        '自用一年，电池健康89%，无拆修，配原装盒。',            1, 3900.00, '九成新', '线下', 1, '江畔大学主校区东区9号宿舍楼', 114.354200, 30.539600, 2, NOW() - INTERVAL 88 DAY, 36),
+    (4,  2, 'iPad Air 4 深空灰 64G',      '宿舍吃灰出掉，屏幕无划痕，配保护壳。',                  1, 3600.00, '九成新', '线下', 1, '江畔大学主校区东区5号宿舍楼', 114.353600, 30.541200, 2, NOW() - INTERVAL 73 DAY, 41),
+    (5,  2, 'MacBook Air 2019 银色',      '轻度办公使用，循环次数120次，可当面验机。',             1, 4200.00, '九成新', '线下', 1, '江畔大学主校区研究生楼',       114.350800, 30.540500, 2, NOW() - INTERVAL 58 DAY, 55),
+    (6,  2, '荣耀平板7 10.1寸',           '网课神器，成色好，配件齐全。',                          1, 2900.00, '九成新', '线下', 1, '江畔大学主校区东区5号宿舍楼', 114.353600, 30.541200, 2, NOW() - INTERVAL 43 DAY, 22),
+    (7,  2, '小米平板5 黑色 128G',        '买来看网课的，现在用不上了，95新。',                    1, 3300.00, '九成新', '线下', 1, '江畔大学主校区东区9号宿舍楼', 114.356500, 30.540200, 2, NOW() - INTERVAL 28 DAY, 18),
+    (8,  3, '高等数学教材套装（上下册）', '同济第七版，无笔记无划线。',                            3, 30.00,  '八成新', '线上', 1, NULL, NULL, NULL, 2, NOW() - INTERVAL 83 DAY, 14),
+    (9,  3, '考研英语一真题（近十年）',   '做完一套，其余全新，含解析。',                          3, 22.00,  '八成新', '线上', 1, NULL, NULL, NULL, 2, NOW() - INTERVAL 63 DAY, 9),
+    (10, 3, '数据结构与算法分析教材',     '课程结束出掉，内页干净。',                              3, 28.00,  '八成新', '线上', 1, NULL, NULL, NULL, 2, NOW() - INTERVAL 48 DAY, 7),
+    (11, 3, '大学英语综合教程 1-4 册',    '全新未拆封两册，其余九成新。',                          3, 15.00,  '八成新', '线上', 1, NULL, NULL, NULL, 2, NOW() - INTERVAL 33 DAY, 5),
+    (12, 3, '罗技K845机械键盘',           '茶轴，宿舍使用半年，无维修。',                          2, 220.00,  '九成新', '线下', 1, '江畔大学主校区东区7号宿舍楼', 114.352900, 30.542300, 2, NOW() - INTERVAL 78 DAY, 27),
+    (13, 3, 'AOC 27寸显示器',             '实验室淘汰，面板完美，带原装支架。',                    2, 680.00,  '九成新', '线下', 1, '江畔大学主校区研究生楼',       114.350800, 30.540500, 2, NOW() - INTERVAL 53 DAY, 33),
+    (14, 3, '罗技M330无线鼠标',           '静音鼠标，一节电池用到毕业。',                          2, 95.00,   '九成新', '线下', 1, '江畔大学主校区东区7号宿舍楼', 114.352900, 30.542300, 2, NOW() - INTERVAL 38 DAY, 11),
+    (15, 2, '斯伯丁篮球 7号球',           '室外场用了一学期，气针齐全。',                          6, 65.00,   '八成新', '线下', 1, '江畔大学主校区体育馆',         114.354800, 30.541500, 2, NOW() - INTERVAL 68 DAY, 13),
+    (16, 2, '奥义瑜伽垫 8mm',             '买来用了两次，已清洗晾干。',                            6, 45.00,   '八成新', '线下', 1, '江畔大学主校区体育馆',         114.354800, 30.541500, 2, NOW() - INTERVAL 23 DAY, 8),
+    (17, 2, '尤尼克斯羽毛球拍 双拍',      '双拍带拍包，手胶新换。',                                6, 160.00,  '八成新', '线下', 1, '江畔大学主校区体育馆',         114.354800, 30.541500, 2, NOW() - INTERVAL 18 DAY, 19);
+
+-- 历史成交订单（status=4 已完成 / 2 已支付；pay_time 是行情统计口径的时间轴）
+INSERT INTO `product_order` (`id`, `order_no`, `buyer_id`, `total_amount`, `item_count`, `status`,
+                             `pay_time`, `finish_time`, `create_time`) VALUES
+    (1,  'SEED0850001', 3, 3900.00, 1, 4, NOW() - INTERVAL 85 DAY, NOW() - INTERVAL 84 DAY, NOW() - INTERVAL 85 DAY - INTERVAL 2 HOUR),
+    (2,  'SEED0700002', 3, 3600.00, 1, 4, NOW() - INTERVAL 70 DAY, NOW() - INTERVAL 69 DAY, NOW() - INTERVAL 70 DAY - INTERVAL 2 HOUR),
+    (3,  'SEED0550003', 3, 4200.00, 1, 4, NOW() - INTERVAL 55 DAY, NOW() - INTERVAL 54 DAY, NOW() - INTERVAL 55 DAY - INTERVAL 2 HOUR),
+    (4,  'SEED0400004', 3, 2900.00, 1, 2, NOW() - INTERVAL 40 DAY, NULL, NOW() - INTERVAL 40 DAY - INTERVAL 2 HOUR),
+    (5,  'SEED0250005', 3, 3300.00, 1, 4, NOW() - INTERVAL 25 DAY, NOW() - INTERVAL 24 DAY, NOW() - INTERVAL 25 DAY - INTERVAL 2 HOUR),
+    (6,  'SEED0800006', 2, 30.00,   1, 4, NOW() - INTERVAL 80 DAY, NOW() - INTERVAL 79 DAY, NOW() - INTERVAL 80 DAY - INTERVAL 2 HOUR),
+    (7,  'SEED0600007', 2, 22.00,   1, 4, NOW() - INTERVAL 60 DAY, NOW() - INTERVAL 59 DAY, NOW() - INTERVAL 60 DAY - INTERVAL 2 HOUR),
+    (8,  'SEED0450008', 2, 28.00,   1, 4, NOW() - INTERVAL 45 DAY, NOW() - INTERVAL 44 DAY, NOW() - INTERVAL 45 DAY - INTERVAL 2 HOUR),
+    (9,  'SEED0300009', 2, 15.00,   1, 2, NOW() - INTERVAL 30 DAY, NULL, NOW() - INTERVAL 30 DAY - INTERVAL 2 HOUR),
+    (10, 'SEED0750010', 2, 220.00,  1, 4, NOW() - INTERVAL 75 DAY, NOW() - INTERVAL 74 DAY, NOW() - INTERVAL 75 DAY - INTERVAL 2 HOUR),
+    (11, 'SEED0500011', 2, 680.00,  1, 4, NOW() - INTERVAL 50 DAY, NOW() - INTERVAL 49 DAY, NOW() - INTERVAL 50 DAY - INTERVAL 2 HOUR),
+    (12, 'SEED0350012', 2, 95.00,   1, 4, NOW() - INTERVAL 35 DAY, NOW() - INTERVAL 34 DAY, NOW() - INTERVAL 35 DAY - INTERVAL 2 HOUR),
+    (13, 'SEED0650013', 3, 65.00,   1, 4, NOW() - INTERVAL 65 DAY, NOW() - INTERVAL 64 DAY, NOW() - INTERVAL 65 DAY - INTERVAL 2 HOUR),
+    (14, 'SEED0200014', 3, 45.00,   1, 4, NOW() - INTERVAL 20 DAY, NOW() - INTERVAL 19 DAY, NOW() - INTERVAL 20 DAY - INTERVAL 2 HOUR),
+    (15, 'SEED0150015', 3, 160.00,  1, 2, NOW() - INTERVAL 15 DAY, NULL, NOW() - INTERVAL 15 DAY - INTERVAL 2 HOUR);
+
+-- 历史成交明细（标题/价格为下单时快照，与 product 表一致）
+INSERT INTO `order_item` (`id`, `order_id`, `product_id`, `seller_id`, `title`, `price`, `create_time`) VALUES
+    (1,  1,  3,  2, 'iPhone 13 128G 蓝色',        3900.00, NOW() - INTERVAL 85 DAY - INTERVAL 2 HOUR),
+    (2,  2,  4,  2, 'iPad Air 4 深空灰 64G',      3600.00, NOW() - INTERVAL 70 DAY - INTERVAL 2 HOUR),
+    (3,  3,  5,  2, 'MacBook Air 2019 银色',      4200.00, NOW() - INTERVAL 55 DAY - INTERVAL 2 HOUR),
+    (4,  4,  6,  2, '荣耀平板7 10.1寸',           2900.00, NOW() - INTERVAL 40 DAY - INTERVAL 2 HOUR),
+    (5,  5,  7,  2, '小米平板5 黑色 128G',        3300.00, NOW() - INTERVAL 25 DAY - INTERVAL 2 HOUR),
+    (6,  6,  8,  3, '高等数学教材套装（上下册）', 30.00,   NOW() - INTERVAL 80 DAY - INTERVAL 2 HOUR),
+    (7,  7,  9,  3, '考研英语一真题（近十年）',   22.00,   NOW() - INTERVAL 60 DAY - INTERVAL 2 HOUR),
+    (8,  8,  10, 3, '数据结构与算法分析教材',     28.00,   NOW() - INTERVAL 45 DAY - INTERVAL 2 HOUR),
+    (9,  9,  11, 3, '大学英语综合教程 1-4 册',    15.00,   NOW() - INTERVAL 30 DAY - INTERVAL 2 HOUR),
+    (10, 10, 12, 3, '罗技K845机械键盘',           220.00,  NOW() - INTERVAL 75 DAY - INTERVAL 2 HOUR),
+    (11, 11, 13, 3, 'AOC 27寸显示器',             680.00,  NOW() - INTERVAL 50 DAY - INTERVAL 2 HOUR),
+    (12, 12, 14, 3, '罗技M330无线鼠标',           95.00,   NOW() - INTERVAL 35 DAY - INTERVAL 2 HOUR),
+    (13, 13, 15, 2, '斯伯丁篮球 7号球',           65.00,   NOW() - INTERVAL 65 DAY - INTERVAL 2 HOUR),
+    (14, 14, 16, 2, '奥义瑜伽垫 8mm',             45.00,   NOW() - INTERVAL 20 DAY - INTERVAL 2 HOUR),
+    (15, 15, 17, 2, '尤尼克斯羽毛球拍 双拍',      160.00,  NOW() - INTERVAL 15 DAY - INTERVAL 2 HOUR);
+
+-- 滞销演示商品（testuser1 发布，挂牌 20 天 + 定价高于行情，用于「降价建议」演示：
+-- 图书教材·八成新中位价 ¥25，当前价 ¥45 > 九折线 ¥22，因此「我的发布」会给出降价建议）
+INSERT INTO `product` (`id`, `user_id`, `title`, `description`, `category_id`, `price`, `original_price`,
+                       `product_condition`, `trade_type`, `campus_id`, `address`, `longitude`, `latitude`,
+                       `status`, `create_time`, `view_count`) VALUES
+    (18, 2, '高等数学教材（第七版）', '同济第七版上下册，上册有少量铅笔笔记可擦除。',
+        3, 45.00, 68.00, '八成新', '线下', 1, '江畔大学主校区东区9号宿舍楼', 114.353500, 30.539500,
+        1, NOW() - INTERVAL 20 DAY, 6);
 
 -- 示例商品图片（与 product.cover_image 保持一致，演示多图链路）
 INSERT INTO `product_image` (`product_id`, `image_url`, `sort`) VALUES

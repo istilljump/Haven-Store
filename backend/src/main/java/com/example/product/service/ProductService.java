@@ -59,6 +59,7 @@ public interface ProductService {
      *
      * @param keyword    关键词（商品标题，可为空）
      * @param categoryId 分类 ID（可为空）
+     * @param campusId   校区 ID（可为空；传入时只返回该校区的商品）
      * @param minPrice   价格下限（可为空）
      * @param maxPrice   价格上限（可为空）
      * @param sort       排序方式：latest 最新发布（默认）/ priceAsc 价格升序 / priceDesc 价格降序
@@ -66,8 +67,19 @@ public interface ProductService {
      * @param pageSize   每页条数
      * @return 商品分页数据
      */
-    Page<ProductListVO> searchProducts(String keyword, Integer categoryId, BigDecimal minPrice,
+    Page<ProductListVO> searchProducts(String keyword, Integer categoryId, Long campusId, BigDecimal minPrice,
                                        BigDecimal maxPrice, String sort, Integer page, Integer pageSize);
+
+    /**
+     * 修改自己发布的在售商品价格（「一键采纳降价建议」走此接口）
+     * <p>
+     * 越权校验：只能改自己发布的商品；状态校验：仅「在售」可改价——
+     * 已售出商品的价格是订单快照的一部分，改了会破坏历史凭证
+     *
+     * @param productId 商品 ID
+     * @param price     新价格（元）
+     */
+    void updateProductPrice(Long productId, BigDecimal price);
 
     /**
      * 获取商品详情（前台商品详情页）

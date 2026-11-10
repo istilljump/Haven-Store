@@ -74,4 +74,12 @@ public class ProductListVO implements Serializable {
     /** 发布时间 */
     @ApiModelProperty("发布时间")
     private LocalDateTime createTime;
+
+    /** 所属校区 ID（校园场景；可为空） */
+    @ApiModelProperty("所属校区ID")
+    private Long campusId;
+
+    /** 降价建议（仅「我的发布」列表、且商品滞销时才有值；其他列表为 null） */
+    @ApiModelProperty("降价建议")
+    private PriceSuggestionVO priceSuggestion;
 }

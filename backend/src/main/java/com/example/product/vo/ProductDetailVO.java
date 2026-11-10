@@ -1,5 +1,6 @@
 package com.example.product.vo;
 
+import com.example.market.vo.MarketBasisVO;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
@@ -153,4 +154,20 @@ public class ProductDetailVO implements Serializable {
     /** 卖家在售商品数 */
     @ApiModelProperty("卖家在售商品数")
     private Long sellerProductCount;
+
+    /** 所属校区 ID（校园场景；可为空） */
+    @ApiModelProperty("所属校区ID")
+    private Long campusId;
+
+    /** 所属校区名称（可为空） */
+    @ApiModelProperty("所属校区名称")
+    private String campusName;
+
+    /** 价格分位：该价格低于近期 X% 的同类成交价（0-100；行情样本不足或开关关闭时为 null） */
+    @ApiModelProperty("价格分位：低于近期X%的同类成交价")
+    private Integer pricePosition;
+
+    /** 成交行情基线（样本量/区间/中位价；无样本或开关关闭时为 null） */
+    @ApiModelProperty("成交行情基线")
+    private MarketBasisVO marketBasis;
 }
