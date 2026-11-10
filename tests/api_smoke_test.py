@@ -1571,6 +1571,26 @@ def main():
     # 收尾：删除飞轮商品（行情样本回落），用例可重复执行
     call("DELETE", "/admin/products/%s" % fly_pid, token=admin_token)
 
+    # ---------- 36. 行情趋势 ----------
+    section("36. 行情趋势")
+    _, _, r = call("GET", "/market/trend?categoryId=1&condition=%s&days=90" % urllib.parse.quote("九成新"))
+    check("行情趋势接口可用", r, '"code":200')
+    _points = ((r.get("data") or []) if isinstance(r, dict) else [])
+    check("趋势点按日期升序",
+          {"ok": all(_points[i].get("date") <= _points[i + 1].get("date")
+                     for i in range(len(_points) - 1))}, '"ok":true')
+    check("趋势点带当日件数与中位价",
+          {"ok": bool(_points) and all(p.get("count") and p.get("medianPrice") for p in _points)},
+          '"ok":true')
+    # 与行情基线对账：各日件数之和必须等于样本量
+    _, _, r = call("GET", "/market/summary?categoryId=1&condition=%s" % urllib.parse.quote("九成新"))
+    _sample = ((r.get("data") or {}).get("sampleSize") if isinstance(r, dict) else None)
+    check("趋势计数之和等于行情样本量",
+          {"ok": isinstance(_sample, int) and sum(p.get("count") or 0 for p in _points) == _sample},
+          '"ok":true')
+    _, _, r = call("GET", "/market/trend?categoryId=1&condition=%s&days=0" % urllib.parse.quote("九成新"))
+    check("非法窗口返回空列表", r, '"data":[]')
+
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)
     # 把演示账号 testuser1 的资料恢复为初始状态（邮箱与简介在种子里为空）

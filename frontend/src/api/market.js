@@ -27,7 +27,17 @@ export function getCampusSummary(params) {
   return request.get('/market/campus-summary', params)
 }
 
+/**
+ * 行情趋势（详情页走势图）
+ * @param {Object} params - {categoryId, condition, days?}
+ * @returns {Promise} 返回按日聚合趋势点 [{date, count, medianPrice}]，日期升序
+ */
+export function getMarketTrend(params) {
+  return request.get('/market/trend', params)
+}
+
 export default {
   getMarketSummary,
-  getCampusSummary
+  getCampusSummary,
+  getMarketTrend
 }

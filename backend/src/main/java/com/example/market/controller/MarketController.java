@@ -4,6 +4,7 @@ import com.example.common.Result;
 import com.example.market.service.MarketDataService;
 import com.example.market.vo.MarketBasisVO;
 import com.example.market.vo.MarketCategoryStatVO;
+import com.example.market.vo.MarketTrendPointVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -60,5 +61,22 @@ public class MarketController {
             @RequestParam Long campusId,
             @RequestParam(defaultValue = "3") Integer topN) {
         return Result.success(marketDataService.getCampusTopCategories(campusId, topN));
+    }
+
+    /**
+     * 行情趋势（详情页走势图数据源）
+     *
+     * @param categoryId 分类 ID
+     * @param condition  成色
+     * @param days       统计窗口（天，默认 90，≤365）
+     * @return 按日聚合的趋势点（件数 + 中位价，日期升序）
+     */
+    @ApiOperation(value = "行情趋势", notes = "无需登录；按日聚合成交件数与中位价，日期升序，无成交返回空列表")
+    @GetMapping("/trend")
+    public Result<List<MarketTrendPointVO>> trend(
+            @RequestParam Integer categoryId,
+            @RequestParam String condition,
+            @RequestParam(defaultValue = "90") Integer days) {
+        return Result.success(marketDataService.getPriceTrend(categoryId, condition, days));
     }
 }

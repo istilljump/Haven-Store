@@ -87,4 +87,28 @@ public interface MarketDataMapper {
             + "AND p.campus_id = #{campusId}")
     List<Map<String, Object>> selectCampusCategoryDeals(@Param("campusId") Long campusId,
                                                         @Param("days") int days);
+
+    /**
+     * 「分类 × 成色」在统计窗口内的成交明细（成交日期 × 价格），按支付时间升序
+     * <p>
+     * 供行情趋势按日聚合（详情页 ECharts 迷你走势图）
+     *
+     * @param categoryId 分类 ID
+     * @param condition  成色
+     * @param days       统计窗口（天）
+     * @return [{dealDate, price}]
+     */
+    @Select("SELECT DATE(po.pay_time) AS dealDate, oi.price AS price "
+            + "FROM order_item oi "
+            + "INNER JOIN product_order po ON po.id = oi.order_id "
+            + "INNER JOIN product p ON p.id = oi.product_id "
+            + "WHERE po.status IN (2, 4) "
+            + "AND p.category_id = #{categoryId} "
+            + "AND p.product_condition = #{condition} "
+            + "AND po.pay_time IS NOT NULL "
+            + "AND po.pay_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY) "
+            + "ORDER BY po.pay_time ASC")
+    List<Map<String, Object>> selectTrendDeals(@Param("categoryId") Integer categoryId,
+                                               @Param("condition") String condition,
+                                               @Param("days") int days);
 }

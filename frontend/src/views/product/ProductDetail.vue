@@ -61,6 +61,11 @@
                 中位价 ¥{{ product.marketBasis.medianPrice }} · 区间
                 ¥{{ product.marketBasis.minPrice }} ~ ¥{{ product.marketBasis.maxPrice }}
               </span>
+              <!-- 行情走势：按日聚合的成交中位价迷你折线（ECharts 惰性加载） -->
+              <div v-show="trendPoints.length" ref="trendChartRef" class="trend-chart"></div>
+              <span v-if="trendPoints.length" class="trend-caption">
+                近 {{ trendDays }} 天成交走势（{{ trendPoints.length }} 个成交日）
+              </span>
             </div>
 
             <!-- 校园场景：推荐离商品最近的安全面交点（线下商品才有坐标与校区） -->
@@ -423,7 +428,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
@@ -554,6 +559,64 @@ export default {
         : `高于近期 ${100 - product.pricePosition}% 的同类成交价`
     })
 
+    // 行情走势（轮3）：按日聚合的中位价迷你折线；echarts 惰性加载避免拖慢首屏
+    const trendPoints = ref([])
+    const trendDays = ref(90)
+    const trendChartRef = ref(null)
+
+    const loadTrend = async (categoryId, condition) => {
+      trendPoints.value = []
+      if (!categoryId || !condition) {
+        return
+      }
+      try {
+        const points = (await marketApi.getMarketTrend({
+          categoryId,
+          condition,
+          days: trendDays.value
+        })) || []
+        trendPoints.value = points
+        if (!points.length) {
+          return
+        }
+        const echarts = await import('echarts')
+        // 等待 DOM 渲染出图表容器后再初始化
+        await nextTick()
+        if (!trendChartRef.value) {
+          return
+        }
+        const chart = echarts.init(trendChartRef.value)
+        chart.setOption({
+          grid: { left: 44, right: 12, top: 14, bottom: 22 },
+          xAxis: {
+            type: 'category',
+            data: points.map((p) => p.date),
+            axisLabel: { fontSize: 10, color: '#909399' }
+          },
+          yAxis: {
+            type: 'value',
+            axisLabel: { fontSize: 10, color: '#909399' }
+          },
+          tooltip: { trigger: 'axis', fontSize: 11 },
+          series: [
+            {
+              name: '当日成交中位价',
+              type: 'line',
+              data: points.map((p) => Number(p.medianPrice)),
+              smooth: true,
+              symbolSize: 5,
+              lineStyle: { width: 2, color: '#67c23a' },
+              itemStyle: { color: '#67c23a' },
+              areaStyle: { color: 'rgba(103, 194, 58, 0.12)' }
+            }
+          ]
+        })
+      } catch (error) {
+        // 趋势图失败不影响详情主流程
+        trendPoints.value = []
+      }
+    }
+
     const productId = computed(() => route.params.id)
 
     // 详情数据来自后端 GET /product/detail/{id}（游客可访问）
@@ -612,6 +675,10 @@ export default {
         isFavorited.value = data.favorited === true
         // 校园场景：按商品坐标推荐最近面交点
         loadMeetPoint(data.campusId, data.longitude, data.latitude)
+        // 行情走势（行情卡存在时才拉取，避免无行情商品的无效请求）
+        if (data.marketBasis) {
+          loadTrend(data.categoryId, data.productCondition)
+        }
         // 场景化推荐：同校同款 + 互补闲置
         loadRecommend(data.id)
       } catch (error) {
@@ -916,6 +983,9 @@ export default {
       meetPoint,
       dealBadgeText,
       productRecommend,
+      trendPoints,
+      trendDays,
+      trendChartRef,
       getStatusType,
       getStatusText,
       orDash,
@@ -1063,6 +1133,19 @@ export default {
 
 .market-summary {
   color: #606266;
+}
+
+/* 行情走势迷你折线 */
+.trend-chart {
+  width: 100%;
+  height: 120px;
+  margin-top: 6px;
+}
+
+.trend-caption {
+  width: 100%;
+  font-size: 12px;
+  color: #909399;
 }
 
 /* 校园面交点推荐 */

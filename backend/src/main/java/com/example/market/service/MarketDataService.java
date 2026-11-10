@@ -3,6 +3,7 @@ package com.example.market.service;
 import com.example.market.vo.MarketBasisVO;
 import com.example.market.vo.MarketCategoryStatVO;
 import com.example.market.vo.MarketDealStat;
+import com.example.market.vo.MarketTrendPointVO;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -60,4 +61,14 @@ public interface MarketDataService {
      * @return 品类行情列表（按成交件数倒序）
      */
     List<MarketCategoryStatVO> getCampusTopCategories(Long campusId, int topN);
+
+    /**
+     * 行情趋势：按日聚合的成交件数与中位价（详情页走势图数据源）
+     *
+     * @param categoryId 分类 ID
+     * @param condition  成色
+     * @param days       统计窗口（天，≤365）
+     * @return 趋势点列表（按日期升序；无成交返回空列表）
+     */
+    List<MarketTrendPointVO> getPriceTrend(Integer categoryId, String condition, int days);
 }

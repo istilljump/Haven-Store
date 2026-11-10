@@ -12,10 +12,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -118,6 +121,46 @@ class MarketDataServiceImplTest {
         assertNull(marketDataService.cheaperThanPercent(1, "九成新", new BigDecimal("100")));
         assertNull(marketDataService.cheaperThanPercent(null, "九成新", new BigDecimal("100")));
         assertNull(marketDataService.cheaperThanPercent(1, "九成新", null));
+    }
+
+    @Test
+    @DisplayName("行情趋势 - 按日聚合计数与中位价，日期升序")
+    void trend_dailyAggregation() {
+        List<Map<String, Object>> rows = Arrays.asList(
+                trendRow(java.sql.Date.valueOf("2026-11-02"), "200"),
+                trendRow(java.sql.Date.valueOf("2026-11-01"), "100"),
+                trendRow(java.sql.Date.valueOf("2026-11-01"), "300"));
+        when(marketDataMapper.selectTrendDeals(1, "九成新", 90)).thenReturn(rows);
+
+        List<com.example.market.vo.MarketTrendPointVO> points =
+                marketDataService.getPriceTrend(1, "九成新", 90);
+
+        assertEquals(2, points.size());
+        assertEquals("2026-11-01", points.get(0).getDate());
+        assertEquals(2, points.get(0).getCount());
+        assertEquals(0, points.get(0).getMedianPrice().compareTo(new BigDecimal("200.00")));
+        assertEquals("2026-11-02", points.get(1).getDate());
+        assertEquals(1, points.get(1).getCount());
+    }
+
+    @Test
+    @DisplayName("行情趋势 - 非法窗口或无成交返回空列表")
+    void trend_degraded() {
+        assertTrue(marketDataService.getPriceTrend(1, "九成新", 0).isEmpty());
+        assertTrue(marketDataService.getPriceTrend(null, "九成新", 90).isEmpty());
+        when(marketDataMapper.selectTrendDeals(1, "七成新及以下", 90))
+                .thenReturn(Collections.emptyList());
+        assertTrue(marketDataService.getPriceTrend(1, "七成新及以下", 90).isEmpty());
+    }
+
+    /**
+     * 快捷构造趋势明细行（dealDate + price）
+     */
+    private Map<String, Object> trendRow(java.sql.Date dealDate, String price) {
+        Map<String, Object> row = new HashMap<>();
+        row.put("dealDate", dealDate);
+        row.put("price", new BigDecimal(price));
+        return row;
     }
 
     /**

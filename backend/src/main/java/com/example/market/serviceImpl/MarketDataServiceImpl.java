@@ -5,6 +5,7 @@ import com.example.market.service.MarketDataService;
 import com.example.market.vo.MarketBasisVO;
 import com.example.market.vo.MarketCategoryStatVO;
 import com.example.market.vo.MarketDealStat;
+import com.example.market.vo.MarketTrendPointVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -122,6 +123,41 @@ public class MarketDataServiceImpl implements MarketDataService {
         stats.sort(Comparator.comparingInt(MarketCategoryStatVO::getDealCount).reversed()
                 .thenComparingInt(MarketCategoryStatVO::getCategoryId));
         return stats.size() > topN ? new ArrayList<>(stats.subList(0, topN)) : stats;
+    }
+
+    @Override
+    public List<MarketTrendPointVO> getPriceTrend(Integer categoryId, String condition, int days) {
+        if (categoryId == null || !StringUtils.hasText(condition) || days <= 0) {
+            return new ArrayList<>();
+        }
+        int window = Math.min(days, 365);
+        List<Map<String, Object>> rows = marketDataMapper.selectTrendDeals(categoryId, condition, window);
+        if (rows == null || rows.isEmpty()) {
+            return new ArrayList<>();
+        }
+        // 按成交日聚合：当日件数 + 当日中位价；只返回有成交的日期点，日期升序
+        Map<String, List<BigDecimal>> byDate = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object date = row.get("dealDate");
+            BigDecimal price = toBigDecimal(row.get("price"));
+            if (date == null || price == null) {
+                continue;
+            }
+            String day = String.valueOf(date).substring(0, 10);
+            byDate.computeIfAbsent(day, k -> new ArrayList<>()).add(price);
+        }
+        List<MarketTrendPointVO> points = new ArrayList<>();
+        for (Map.Entry<String, List<BigDecimal>> entry : byDate.entrySet()) {
+            List<BigDecimal> prices = entry.getValue().stream().sorted().collect(Collectors.toList());
+            MarketTrendPointVO point = new MarketTrendPointVO();
+            point.setDate(entry.getKey());
+            point.setCount(prices.size());
+            point.setMedianPrice(median(prices));
+            points.add(point);
+        }
+        // 日期升序（SQL 已按 pay_time 排序，但聚合后仍显式排序以保证契约稳定）
+        points.sort(Comparator.comparing(MarketTrendPointVO::getDate));
+        return points;
     }
 
     /**
