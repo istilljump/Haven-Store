@@ -309,7 +309,7 @@ export const useUserStore = defineStore('user', () => {
 
 export const useConfigStore = defineStore('config', () => {
   const config = ref({
-    siteName: 'Haven-Store',
+    siteName: '闲置港湾 Haven-Store',
     version: '1.0.0',
     apiBaseUrl: '/api'
   })

@@ -3,7 +3,7 @@
     <div class="auth-container">
       <div class="auth-header">
         <h1>{{ config.siteName }}</h1>
-        <p>欢迎来到 Haven-Store</p>
+        <p>毕业不甩卖，闲置有归宿</p>
       </div>
 
       <div class="auth-content">

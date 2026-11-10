@@ -4,7 +4,7 @@
     <section class="hero">
       <div class="hero-inner">
         <h1 class="hero-title">{{ siteName }}</h1>
-        <p class="hero-slogan">安全便捷的二手商品交易平台 · 让闲置好物流转起来</p>
+        <p class="hero-slogan">毕业不甩卖，闲置有归宿 · 校园闲置循环平台</p>
         <div class="hero-search">
           <el-input
             v-model="keyword"

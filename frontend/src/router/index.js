@@ -74,7 +74,7 @@ const router = createRouter({
  */
 router.beforeEach((to, from, next) => {
   // 页面标题
-  document.title = to.meta.title ? `${to.meta.title} - Haven-Store` : 'Haven-Store'
+  document.title = to.meta.title ? `${to.meta.title} - 闲置港湾 Haven-Store` : '闲置港湾 Haven-Store'
 
   const token = getToken()
   const userInfo = getUserInfo()
