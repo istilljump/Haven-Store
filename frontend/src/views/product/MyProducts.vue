@@ -20,6 +20,17 @@
         <div v-else class="product-grid">
           <div v-for="item in products" :key="item.id" class="grid-item">
             <ProductCard :product="item" />
+            <div v-if="item.priceSuggestion" class="price-suggest">
+              <div class="suggest-text">{{ item.priceSuggestion.reason }}</div>
+              <el-button
+                size="mini"
+                type="warning"
+                plain
+                @click="applySuggestion(item)"
+              >
+                一键降至 ¥{{ item.priceSuggestion.suggestedPrice }}
+              </el-button>
+            </div>
             <div class="item-actions">
               <el-button
                 v-if="Number(item.status) === 1"
@@ -73,7 +84,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ProductCard from '@/components/ProductCard.vue'
-import { getMyProducts, removeProduct, reshelfProduct, purgeProduct } from '@/api/product'
+import { getMyProducts, removeProduct, reshelfProduct, purgeProduct, updateProductPrice } from '@/api/product'
 
 /**
  * 我的发布（独立管理页）
@@ -81,6 +92,8 @@ import { getMyProducts, removeProduct, reshelfProduct, purgeProduct } from '@/ap
  * 此前「我的发布」挤在个人资料页的第三个 Tab 里：写死 50 条、没有删除与重新上架；
  * 独立成页后提供状态筛选、分页与完整生命周期操作：
  * 在售 → 编辑/下架；已下架 → 重新上架/彻底删除；已售出仅可查看。
+ * 滞销商品（挂牌超过后台设置的天数且价格高于行情九折）会附带后端给出的降价建议，
+ * 卖家可一键采纳（改价走 POST /product/{id}/price，定价权始终在卖家手里）。
  */
 export default {
   name: 'MyProducts',
@@ -113,6 +126,24 @@ export default {
     const handleTabChange = () => {
       query.page = 1
       loadProducts()
+    }
+
+    /**
+     * 一键采纳降价建议：把价格改为后端按成交行情算出的建议价
+     */
+    const applySuggestion = (item) => {
+      const suggest = item.priceSuggestion
+      ElMessageBox.confirm(
+        `把「${item.title}」的价格从 ¥${suggest.currentPrice} 调整为 ¥${suggest.suggestedPrice}？`,
+        '采纳降价建议',
+        { type: 'warning' }
+      )
+        .then(async () => {
+          await updateProductPrice(item.id, Number(suggest.suggestedPrice))
+          ElMessage.success('已按行情建议改价')
+          await loadProducts()
+        })
+        .catch(() => {})
     }
 
     const offline = (item) => {
@@ -161,6 +192,7 @@ export default {
       query,
       loadProducts,
       handleTabChange,
+      applySuggestion,
       offline,
       reshelf,
       purge
@@ -211,6 +243,22 @@ export default {
 .item-actions {
   display: flex;
   gap: 6px;
+}
+
+.price-suggest {
+  border: 1px solid #faecd8;
+  background: #fdf6ec;
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.suggest-text {
+  font-size: 12px;
+  color: #b88230;
+  line-height: 1.4;
 }
 
 .item-actions .el-button + .el-button {

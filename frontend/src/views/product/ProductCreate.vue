@@ -65,6 +65,15 @@
                 AI 智能估价
               </el-button>
               <span v-if="autoEstimateEnabled" class="estimate-hint">填写标题/分类/成色后可用</span>
+              <div v-if="estimateInfo" class="estimate-basis" :type="estimateInfo.basisType">
+                <div class="estimate-basis-title">
+                  {{ estimateInfo.basisType === 'MARKET_DATA' ? '📊 依据平台成交行情' : 'ℹ️ 依据规则基线' }}
+                  （建议价 ¥{{ estimateInfo.estimatedPrice }}，已回填）
+                </div>
+                <ul class="estimate-basis-list">
+                  <li v-for="(reason, idx) in estimateInfo.reasons" :key="idx">{{ reason }}</li>
+                </ul>
+              </div>
             </el-form-item>
 
             <el-form-item label="原价" prop="originalPrice">
@@ -93,6 +102,23 @@
               <el-select v-model="form.tradeType" placeholder="请选择交易方式" style="width: 200px">
                 <el-option label="线上交易" value="线上" />
                 <el-option label="线下交易" value="线下" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="所属校区">
+              <!-- 校园场景：选择后商品进入校区筛选与面交点推荐（可选，不选则为全平台可见） -->
+              <el-select
+                v-model="form.campusId"
+                placeholder="选择校区（可选）"
+                clearable
+                style="width: 200px"
+              >
+                <el-option
+                  v-for="item in campusOptions"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
               </el-select>
             </el-form-item>
 
@@ -297,6 +323,7 @@ import { Plus, Location, MagicStick } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { getToken } from '@/utils/auth'
 import productApi from '@/api/product'
+import campusApi from '@/api/campus'
 import { getPublicSettings } from '@/api/public'
 
 export default {
@@ -327,8 +354,12 @@ export default {
     const categoryOptions = ref([])
     const categoryLoading = ref(false)
 
-    // AI 估价（后端 /product/estimate，规则模拟；管理后台可通过「交易设置」关闭）
+    // AI 估价（行情优先，样本不足降级规则基线；管理后台可通过「交易设置」关闭）
     const estimating = ref(false)
+    // 估价可解释依据（basisType/reasons 由后端返回，展示在价格下方）
+    const estimateInfo = ref(null)
+    // 校区下拉数据（校园场景）
+    const campusOptions = ref([])
 
     // 上传限制（管理后台「上传设置」驱动，取不到时用默认值）
     const uploadMaxImages = ref(9)
@@ -341,6 +372,7 @@ export default {
       originalPrice: null,
       condition: '',
       tradeType: '',
+      campusId: null,
       address: '',
       longitude: null,
       latitude: null,
@@ -420,7 +452,8 @@ export default {
     }
 
     /**
-     * AI 智能估价：把后端返回的建议价回填到价格框
+     * AI 智能估价：把后端返回的建议价回填到价格框，并展示可解释依据
+     * （MARKET_DATA = 平台成交行情；RULE_BASELINE = 规则基线，明示数据积累中）
      */
     const estimatePrice = async () => {
       estimating.value = true
@@ -433,10 +466,12 @@ export default {
         })
         if (result && result.estimatedPrice) {
           form.price = Number(result.estimatedPrice)
+          estimateInfo.value = result
           ElMessage.success(
-            `AI 建议价约 ${result.estimatedPrice} 元（${result.suggestion || '仅供参考'}）`
+            `建议定价 ${result.estimatedPrice} 元（${result.suggestion || '仅供参考'}）`
           )
         } else {
+          estimateInfo.value = null
           ElMessage.warning('暂时拿不到估价建议，请手动定价')
         }
       } catch (error) {
@@ -596,6 +631,7 @@ export default {
           originalPrice: form.originalPrice || null,
           productCondition: form.condition,
           tradeType: form.tradeType,
+          campusId: form.campusId || null,
           address: form.tradeType === '线下' ? form.address : null,
           longitude: form.tradeType === '线下' ? form.longitude : null,
           latitude: form.tradeType === '线下' ? form.latitude : null,
@@ -659,6 +695,7 @@ export default {
             : Number(data.originalPrice)
         form.condition = data.productCondition || ''
         form.tradeType = data.tradeType || ''
+        form.campusId = data.campusId || null
         form.address = data.address || ''
         form.longitude =
           data.longitude === null || data.longitude === undefined ? null : Number(data.longitude)
@@ -693,6 +730,12 @@ export default {
     const autoEstimateEnabled = ref(true)
     onMounted(async () => {
       await loadCategories()
+      // 校区下拉（校园场景；加载失败不阻断发布向导）
+      try {
+        campusOptions.value = await campusApi.getCampuses()
+      } catch (error) {
+        campusOptions.value = []
+      }
       if (isEdit.value) {
         await loadProductForEdit()
       }
@@ -731,6 +774,8 @@ export default {
       categoryOptions,
       categoryLoading,
       estimating,
+      estimateInfo,
+      campusOptions,
       estimatePrice,
       autoEstimateEnabled,
       uploadMaxImages,
@@ -801,6 +846,37 @@ export default {
   margin-left: 10px;
   font-size: 12px;
   color: #909399;
+}
+
+/* 估价可解释依据：行情路径绿色、规则基线灰色 */
+.estimate-basis {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.estimate-basis[type='MARKET_DATA'] {
+  background: #f0f9eb;
+  border: 1px solid #e1f3d8;
+  color: #529b2e;
+}
+
+.estimate-basis[type='RULE_BASELINE'] {
+  background: #f4f4f5;
+  border: 1px solid #e9e9eb;
+  color: #909399;
+}
+
+.estimate-basis-title {
+  font-weight: 600;
+}
+
+.estimate-basis-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
 }
 
 .image-uploader {

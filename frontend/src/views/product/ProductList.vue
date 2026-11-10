@@ -7,7 +7,7 @@
 
     <div class="filter-section">
       <el-row :gutter="14" class="filter-row">
-        <el-col :xs="24" :sm="7">
+        <el-col :xs="24" :sm="6">
           <el-input
             v-model="searchForm.keyword"
             placeholder="搜标题 / 描述 / 品牌 / 型号"
@@ -20,7 +20,7 @@
             </template>
           </el-input>
         </el-col>
-        <el-col :xs="12" :sm="5">
+        <el-col :xs="12" :sm="4">
           <el-select
             v-model="searchForm.category"
             placeholder="选择分类"
@@ -35,7 +35,22 @@
             />
           </el-select>
         </el-col>
-        <el-col :xs="12" :sm="5">
+        <el-col :xs="12" :sm="4">
+          <el-select
+            v-model="searchForm.campus"
+            placeholder="选择校区"
+            clearable
+            @change="handleSearch"
+          >
+            <el-option
+              v-for="item in campusOptions"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
+          </el-select>
+        </el-col>
+        <el-col :xs="12" :sm="4">
           <el-select
             v-model="searchForm.priceRange"
             placeholder="价格区间"
@@ -48,7 +63,7 @@
             <el-option label="1000元以上" value="1000+" />
           </el-select>
         </el-col>
-        <el-col :xs="12" :sm="4">
+        <el-col :xs="12" :sm="3">
           <el-select v-model="searchForm.sort" @change="handleSearch">
             <el-option label="最新发布" value="latest" />
             <el-option label="价格从低到高" value="priceAsc" />
@@ -151,6 +166,7 @@ import { ElMessage } from 'element-plus'
 import ProductCard from '@/components/ProductCard.vue'
 import AppImage from '@/components/AppImage.vue'
 import productApi from '@/api/product'
+import campusApi from '@/api/campus'
 import { MAP_CONFIG } from '@/utils/constants'
 
 /**
@@ -175,6 +191,7 @@ export default {
     const currentPage = ref(1)
     const pageSize = ref(12)
     const categoryOptions = ref([])
+    const campusOptions = ref([])
 
     const nearbyMode = ref(false)
     const locating = ref(false)
@@ -184,6 +201,7 @@ export default {
     const searchForm = reactive({
       keyword: '',
       category: '',
+      campus: '',
       priceRange: '',
       sort: 'latest'
     })
@@ -202,6 +220,15 @@ export default {
         categoryOptions.value = await productApi.getProductCategories()
       } catch (error) {
         // 分类下拉加载失败不阻断商品列表
+      }
+    }
+
+    // 加载校区下拉数据（校园场景筛选；失败不阻断商品列表）
+    const loadCampuses = async () => {
+      try {
+        campusOptions.value = await campusApi.getCampuses()
+      } catch (error) {
+        // 校区数据加载失败时仅隐藏筛选入口
       }
     }
 
@@ -228,6 +255,7 @@ export default {
           const data = await productApi.searchProducts({
             keyword: searchForm.keyword || undefined,
             categoryId: searchForm.category || undefined,
+            campusId: searchForm.campus || undefined,
             minPrice: range[0] === null ? undefined : range[0],
             maxPrice: range[1] === null ? undefined : range[1],
             sort: searchForm.sort || undefined,
@@ -254,6 +282,7 @@ export default {
     const resetSearch = () => {
       searchForm.keyword = ''
       searchForm.category = ''
+      searchForm.campus = ''
       searchForm.priceRange = ''
       searchForm.sort = 'latest'
       handleSearch()
@@ -319,6 +348,7 @@ export default {
         searchForm.category = Number(route.query.categoryId)
       }
       loadCategories()
+      loadCampuses()
       fetchProducts()
       if (route.query.mode === 'nearby') {
         toggleNearby()
@@ -334,6 +364,7 @@ export default {
       pageSize,
       searchForm,
       categoryOptions,
+      campusOptions,
       nearbyMode,
       locating,
       radius,

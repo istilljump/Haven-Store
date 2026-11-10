@@ -47,6 +47,35 @@
               </span>
             </div>
 
+            <!-- 成交行情与划算指数（后台「交易设置」开关总控；行情样本不足时后端不返回该字段） -->
+            <div class="market-section" v-if="product.marketBasis">
+              <el-tag
+                v-if="product.pricePosition !== null && product.pricePosition !== undefined"
+                :type="product.pricePosition >= 50 ? 'success' : 'warning'"
+                size="small"
+              >
+                {{ dealBadgeText }}
+              </el-tag>
+              <span class="market-summary">
+                近{{ product.marketBasis.days }}天同类成交 {{ product.marketBasis.sampleSize }} 件 ·
+                中位价 ¥{{ product.marketBasis.medianPrice }} · 区间
+                ¥{{ product.marketBasis.minPrice }} ~ ¥{{ product.marketBasis.maxPrice }}
+              </span>
+            </div>
+
+            <!-- 校园场景：推荐离商品最近的安全面交点（线下商品才有坐标与校区） -->
+            <div class="meet-point-line" v-if="meetPoint">
+              <el-tag size="small" type="info">建议面交点</el-tag>
+              <span>
+                {{ meetPoint.name }}（距商品约
+                {{
+                  meetPoint.distanceMeters < 1000
+                    ? meetPoint.distanceMeters + ' 米'
+                    : (meetPoint.distanceMeters / 1000).toFixed(1) + ' 公里'
+                }}）
+              </span>
+            </div>
+
             <div class="title-section">
               <h1>{{ product.title }}</h1>
               <p class="description">{{ product.description }}</p>
@@ -56,6 +85,10 @@
               <div class="meta-item">
                 <span class="label">分类:</span>
                 <span class="value">{{ product.category }}</span>
+              </div>
+              <div class="meta-item" v-if="product.campusName">
+                <span class="label">校区:</span>
+                <span class="value">{{ product.campusName }}</span>
               </div>
               <div class="meta-item">
                 <span class="label">状态:</span>
@@ -387,6 +420,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import productApi from '@/api/product'
+import campusApi from '@/api/campus'
 import messageApi from '@/api/message'
 import cartApi from '@/api/cart'
 import reportApi from '@/api/report'
@@ -457,7 +491,42 @@ export default {
       contactName: '',
       contactPhone: '',
       tradeMethod: '',
-      remarks: ''
+      remarks: '',
+      campusId: null,
+      campusName: '',
+      // 成交行情基线与价格分位（后端 dealBadge 开关控制，样本不足时为 null）
+      marketBasis: null,
+      pricePosition: null
+    })
+
+    // 推荐面交点（线下商品按商品坐标推荐，失败不影响详情）
+    const meetPoint = ref(null)
+
+    /**
+     * 加载推荐面交点：以商品坐标为参照点，取校区内最近的安全面交位置
+     */
+    const loadMeetPoint = async (campusId, longitude, latitude) => {
+      meetPoint.value = null
+      if (!campusId || longitude == null || latitude == null) {
+        return
+      }
+      try {
+        meetPoint.value = await campusApi.getNearestMeetPoint({ campusId, longitude, latitude })
+      } catch (error) {
+        // 面交点推荐失败不影响详情页主流程
+      }
+    }
+
+    /**
+     * 划算指数文案：pricePosition = 该价格低于近期 X% 的同类成交价
+     */
+    const dealBadgeText = computed(() => {
+      if (product.pricePosition === null || product.pricePosition === undefined) {
+        return ''
+      }
+      return product.pricePosition >= 50
+        ? `低于近期 ${product.pricePosition}% 的同类成交价`
+        : `高于近期 ${100 - product.pricePosition}% 的同类成交价`
     })
 
     const productId = computed(() => route.params.id)
@@ -508,10 +577,16 @@ export default {
           tradeMethod:
             data.tradeType === '线下' && data.address
               ? `${data.tradeType}（${data.address}）`
-              : data.tradeType || ''
+              : data.tradeType || '',
+          campusId: data.campusId || null,
+          campusName: data.campusName || '',
+          marketBasis: data.marketBasis || null,
+          pricePosition: data.pricePosition === undefined ? null : data.pricePosition
         })
         // 收藏状态由后端返回，未登录固定为 false
         isFavorited.value = data.favorited === true
+        // 校园场景：按商品坐标推荐最近面交点
+        loadMeetPoint(data.campusId, data.longitude, data.latitude)
       } catch (error) {
         console.error('获取商品详情失败:', error)
         productNotFound.value = true
@@ -811,6 +886,8 @@ export default {
       product,
       activeTab,
       isFavorited,
+      meetPoint,
+      dealBadgeText,
       getStatusType,
       getStatusText,
       orDash,
@@ -940,6 +1017,34 @@ export default {
 .original-price {
   color: #999;
   text-decoration: line-through;
+}
+
+/* 成交行情与划算指数（数据驱动定价的买家侧展示） */
+.market-section {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -10px 0 16px;
+  padding: 8px 12px;
+  background: #f0f9eb;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #67c23a;
+}
+
+.market-summary {
+  color: #606266;
+}
+
+/* 校园面交点推荐 */
+.meet-point-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 0 16px;
+  font-size: 13px;
+  color: #606266;
 }
 
 .title-section {

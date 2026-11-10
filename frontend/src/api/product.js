@@ -71,6 +71,7 @@ export function getProductDetail(productId) {
  * @param {Object} searchParams - 搜索参数
  * @param {string} searchParams.keyword - 搜索关键词
  * @param {number} searchParams.categoryId - 分类ID
+ * @param {number} searchParams.campusId - 校区ID（校园场景筛选）
  * @param {number} searchParams.page - 页码
  * @param {number} searchParams.pageSize - 每页条数
  * @param {string} searchParams.sort - 排序方式
@@ -78,6 +79,16 @@ export function getProductDetail(productId) {
  */
 export function searchProducts(searchParams) {
   return request.get('/product/search', searchParams)
+}
+
+/**
+ * 修改在售商品价格（「一键采纳降价建议」走此接口）
+ * @param {number} productId - 商品ID
+ * @param {number} price - 新价格（元）
+ * @returns {Promise} 返回操作结果
+ */
+export function updateProductPrice(productId, price) {
+  return request.post(`/product/${productId}/price`, { price })
 }
 
 /**

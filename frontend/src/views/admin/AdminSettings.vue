@@ -163,6 +163,41 @@
                   </el-input-number>
                   <span class="form-tip">（商品发布后自动下架的时间，0表示不自动下架）</span>
                 </el-form-item>
+                <h3>数据驱动定价（进阶能力，可独立开关）</h3>
+                <el-form-item label="行情估价">
+                  <el-switch v-model="settings.trade.marketBasis" />
+                  <span class="form-tip"
+                    >（开启后估价优先取平台成交中位价；关闭或样本不足时走规则基线）</span
+                  >
+                </el-form-item>
+                <el-form-item label="划算指数">
+                  <el-switch v-model="settings.trade.dealBadge" />
+                  <span class="form-tip">（商品详情页展示「低于近期 X% 成交价」价格分位）</span>
+                </el-form-item>
+                <el-form-item label="降价建议">
+                  <el-switch v-model="settings.trade.priceSuggest" />
+                  <span class="form-tip">（「我的发布」对滞销商品给出按行情的降价建议）</span>
+                </el-form-item>
+                <el-form-item label="滞销天数">
+                  <el-input-number
+                    v-model="settings.trade.staleDays"
+                    :min="1"
+                    :max="365"
+                    controls-position="right"
+                  >
+                    <template #suffix>天</template>
+                  </el-input-number>
+                  <span class="form-tip">（挂牌超过该天数且价格高于行情九折时提示降价）</span>
+                </el-form-item>
+                <el-form-item label="最小样本量">
+                  <el-input-number
+                    v-model="settings.trade.minSampleSize"
+                    :min="1"
+                    :max="100"
+                    controls-position="right"
+                  />
+                  <span class="form-tip">（同类成交样本低于该值时不做行情估价与建议）</span>
+                </el-form-item>
               </el-form>
             </div>
           </el-tab-pane>
@@ -288,8 +323,8 @@ const isValidContactPhone = (phone) => {
 // 默认设置
 const defaultSettings = {
   site: {
-    name: 'Haven-Store',
-    description: '专业的二手商品交易平台',
+    name: '闲置港湾 Haven-Store',
+    description: '面向校园与同城的闲置循环平台——用真实成交行情定对价，用校区与面交点让面交更省心',
     logo: '/logo.png',
     icp: '京ICP备123456789号'
   },
@@ -302,7 +337,13 @@ const defaultSettings = {
     autoEstimate: true,
     estimateConfidence: 80,
     maxPrice: 1000000,
-    autoOfflineHours: 0
+    autoOfflineHours: 0,
+    // 数据驱动定价的可选开关（与后端 SystemSettingDTO.defaults 对齐）
+    marketBasis: true,
+    dealBadge: true,
+    priceSuggest: true,
+    staleDays: 14,
+    minSampleSize: 3
   },
   contact: {
     email: 'admin@secondhand.com',
