@@ -8,17 +8,12 @@
     <div class="filter-section">
       <el-row :gutter="14" class="filter-row">
         <el-col :xs="24" :sm="6">
-          <el-input
+          <SearchSuggest
             v-model="searchForm.keyword"
+            :campus-id="searchForm.campus || null"
             placeholder="搜标题 / 描述 / 品牌 / 型号"
-            clearable
-            @keyup.enter="handleSearch"
-            @clear="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
+            @search="handleSearch"
+          />
         </el-col>
         <el-col :xs="12" :sm="4">
           <el-select
@@ -86,6 +81,28 @@
         <el-button type="primary" @click="handleSearch">搜索</el-button>
         <el-button @click="resetSearch">重置</el-button>
       </div>
+      <!-- 进阶能力（后台开关）：搜索结果按成色二次筛选 -->
+      <div v-if="conditionFilterEnabled" class="condition-chips">
+        <el-tag
+          v-for="cond in CONDITION_OPTIONS"
+          :key="cond"
+          :type="searchForm.condition === cond ? 'primary' : 'info'"
+          :effect="searchForm.condition === cond ? 'dark' : 'plain'"
+          class="condition-chip"
+          @click="toggleCondition(cond)"
+        >
+          {{ cond }}
+        </el-tag>
+      </div>
+      <!-- 纠错提示：命中本地纠错词表时告知用户实际检索词 -->
+      <el-alert
+        v-if="correction"
+        :title="`已为你显示「${correction.corrected}」的搜索结果（输入：${correction.original}）`"
+        type="warning"
+        :closable="true"
+        @close="correction = null"
+        style="margin-top: 10px"
+      />
       <el-alert
         v-if="nearbyMode"
         :title="`已开启附近模式：以你的位置为中心 ${radius} 公里内的在售商品`"
@@ -139,7 +156,29 @@
           </div>
         </template>
         <template v-else>
-          <ProductCard v-for="product in products" :key="product.id" :product="product" />
+          <div
+            v-for="product in products"
+            :key="product.id"
+            class="card-wrap"
+            @click="trackClick(product)"
+          >
+            <ProductCard :product="product" />
+            <!-- 搜索结果条目内嵌行情标签：品类中位价 + 划算指数 -->
+            <div v-if="product.marketMedian" class="market-hint">
+              该品类近期中位价 ¥{{ product.marketMedian }}
+              <span
+                v-if="product.pricePosition !== null && product.pricePosition !== undefined"
+                :class="product.pricePosition >= 50 ? 'hint-good' : 'hint-warn'"
+              >
+                ·
+                {{
+                  product.pricePosition >= 50
+                    ? `低于近期 ${product.pricePosition}% 成交价`
+                    : `高于近期 ${100 - product.pricePosition}% 成交价`
+                }}
+              </span>
+            </div>
+          </div>
         </template>
       </div>
     </div>
@@ -155,6 +194,14 @@
         @current-change="handleCurrentChange"
       />
     </div>
+
+    <!-- 搜索后互补闲置推荐（R3）：字典命中才展示，不同类凑数 -->
+    <RecommendSection
+      v-if="complementary.length"
+      title="买了它的人还在看"
+      subtitle="互补闲置推荐 · 经常和你的搜索一起交易"
+      :items="complementary"
+    />
   </div>
 </template>
 
@@ -165,8 +212,13 @@ import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import ProductCard from '@/components/ProductCard.vue'
 import AppImage from '@/components/AppImage.vue'
+import SearchSuggest from '@/components/SearchSuggest.vue'
+import RecommendSection from '@/components/RecommendSection.vue'
 import productApi from '@/api/product'
 import campusApi from '@/api/campus'
+import searchApi from '@/api/search'
+import recommendApi from '@/api/recommend'
+import { getPublicSettings } from '@/api/public'
 import { MAP_CONFIG } from '@/utils/constants'
 
 /**
@@ -179,7 +231,7 @@ import { MAP_CONFIG } from '@/utils/constants'
  */
 export default {
   name: 'ProductList',
-  components: { Search, ProductCard, AppImage },
+  components: { Search, ProductCard, AppImage, SearchSuggest, RecommendSection },
   setup() {
     const router = useRouter()
     const route = useRoute()
@@ -193,6 +245,13 @@ export default {
     const categoryOptions = ref([])
     const campusOptions = ref([])
 
+    // 增强搜索的配套状态：纠错信息、埋点 ID、互补推荐、进阶成色筛选
+    const correction = ref(null)
+    const lastLogId = ref(null)
+    const complementary = ref([])
+    const conditionFilterEnabled = ref(false)
+    const CONDITION_OPTIONS = ['全新', '九成新', '八成新', '七成新及以下']
+
     const nearbyMode = ref(false)
     const locating = ref(false)
     const radius = ref(MAP_CONFIG.DEFAULT_RADIUS)
@@ -203,7 +262,8 @@ export default {
       category: '',
       campus: '',
       priceRange: '',
-      sort: 'latest'
+      sort: 'latest',
+      condition: ''
     })
 
     // 价格区间 -> 后端 minPrice/maxPrice 的映射（'1000+' 表示下限 1000、无上限）
@@ -249,29 +309,74 @@ export default {
             distanceKm: Number(p.distance).toFixed(1)
           }))
           total.value = data.total || 0
+          complementary.value = []
         } else {
           const range = PRICE_RANGE_MAP[searchForm.priceRange] || [null, null]
-          // 空字符串会被后端当作"未筛选"，此处直接转成 undefined，避免发出无意义的空参数
-          const data = await productApi.searchProducts({
+          // 增强搜索：自动纠错 + 结果内嵌行情标签 + 埋点（/search/products）
+          const res = await searchApi.searchProductsEnhanced({
             keyword: searchForm.keyword || undefined,
             categoryId: searchForm.category || undefined,
             campusId: searchForm.campus || undefined,
             minPrice: range[0] === null ? undefined : range[0],
             maxPrice: range[1] === null ? undefined : range[1],
             sort: searchForm.sort || undefined,
+            productCondition: searchForm.condition || undefined,
             page: currentPage.value,
             pageSize: pageSize.value
           })
-          products.value = data.records || []
-          total.value = data.total || 0
+          products.value = (res && res.page && res.page.records) || []
+          total.value = (res && res.page && res.page.total) || 0
+          correction.value = (res && res.correction) || null
+          lastLogId.value = (res && res.logId) || null
+          loadComplementary()
         }
       } catch (error) {
         products.value = []
         total.value = 0
         loadError.value = true
+        complementary.value = []
       } finally {
         loading.value = false
       }
+    }
+
+    /**
+     * 搜索后互补闲置推荐（R3）：用纠错后的检索词解析品类，
+     * 排除当前结果已出现的商品；字典未命中返回空，区块自动隐藏
+     */
+    const loadComplementary = async () => {
+      complementary.value = []
+      const kw = (correction.value && correction.value.corrected) || searchForm.keyword
+      if (!kw) {
+        return
+      }
+      try {
+        const items = await recommendApi.getComplementaryRecommend({
+          keyword: kw,
+          campusId: searchForm.campus || undefined,
+          excludeIds: products.value.map((p) => p.id)
+        })
+        complementary.value = items || []
+      } catch (error) {
+        complementary.value = []
+      }
+    }
+
+    /**
+     * 点击信标：把点击的结果商品回填到本次搜索埋点（fire-and-forget）
+     */
+    const trackClick = (product) => {
+      if (lastLogId.value && product && product.id) {
+        searchApi.logSearchClick({ logId: lastLogId.value, productId: product.id }).catch(() => {})
+      }
+    }
+
+    /**
+     * 进阶成色筛选（后台开关开启时展示 chips）
+     */
+    const toggleCondition = (cond) => {
+      searchForm.condition = searchForm.condition === cond ? '' : cond
+      handleSearch()
     }
 
     const handleSearch = () => {
@@ -285,6 +390,7 @@ export default {
       searchForm.campus = ''
       searchForm.priceRange = ''
       searchForm.sort = 'latest'
+      searchForm.condition = ''
       handleSearch()
     }
 
@@ -340,12 +446,15 @@ export default {
     }
 
     onMounted(() => {
-      // 首页/详情页跳转过来的预置筛选（?keyword=xxx、?categoryId=x、?mode=nearby）
+      // 首页/详情页跳转过来的预置筛选（?keyword=xxx、?categoryId=x、?campusId=x、?mode=nearby）
       if (route.query.keyword) {
         searchForm.keyword = String(route.query.keyword)
       }
       if (route.query.categoryId) {
         searchForm.category = Number(route.query.categoryId)
+      }
+      if (route.query.campusId) {
+        searchForm.campus = Number(route.query.campusId)
       }
       loadCategories()
       loadCampuses()
@@ -353,6 +462,12 @@ export default {
       if (route.query.mode === 'nearby') {
         toggleNearby()
       }
+      // 进阶能力开关：后台开启后展示成色二次筛选 chips
+      getPublicSettings()
+        .then((settings) => {
+          conditionFilterEnabled.value = !!(settings && settings.searchConditionFilter === true)
+        })
+        .catch(() => {})
     })
 
     return {
@@ -368,9 +483,15 @@ export default {
       nearbyMode,
       locating,
       radius,
+      correction,
+      complementary,
+      conditionFilterEnabled,
+      CONDITION_OPTIONS,
       handleSearch,
       resetSearch,
       toggleNearby,
+      toggleCondition,
+      trackClick,
       handleSizeChange,
       handleCurrentChange,
       viewProduct,
@@ -386,6 +507,39 @@ export default {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* 搜索结果条目包装：卡片 + 行情小字 */
+.card-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.market-hint {
+  font-size: 12px;
+  color: #909399;
+  padding: 0 2px;
+}
+
+.market-hint .hint-good {
+  color: #67c23a;
+}
+
+.market-hint .hint-warn {
+  color: #e6a23c;
+}
+
+/* 进阶成色二次筛选 chips */
+.condition-chips {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.condition-chip {
+  cursor: pointer;
 }
 
 .header {

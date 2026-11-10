@@ -358,6 +358,14 @@
           </el-tab-pane>
         </el-tabs>
       </div>
+
+      <!-- 场景化推荐（R4 同校同款 → R5 互补）：条目带可解释推荐原因 -->
+      <RecommendSection
+        v-if="productRecommend.length"
+        title="校园好物 · 看了又看"
+        subtitle="优先同校区、同成色、同品类"
+        :items="productRecommend"
+      />
     </div>
 
     <!-- 联系卖家：private 为普通私信，consult 为针对该商品的咨询 -->
@@ -421,6 +429,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import productApi from '@/api/product'
 import campusApi from '@/api/campus'
+import recommendApi from '@/api/recommend'
+import RecommendSection from '@/components/RecommendSection.vue'
 import messageApi from '@/api/message'
 import cartApi from '@/api/cart'
 import reportApi from '@/api/report'
@@ -501,6 +511,21 @@ export default {
 
     // 推荐面交点（线下商品按商品坐标推荐，失败不影响详情）
     const meetPoint = ref(null)
+
+    // 场景化推荐（R4/R5）：总开关关闭或接口为空时区块自动隐藏
+    const productRecommend = ref([])
+
+    const loadRecommend = async (pid) => {
+      productRecommend.value = []
+      if (!pid) {
+        return
+      }
+      try {
+        productRecommend.value = (await recommendApi.getProductRecommend(pid)) || []
+      } catch (error) {
+        // 推荐失败不影响详情主流程
+      }
+    }
 
     /**
      * 加载推荐面交点：以商品坐标为参照点，取校区内最近的安全面交位置
@@ -587,6 +612,8 @@ export default {
         isFavorited.value = data.favorited === true
         // 校园场景：按商品坐标推荐最近面交点
         loadMeetPoint(data.campusId, data.longitude, data.latitude)
+        // 场景化推荐：同校同款 + 互补闲置
+        loadRecommend(data.id)
       } catch (error) {
         console.error('获取商品详情失败:', error)
         productNotFound.value = true
@@ -888,6 +915,7 @@ export default {
       isFavorited,
       meetPoint,
       dealBadgeText,
+      productRecommend,
       getStatusType,
       getStatusText,
       orDash,

@@ -18,6 +18,16 @@ export function getMarketSummary(params) {
   return request.get('/market/summary', params)
 }
 
+/**
+ * 校区品类行情 TOP N（首页「本校行情速览」看板）
+ * @param {Object} params - {campusId, topN?}
+ * @returns {Promise} 返回 [{categoryId, categoryName, dealCount, medianPrice}]
+ */
+export function getCampusSummary(params) {
+  return request.get('/market/campus-summary', params)
+}
+
 export default {
-  getMarketSummary
+  getMarketSummary,
+  getCampusSummary
 }

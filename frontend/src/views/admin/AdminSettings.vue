@@ -198,6 +198,19 @@
                   />
                   <span class="form-tip">（同类成交样本低于该值时不做行情估价与建议）</span>
                 </el-form-item>
+                <h3>增强搜索与场景推荐（配套增强层）</h3>
+                <el-form-item label="场景化推荐">
+                  <el-switch v-model="settings.trade.recommendEnabled" />
+                  <span class="form-tip"
+                    >（首页/搜索后/详情页三处推荐区块总开关，条目强制带推荐原因）</span
+                  >
+                </el-form-item>
+                <el-form-item label="成色二次筛选">
+                  <el-switch v-model="settings.trade.searchConditionFilter" />
+                  <span class="form-tip"
+                    >（进阶能力：搜索结果按成色二次筛选，缺省关闭）</span
+                  >
+                </el-form-item>
               </el-form>
             </div>
           </el-tab-pane>
@@ -343,7 +356,10 @@ const defaultSettings = {
     dealBadge: true,
     priceSuggest: true,
     staleDays: 14,
-    minSampleSize: 3
+    minSampleSize: 3,
+    // 增强搜索与场景推荐（推荐缺省开、成色二次筛选缺省关）
+    recommendEnabled: true,
+    searchConditionFilter: false
   },
   contact: {
     email: 'admin@secondhand.com',
