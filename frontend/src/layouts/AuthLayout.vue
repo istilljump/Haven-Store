@@ -63,6 +63,18 @@ export default {
   border-bottom: 1px solid #f5f7fa;
 }
 
+/* [UI美化-本轮] 品牌徽标：认证页标题主色圆点，与顶栏 Logo 呼应 */
+.auth-header h1::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb);
+  vertical-align: -1px;
+}
+
 .auth-header h1 {
   margin: 0;
   color: #303133;

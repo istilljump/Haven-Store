@@ -397,6 +397,45 @@ body {
   }
 }
 
+/* ============================================================
+ * 九、管理端效率视觉 + 品牌装饰（本轮迭代新增样式代码）
+ * 审定项：筛选区间距统一 / 操作列密度 / 弹窗表单 / 标签页 / 纯CSS品牌装饰
+ * ============================================================ */
+
+/* —— 行内筛选表单（后台搜索卡片内）：去掉 EP 默认 32px 右距，交给页面 flex gap 统一控制 —— */
+.el-card .el-form--inline .el-form-item {
+  margin-right: 0;
+  margin-bottom: 0;
+}
+
+/* —— 表格操作列：相邻按钮间距收紧统一（EP 默认 12px → 8px） —— */
+.el-table .cell .el-button + .el-button {
+  margin-left: 8px;
+}
+
+/* —— 弹窗内表单：条目间距收紧半档，末项去冗余空隙 —— */
+.el-dialog .el-form-item {
+  margin-bottom: 16px;
+}
+.el-dialog .el-form-item:last-child {
+  margin-bottom: 0;
+}
+
+/* —— 标签页（商品详情等）：字重层级 + 底线压淡 + 激活条圆角 —— */
+.el-tabs__item {
+  font-weight: 500;
+}
+.el-tabs__item.is-active {
+  font-weight: 600;
+}
+.el-tabs__nav-wrap::after {
+  height: 1px;
+  background-color: var(--hs-border-light);
+}
+.el-tabs__active-bar {
+  border-radius: 2px;
+}
+
 /* —— 列表首屏一次性渐入基座（全局 keyframes，供各页 scoped 按 nth-child 配 stagger 延迟） —— */
 @keyframes hs-fade-up {
   from {

@@ -258,9 +258,17 @@ const handleLogout = () => {
   opacity: 0.85;
 }
 
+/* [UI美化-本轮] 品牌徽标：Logo 图标淡蓝圆角托底 */
 .logo .el-icon {
-  font-size: 24px;
+  font-size: 20px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #ecf5ff;
   color: #409eff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .header-right {

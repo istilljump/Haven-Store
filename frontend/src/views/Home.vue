@@ -266,13 +266,40 @@ onMounted(async () => {
 }
 
 /* [UI美化] Hero：紫色渐变统一为项目主色蓝系，叠加柔光装饰，观感更柔和统一 */
+/* [UI美化-本轮] 品牌几何装饰：双圆环点缀（纯 CSS，pointer-events 不影响交互） */
 .hero {
+  position: relative;
+  overflow: hidden;
   background:
     radial-gradient(900px 400px at 15% -20%, rgba(255, 255, 255, 0.16), transparent 55%),
     radial-gradient(700px 380px at 105% 120%, rgba(255, 255, 255, 0.12), transparent 50%),
     linear-gradient(135deg, #409eff 0%, #2563eb 100%);
   padding: 60px 20px 68px;
   color: #fff;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  left: -60px;
+  bottom: -110px;
+  width: 220px;
+  height: 220px;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  right: -90px;
+  top: -90px;
+  width: 260px;
+  height: 260px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 /* [UI美化-本轮] 容器统一加宽至 1200px */
@@ -541,6 +568,20 @@ onMounted(async () => {
 
   .board-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* [UI美化-本轮] 小屏：看板工具条下拉收窄，避免与区块标题拥挤（覆盖内联 width:160px） */
+  .board-tools :deep(.el-select) {
+    width: 120px !important;
+  }
+
+  .section-head {
+    gap: 10px;
+  }
+
+  .section-head h2 {
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 }
 </style>

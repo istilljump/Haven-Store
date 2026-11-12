@@ -300,6 +300,19 @@ export default {
   margin: 0 auto;
 }
 
+/* [UI美化-本轮] 品牌徽标：Logo 前主色圆点（纯 CSS 装饰元素） */
+.logo h1::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb);
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.4);
+  vertical-align: -1px;
+}
+
 /* [UI美化] Logo：字重加重 + hover 透明度过渡 */
 .logo h1 {
   margin: 0;
@@ -408,6 +421,19 @@ export default {
   height: 100%;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* [UI美化-本轮] 页脚品牌点缀：主色小圆点 */
+.footer-content p::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #409eff;
+  opacity: 0.55;
+  vertical-align: 1px;
 }
 
 .footer-content p {

@@ -739,6 +739,23 @@ onBeforeUnmount(() => {
   .action-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  /* [UI美化-本轮] 小屏堆叠：统计卡/图表/功能模块的固定 span 列强制占满整行 */
+  .stats-cards .el-col,
+  .chart-section .el-col,
+  .function-modules .el-col {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .stats-cards .el-col {
+    margin-bottom: 12px;
+  }
+
+  .chart-section .el-col,
+  .function-modules .el-col {
+    margin-bottom: 16px;
+  }
 }
 
 @media (max-width: 480px) {
