@@ -50,8 +50,9 @@ defineProps({
 </script>
 
 <style scoped>
+/* [UI美化-本轮] 容器与首页区块统一加宽至 1200px */
 .recommend-section {
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 8px 20px 24px;
 }
@@ -111,7 +112,8 @@ defineProps({
 
 .recommend-card:hover {
   border-color: #d9ecff;
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  /* [UI美化-本轮] hover 层次加深半档 */
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.14);
   transform: translateY(-3px);
 }
 
@@ -166,6 +168,23 @@ defineProps({
 .recommend-tags {
   font-size: 12px;
   color: #909399;
+}
+
+/* [UI美化-本轮] 推荐卡首屏一次性渐入（全局 hs-fade-up keyframes，stagger 延迟见下） */
+.recommend-grid > * {
+  animation: hs-fade-up 0.35s ease backwards;
+}
+.recommend-grid > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.recommend-grid > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.recommend-grid > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.recommend-grid > *:nth-child(n + 5) {
+  animation-delay: 0.16s;
 }
 
 @media (max-width: 768px) {

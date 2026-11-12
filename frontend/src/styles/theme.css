@@ -369,3 +369,42 @@ body {
     max-width: calc(100vw - 32px);
   }
 }
+
+/* ============================================================
+ * 八、可用性视觉 + 动效基座（本轮迭代新增样式代码）
+ * 审定项：纯视觉层可用性（键盘焦点环）/ 动效适度放开（一次性渐入）
+ * ============================================================ */
+
+/* —— 键盘焦点环：仅键盘操作（focus-visible）时出现，鼠标点击不显示 —— */
+:focus-visible {
+  outline: 2px solid var(--hs-primary-light);
+  outline-offset: 2px;
+}
+/* EP 输入类控件自带焦点内环（box-shadow），避免双重焦点提示 */
+.el-input__inner:focus-visible,
+.el-textarea__inner:focus-visible {
+  outline: none;
+}
+
+/* —— 减少动态偏好：系统开启「减弱动态效果」时压缩全部过渡与动画 —— */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* —— 列表首屏一次性渐入基座（全局 keyframes，供各页 scoped 按 nth-child 配 stagger 延迟） —— */
+@keyframes hs-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -598,6 +598,30 @@ export default {
   gap: 16px;
 }
 
+/* [UI美化-本轮] 结果区首屏一次性渐入（stagger 40ms 递进） */
+.grid > * {
+  animation: hs-fade-up 0.35s ease backwards;
+}
+.grid > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.grid > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.grid > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.grid > *:nth-child(n + 5) {
+  animation-delay: 0.16s;
+}
+
+/* [UI美化-本轮] 宽屏（≥1600px）：结果网格放宽到 6 列 */
+@media (min-width: 1600px) {
+  .grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
 .card-skeleton {
   background: #fff;
   border-radius: 10px;
@@ -619,7 +643,8 @@ export default {
 
 .nearby-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  /* [UI美化-本轮] hover 层次加深半档 */
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.14);
 }
 
 .nearby-cover {

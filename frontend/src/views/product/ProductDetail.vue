@@ -1124,16 +1124,24 @@ export default {
   justify-content: center;
 }
 
+/* [UI美化-本轮] 价格强调块：浅红底胶囊隔离，价格更醒目（数据展示升级） */
 .price-section {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
   margin-bottom: 20px;
+  padding: 12px 18px;
+  background: #fef0f0;
+  border-radius: 10px;
 }
 
-/* [UI美化] 价格：统一为全站价格红 #f56c6c */
+/* [UI美化] 价格：统一为全站价格红 #f56c6c；[UI美化-本轮] 数字等宽 */
 .price {
   font-size: 32px;
   font-weight: bold;
   color: #f56c6c;
-  margin-right: 15px;
+  margin-right: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .original-price {
@@ -1142,17 +1150,18 @@ export default {
 }
 
 /* 成交行情与划算指数（数据驱动定价的买家侧展示） */
+/* [UI美化-本轮] 行情区卡片化：中性浅底+描边+圆角，与价格块分层 */
 .market-section {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin: -10px 0 16px;
-  padding: 10px 14px;
-  background: #f0f9eb;
-  border-radius: 8px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: #f8fafd;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
   font-size: 13px;
-  color: #67c23a;
 }
 
 .market-summary {

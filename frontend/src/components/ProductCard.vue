@@ -89,7 +89,8 @@ export default {
 .product-card:hover {
   transform: translateY(-4px);
   border-color: #d9ecff;
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  /* [UI美化-本轮] hover 层次加深半档 */
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.14);
 }
 
 .product-card__cover {
@@ -152,6 +153,8 @@ export default {
   color: #f56c6c;
   font-size: 17px;
   font-weight: 600;
+  /* [UI美化-本轮] 价格数字等宽，变动时不跳动 */
+  font-variant-numeric: tabular-nums;
 }
 
 .price-origin {

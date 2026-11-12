@@ -231,13 +231,14 @@ export default {
   box-shadow: var(--hs-shadow-sm);
 }
 
-/* [UI美化] 状态卡圆角对齐大面板规范 */
+/* [UI美化-本轮] 状态横幅升级：左侧状态色条随状态自动变色（currentColor） */
 .status-card {
   margin-top: 18px;
   border-radius: 10px;
-  padding: 20px 24px;
+  padding: 18px 22px;
   background: #ecf5ff;
   color: #409eff;
+  border-left: 4px solid currentColor;
 }
 
 .status-card.status-2 {
@@ -263,7 +264,8 @@ export default {
 
 .status-text {
   font-size: 22px;
-  font-weight: 600;
+  /* [UI美化-本轮] 状态文字加重，与提示文字拉开层级 */
+  font-weight: 700;
 }
 
 .status-hint {
@@ -271,10 +273,14 @@ export default {
   opacity: 0.85;
 }
 
+/* [UI美化-本轮] 订单号：细线分隔 + 数字等宽 */
 .status-no {
-  margin-top: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
   font-size: 13px;
   opacity: 0.8;
+  font-variant-numeric: tabular-nums;
 }
 
 .block {

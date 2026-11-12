@@ -275,8 +275,9 @@ onMounted(async () => {
   color: #fff;
 }
 
+/* [UI美化-本轮] 容器统一加宽至 1200px */
 .hero-inner {
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0 auto;
   text-align: center;
 }
@@ -318,9 +319,9 @@ onMounted(async () => {
   gap: 12px;
 }
 
-/* [UI美化] 区块标题：主色竖条强调，统一各区块视觉锚点 */
+/* [UI美化-本轮] 区块容器统一加宽至 1200px；区块标题：主色竖条强调 */
 .section {
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 20px;
 }
@@ -379,7 +380,8 @@ onMounted(async () => {
 .board-card:hover {
   border-color: #d9ecff;
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  /* [UI美化-本轮] hover 层次加深半档 */
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.14);
 }
 
 .board-rank {
@@ -402,15 +404,18 @@ onMounted(async () => {
 
 .board-meta {
   margin-top: 6px;
-  font-size: 13px;
+  /* [UI美化-本轮] 成交件数转辅助层级，与主数字区分 */
+  font-size: 12px;
   color: #909399;
 }
 
+/* [UI美化-本轮] 中位价大号等宽强调（数据展示升级：仅重排现有字段） */
 .board-price {
-  margin-top: 4px;
-  font-size: 16px;
+  margin-top: 8px;
+  font-size: 22px;
   color: #f56c6c;
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .category-grid {
@@ -456,6 +461,50 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+}
+
+/* [UI美化-本轮] 首屏一次性渐入（stagger 延迟 40ms 递进，全局 hs-fade-up keyframes） */
+.product-grid > *,
+.board-grid > *,
+.category-grid > * {
+  animation: hs-fade-up 0.35s ease backwards;
+}
+.product-grid > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.product-grid > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.product-grid > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.product-grid > *:nth-child(n + 5) {
+  animation-delay: 0.16s;
+}
+.board-grid > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.board-grid > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.category-grid > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.category-grid > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.category-grid > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.category-grid > *:nth-child(n + 5) {
+  animation-delay: 0.16s;
+}
+
+/* [UI美化-本轮] 宽屏（≥1600px）：商品网格放宽到 6 列 */
+@media (min-width: 1600px) {
+  .product-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 
 .product-skeleton {

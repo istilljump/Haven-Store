@@ -341,6 +341,13 @@ const handleLogout = () => {
   overflow-y: auto;
 }
 
+/* [UI美化-本轮] 大屏（≥1600px）：内容区留白加宽，利用宽屏空间 */
+@media (min-width: 1600px) {
+  .admin-main {
+    padding: 24px 32px;
+  }
+}
+
 /* 面包屑样式 */
 :deep(.el-breadcrumb__item) {
   font-size: 14px;

@@ -277,6 +277,23 @@ export default {
   gap: 16px;
 }
 
+/* [UI美化-本轮] 订单卡首屏一次性渐入（stagger 40ms 递进，前 5 张） */
+.order-list > * {
+  animation: hs-fade-up 0.35s ease backwards;
+}
+.order-list > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.order-list > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.order-list > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.order-list > *:nth-child(n + 5) {
+  animation-delay: 0.16s;
+}
+
 /* [UI美化] 订单卡片统一贴地薄影与 10px 圆角，悬浮轻微上浮 */
 .order-card {
   border: 1px solid var(--hs-border);
@@ -289,7 +306,8 @@ export default {
 
 .order-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  /* [UI美化-本轮] hover 层次加深半档 */
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.14);
 }
 
 .order-head {
@@ -400,6 +418,8 @@ export default {
   font-size: 17px;
   font-style: normal;
   font-weight: 600;
+  /* [UI美化-本轮] 合计金额数字等宽 */
+  font-variant-numeric: tabular-nums;
 }
 
 .order-actions {
