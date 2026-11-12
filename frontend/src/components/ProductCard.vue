@@ -72,34 +72,43 @@ export default {
 </script>
 
 <style scoped>
+/* [UI美化] 商品卡：统一圆角/薄影，hover 上浮 + 主色描边 + 封面轻缩放（纯视觉微交互） */
 .product-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
   transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
   border: 1px solid #ebeef5;
   position: relative;
 }
 
 .product-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.09);
+  transform: translateY(-4px);
+  border-color: #d9ecff;
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .product-card__cover {
   width: 100%;
   aspect-ratio: 4 / 3;
+  transition: transform 0.25s ease;
+}
+
+.product-card:hover .product-card__cover {
+  transform: scale(1.04);
 }
 
 .product-card__body {
-  padding: 10px 12px 12px;
+  padding: 12px 14px 14px;
 }
 
 .product-card__title {
   font-size: 14px;
+  font-weight: 500;
   color: #303133;
   line-height: 1.4;
   overflow: hidden;
@@ -108,28 +117,35 @@ export default {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   min-height: 39px;
+  transition: color 0.2s ease;
+}
+
+.product-card:hover .product-card__title {
+  color: #409eff;
 }
 
 .product-card__meta {
   display: flex;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
+/* [UI美化] 分类/成色小标签：淡蓝底胶囊，与主色呼应 */
 .product-card__category,
 .product-card__condition {
   font-size: 12px;
-  color: #909399;
-  background: #f5f7fa;
-  border-radius: 3px;
-  padding: 1px 6px;
+  color: #6087a8;
+  background: #f3f8fd;
+  border-radius: 4px;
+  padding: 2px 8px;
+  line-height: 1.4;
 }
 
 .product-card__footer {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .price-now {

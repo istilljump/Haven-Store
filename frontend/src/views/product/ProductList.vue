@@ -538,10 +538,20 @@ export default {
   flex-wrap: wrap;
 }
 
+/* [UI美化] 成色 chip：可点击态加 hover 反馈提示 */
 .condition-chip {
   cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
+.condition-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+}
+
+/* [UI美化] 页头：标题字重加重，形成明确的页面层级 */
 .header {
   display: flex;
   justify-content: space-between;
@@ -551,15 +561,18 @@ export default {
 
 .header h1 {
   margin: 0;
-  color: #333;
+  color: #303133;
+  font-size: 22px;
+  font-weight: 700;
 }
 
+/* [UI美化] 筛选区：贴地薄影替代投影发黑，内边距统一 */
 .filter-section {
   margin-bottom: 24px;
-  padding: 16px 20px;
+  padding: 18px 20px;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
 }
 
 .filter-row {
@@ -572,7 +585,7 @@ export default {
 }
 
 .filter-actions {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .product-grid {
@@ -587,25 +600,26 @@ export default {
 
 .card-skeleton {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
 }
 
 /* 附近模式卡片：带距离标签 */
+/* [UI美化] 附近卡：与商品卡统一观感（圆角/薄影/hover 上浮） */
 .nearby-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
   border: 1px solid #ebeef5;
   transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .nearby-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.09);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .nearby-cover {
@@ -614,7 +628,7 @@ export default {
 }
 
 .nearby-info {
-  padding: 10px 12px 12px;
+  padding: 12px 14px 14px;
 }
 
 .nearby-title {
@@ -626,7 +640,7 @@ export default {
 }
 
 .nearby-meta {
-  margin-top: 6px;
+  margin-top: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -640,7 +654,7 @@ export default {
 .pagination {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 @media (max-width: 992px) {

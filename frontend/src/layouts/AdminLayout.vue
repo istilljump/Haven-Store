@@ -223,14 +223,18 @@ const handleLogout = () => {
   background: #f0f2f5;
 }
 
+/* [UI美化] 顶栏：薄影替代硬边框，观感更轻盈 */
 .admin-header {
   height: 64px;
   background: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.06);
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
+  position: relative;
+  z-index: 10;
 }
 
 .header-left {
@@ -247,6 +251,11 @@ const handleLogout = () => {
   font-size: 18px;
   font-weight: 600;
   color: #001529;
+  transition: opacity 0.2s ease;
+}
+
+.logo:hover {
+  opacity: 0.85;
 }
 
 .logo .el-icon {
@@ -259,18 +268,19 @@ const handleLogout = () => {
   align-items: center;
 }
 
+/* [UI美化] 用户信息：胶囊 hover 反馈 */
 .user-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background 0.2s ease;
 }
 
 .user-info:hover {
-  background: #f5f5f5;
+  background: #f5f7fa;
 }
 
 .username {
@@ -291,9 +301,24 @@ const handleLogout = () => {
   border-right: none;
 }
 
+/* [UI美化] 侧边菜单：条目留白加高 + 选中项主色左侧短条强调 */
 .admin-menu .el-menu-item {
   height: 50px;
   line-height: 50px;
+  margin: 4px 10px;
+  border-radius: 6px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.admin-menu .el-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-menu .el-menu-item.is-active {
+  background: #409eff;
+  color: #fff !important;
 }
 
 .admin-menu .el-sub-menu .el-menu-item {
@@ -309,6 +334,7 @@ const handleLogout = () => {
   transform: translateY(-50%);
 }
 
+/* [UI美化] 内容区留白统一 20px，与前台一致 */
 .admin-main {
   background: #f0f2f5;
   padding: 20px;
@@ -351,6 +377,12 @@ const handleLogout = () => {
   font-size: 20px;
   margin-right: 10px;
   cursor: pointer;
+  color: #606266;
+  transition: color 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+  color: #409eff;
 }
 
 .sidebar-mask {

@@ -123,19 +123,24 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
+/* [UI美化] 登录页底色统一为 Element 蓝系渐变，叠一层高光柔化观感 */
 .admin-login-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(255, 255, 255, 0.16), transparent 60%),
+    linear-gradient(135deg, #409eff 0%, #2563eb 100%);
   padding: 20px;
 }
 
+/* [UI美化] 登录卡改柔影 + 白描边，去掉发黑的重投影 */
 .admin-login-box {
-  background: white;
+  background: #ffffff;
   border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 8px 32px rgba(16, 24, 40, 0.12);
   width: 100%;
   max-width: 400px;
   padding: 40px;
@@ -153,21 +158,29 @@ const handleLogin = async () => {
   margin-bottom: 16px;
 }
 
+/* [UI美化] Logo 图标加淡蓝圆角托底，强化品牌标识 */
 .logo .el-icon {
-  font-size: 32px;
-  margin-right: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--hs-primary-bg, #ecf5ff);
   color: #409eff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-right: 12px;
 }
 
 .logo h1 {
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
   color: #303133;
   margin: 0;
 }
 
 .login-header p {
-  color: #606266;
+  color: #909399;
   font-size: 14px;
   margin-top: 8px;
 }
@@ -176,11 +189,13 @@ const handleLogin = async () => {
   margin-top: 20px;
 }
 
+/* [UI美化] 登录按钮字距微调，主 CTA 更醒目 */
 .login-button {
   width: 100%;
   height: 48px;
   font-size: 16px;
   font-weight: 500;
+  letter-spacing: 2px;
   margin-top: 8px;
 }
 
@@ -194,7 +209,7 @@ const handleLogin = async () => {
   color: #606266;
   text-decoration: none;
   font-size: 14px;
-  transition: color 0.3s;
+  transition: color 0.2s ease;
 }
 
 .switch-to-user:hover {

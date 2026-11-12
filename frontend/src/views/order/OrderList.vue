@@ -263,22 +263,33 @@ export default {
   margin-bottom: 8px;
 }
 
+/* [UI美化] 页面标题对齐文字层级规范 */
 .page-header h2 {
   margin: 0;
   font-size: 20px;
+  color: var(--hs-text-primary);
+  font-weight: 600;
 }
 
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
+/* [UI美化] 订单卡片统一贴地薄影与 10px 圆角，悬浮轻微上浮 */
 .order-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--hs-border);
+  border-radius: 10px;
+  background: var(--hs-bg-card);
+  box-shadow: var(--hs-shadow-sm);
   overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .order-head {
@@ -286,7 +297,7 @@ export default {
   align-items: center;
   gap: 14px;
   padding: 10px 14px;
-  background: #f7f8fa;
+  background: #f8fafd;
   font-size: 13px;
   color: #606266;
 }
@@ -308,7 +319,7 @@ export default {
   align-items: center;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--hs-border-light);
 }
 
 .order-item:last-child {
@@ -322,7 +333,13 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: #f8fafd;
+  /* [UI美化-本轮] 可点击封面补齐 hover 反馈：轻微透明度过渡 */
+  transition: opacity 0.2s ease;
+}
+
+.order-item img:hover {
+  opacity: 0.85;
 }
 
 .order-item-main {
@@ -330,6 +347,7 @@ export default {
   min-width: 0;
 }
 
+/* [UI美化] 标题悬浮加平滑过渡 */
 .order-item-title {
   font-size: 15px;
   color: #303133;
@@ -337,6 +355,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color 0.2s ease;
 }
 
 .order-item-title:hover {
@@ -369,7 +388,7 @@ export default {
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-top: 1px solid #f2f3f5;
+  border-top: 1px solid var(--hs-border-light);
 }
 
 .order-summary {
@@ -398,5 +417,23 @@ export default {
 .order-pagination {
   justify-content: center;
   margin-top: 6px;
+}
+
+/* [UI美化-本轮] 小屏适配：订单头/底允许换行，封面略缩，操作按钮不挤压 */
+@media (max-width: 768px) {
+  .order-head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .order-item img {
+    width: 56px;
+    height: 56px;
+  }
+
+  .order-foot {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
 }
 </style>

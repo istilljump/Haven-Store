@@ -449,11 +449,13 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .header-title h1 {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   color: #303133;
   margin: 0 0 8px 0;
@@ -485,8 +487,17 @@ onBeforeUnmount(() => {
   height: 320px;
 }
 
+/* [UI美化] 统计卡 hover 轻浮起，反馈更灵敏 */
 .stats-card {
   height: 120px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .stats-content {
@@ -499,7 +510,7 @@ onBeforeUnmount(() => {
   width: 60px;
   height: 60px;
   border-radius: 12px;
-  background: #f5f7fa;
+  background: #f8fafd;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -511,9 +522,11 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
+/* [UI美化] 统计数字加重并使用等宽数字，读数更稳 */
 .stats-number {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: #303133;
   margin-bottom: 4px;
 }
@@ -670,6 +683,7 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+/* [UI美化] 快捷操作块统一浅灰面板色，hover 换淡蓝底并加轻浮起 */
 .action-item {
   display: flex;
   flex-direction: column;
@@ -677,15 +691,17 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 20px;
   border-radius: 8px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: #f8fafd;
+  border: 1px solid #f0f2f7;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
 }
 
 .action-item:hover {
-  background: #e9ecef;
+  background: #f5f9ff;
+  border-color: #c6e2ff;
   transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .action-icon {

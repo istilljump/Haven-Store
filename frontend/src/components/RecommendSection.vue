@@ -56,11 +56,25 @@ defineProps({
   padding: 8px 20px 24px;
 }
 
+/* [UI美化] 区块标题：主色竖条强调 + 标题/副标题层级区分 */
 .section-head {
   display: flex;
   align-items: baseline;
   gap: 12px;
   margin-bottom: 14px;
+  padding-left: 10px;
+  position: relative;
+}
+
+.section-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: #409eff;
 }
 
 .section-head h2 {
@@ -80,20 +94,25 @@ defineProps({
   gap: 14px;
 }
 
+/* [UI美化] 推荐卡：与商品卡统一观感（圆角/薄影/hover 上浮） */
 .recommend-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
   border: 1px solid #ebeef5;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
   display: flex;
   flex-direction: column;
 }
 
 .recommend-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
+  border-color: #d9ecff;
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
+  transform: translateY(-3px);
 }
 
 .recommend-cover {
@@ -114,7 +133,7 @@ defineProps({
 }
 
 .recommend-reason {
-  margin: 8px 10px 0;
+  margin: 10px 10px 0;
   align-self: flex-start;
   max-width: calc(100% - 20px);
   overflow: hidden;
@@ -123,7 +142,7 @@ defineProps({
 }
 
 .recommend-title {
-  padding: 6px 10px 0;
+  padding: 8px 10px 0;
   font-size: 14px;
   color: #303133;
   overflow: hidden;
@@ -138,8 +157,9 @@ defineProps({
   padding: 4px 10px 12px;
 }
 
+/* [UI美化] 价格色统一为项目价格红 */
 .recommend-price {
-  color: #ff6b6b;
+  color: #f56c6c;
   font-weight: 600;
 }
 

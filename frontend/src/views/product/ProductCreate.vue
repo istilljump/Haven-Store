@@ -813,16 +813,19 @@ export default {
   margin-bottom: 30px;
 }
 
+/* [UI美化] 页面标题对齐文字层级规范 */
 .header h1 {
   margin: 0;
-  color: #333;
+  color: var(--hs-text-primary);
+  font-weight: 600;
 }
 
+/* [UI美化] 主面板换贴地薄影并统一 10px 大面板圆角 */
 .create-form {
-  background: white;
-  border-radius: 8px;
+  background: var(--hs-bg-card);
+  border-radius: 10px;
   padding: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--hs-shadow-sm);
 }
 
 .form-content {
@@ -835,7 +838,7 @@ export default {
 
 .currency {
   margin-left: 10px;
-  color: #666;
+  color: var(--hs-text-regular);
 }
 
 .estimate-button {
@@ -885,16 +888,17 @@ export default {
   gap: 20px;
 }
 
+/* [UI美化] 上传提示面板统一浅灰底色与 8px 小面板圆角 */
 .image-tips {
   margin-top: 20px;
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 4px;
+  padding: 16px;
+  background: #f8fafd;
+  border-radius: 8px;
 }
 
 .image-tips p {
-  margin: 5px 0;
-  color: #666;
+  margin: 6px 0;
+  color: var(--hs-text-regular);
   font-size: 14px;
 }
 
@@ -904,11 +908,11 @@ export default {
 
 .confirm-info h3 {
   margin: 0 0 30px 0;
-  color: #333;
+  color: var(--hs-text-primary);
 }
 
 .info-card {
-  background: #f8f9fa;
+  background: #f8fafd;
   border-radius: 8px;
   padding: 20px;
   text-align: left;
@@ -917,7 +921,7 @@ export default {
 .info-item {
   display: flex;
   padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--hs-border);
 }
 
 .info-item:last-child {
@@ -925,19 +929,19 @@ export default {
 }
 
 .info-item .label {
-  color: #666;
+  color: var(--hs-text-secondary);
   min-width: 120px;
   text-align: right;
   margin-right: 20px;
 }
 
 .info-item .value {
-  color: #333;
+  color: var(--hs-text-primary);
   flex: 1;
 }
 
 .info-item .price {
-  color: #ff6b6b;
+  color: var(--hs-price);
   font-weight: bold;
 }
 

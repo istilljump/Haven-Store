@@ -22,6 +22,9 @@ body {
     'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial,
     sans-serif;
   background-color: #f5f7fa;
+  /* [UI美化] 默认文字色与行高全站统一，标题/辅助文字由各组件按层级覆盖 */
+  color: #303133;
+  line-height: 1.5;
 }
 
 #app {

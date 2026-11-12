@@ -500,11 +500,13 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .header-title h1 {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   color: #303133;
   margin: 0 0 8px 0;
@@ -529,10 +531,13 @@ onMounted(() => {
   border-radius: 8px;
 }
 
+/* [UI美化] 筛选条换行时的纵向留白放宽，节奏更统一 */
 .search-form {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  row-gap: 16px;
+  align-items: flex-start;
 }
 
 .messages-section {
@@ -564,7 +569,7 @@ onMounted(() => {
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .message-detail {
@@ -593,7 +598,7 @@ onMounted(() => {
 }
 
 .message-content {
-  background: #f5f7fa;
+  background: #f8fafd;
   padding: 12px;
   border-radius: 8px;
   color: #606266;
@@ -605,8 +610,17 @@ onMounted(() => {
   margin-top: 24px;
 }
 
+/* [UI美化] 统计卡 hover 轻浮起，与看板数据卡观感一致 */
 .stats-card {
   height: 100px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .stats-content {
@@ -619,7 +633,7 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: #f5f7fa;
+  background: #f8fafd;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -633,7 +647,8 @@ onMounted(() => {
 
 .stats-number {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: #303133;
   margin-bottom: 4px;
 }

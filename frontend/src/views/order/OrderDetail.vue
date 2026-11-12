@@ -221,17 +221,20 @@ export default {
   padding: 20px;
 }
 
+/* [UI美化] 主面板补贴地薄影，与灰底分层 */
 .page-container {
   max-width: 860px;
   margin: 0 auto;
   background: #fff;
   border-radius: 10px;
   padding: 20px 24px 28px;
+  box-shadow: var(--hs-shadow-sm);
 }
 
+/* [UI美化] 状态卡圆角对齐大面板规范 */
 .status-card {
   margin-top: 18px;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 20px 24px;
   background: #ecf5ff;
   color: #409eff;
@@ -278,10 +281,12 @@ export default {
   margin-top: 22px;
 }
 
+/* [UI美化] 区块标题加重，对齐标题层级规范 */
 .block h3 {
   margin: 0 0 12px;
   font-size: 16px;
   color: #303133;
+  font-weight: 600;
 }
 
 .order-item {
@@ -304,10 +309,12 @@ export default {
   min-width: 0;
 }
 
+/* [UI美化] 标题悬浮加平滑过渡 */
 .item-title {
   font-size: 14px;
   color: #303133;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
 
 .item-title:hover {

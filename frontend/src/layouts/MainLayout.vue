@@ -281,10 +281,14 @@ export default {
   }
 }
 
+/* [UI美化] 顶栏：去硬边框改薄影贴地，视觉更轻盈 */
 .header {
   background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.06);
   padding: 0 20px;
+  position: relative;
+  z-index: 10;
 }
 
 .header-content {
@@ -296,12 +300,20 @@ export default {
   margin: 0 auto;
 }
 
+/* [UI美化] Logo：字重加重 + hover 透明度过渡 */
 .logo h1 {
   margin: 0;
   font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   color: #409eff;
   cursor: pointer;
   white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+.logo h1:hover {
+  opacity: 0.85;
 }
 
 .nav-menu {
@@ -312,6 +324,20 @@ export default {
 
 .nav-menu-inner {
   border-bottom: none;
+}
+
+/* [UI美化] 横向菜单：激活项主色加重、hover 淡蓝底胶囊反馈 */
+.nav-menu-inner :deep(.el-menu-item) {
+  border-radius: 6px;
+  margin: 0 2px;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.nav-menu-inner :deep(.el-menu-item:hover) {
+  background-color: #f0f7ff;
+  border-bottom-color: transparent;
 }
 
 /* 私信未读角标：往上抬一点，避免撑高横向菜单挤动布局 */
@@ -326,15 +352,25 @@ export default {
   gap: 10px;
 }
 
+/* [UI美化] 用户信息：胶囊底 + hover 反馈，替代裸排 */
 .user-info {
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 999px;
+  transition: background-color 0.2s ease;
+  outline: none;
+}
+
+.user-info:hover {
+  background-color: #f5f7fa;
 }
 
 .username {
   font-size: 14px;
+  color: #303133;
 }
 
 /* 移动端汉堡按钮：桌面端隐藏 */
@@ -342,17 +378,26 @@ export default {
   display: none;
   font-size: 22px;
   cursor: pointer;
+  color: #606266;
+  /* [UI美化-本轮] 汉堡按钮 hover 色变补平滑过渡 */
+  transition: color 0.2s ease;
 }
 
+/* [UI美化] 汉堡按钮 hover 反馈 */
+.hamburger:hover {
+  color: #409eff;
+}
+
+/* [UI美化] 主内容区：留白统一为 24px（移动端回落 12px），页面呼吸感更好 */
 .main-content {
   flex: 1;
   background-color: #f5f7fa;
-  padding: 20px;
+  padding: 24px 20px;
 }
 
 .footer {
   background-color: #fff;
-  border-top: 1px solid #e6e6e6;
+  border-top: 1px solid #f0f2f7;
   padding: 0 20px;
 }
 
@@ -367,7 +412,8 @@ export default {
 
 .footer-content p {
   margin: 0;
-  color: #666;
+  color: #909399;
+  font-size: 13px;
 }
 
 @media (max-width: 768px) {
@@ -385,6 +431,11 @@ export default {
 
   .username {
     display: none;
+  }
+
+  /* [UI美化] 移动端留白收紧 */
+  .main-content {
+    padding: 12px;
   }
 }
 </style>

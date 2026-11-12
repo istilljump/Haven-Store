@@ -124,11 +124,12 @@ export default {
   padding: 20px;
 }
 
+/* [UI美化] 登录卡：圆角加大、薄影，与认证布局卡片观感统一 */
 .login-form {
   background: #fff;
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  padding: 40px 36px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(16, 24, 40, 0.1);
   width: 100%;
   max-width: 400px;
 }
@@ -136,8 +137,9 @@ export default {
 .login-form h2 {
   text-align: center;
   margin-bottom: 30px;
-  color: #333;
+  color: #303133;
   font-size: 24px;
+  font-weight: 700;
 }
 
 .login-button {
@@ -147,7 +149,8 @@ export default {
 .form-footer {
   text-align: center;
   margin-top: 20px;
-  color: #666;
+  color: #909399;
+  font-size: 14px;
 }
 
 .form-footer span {

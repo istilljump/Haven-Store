@@ -265,9 +265,13 @@ onMounted(async () => {
   min-height: 100%;
 }
 
+/* [UI美化] Hero：紫色渐变统一为项目主色蓝系，叠加柔光装饰，观感更柔和统一 */
 .hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 56px 20px 64px;
+  background:
+    radial-gradient(900px 400px at 15% -20%, rgba(255, 255, 255, 0.16), transparent 55%),
+    radial-gradient(700px 380px at 105% 120%, rgba(255, 255, 255, 0.12), transparent 50%),
+    linear-gradient(135deg, #409eff 0%, #2563eb 100%);
+  padding: 60px 20px 68px;
   color: #fff;
 }
 
@@ -278,15 +282,18 @@ onMounted(async () => {
 }
 
 .hero-title {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 40px;
   font-weight: 700;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
 }
 
 .hero-slogan {
-  margin: 0 0 26px;
+  margin: 0 0 28px;
   font-size: 16px;
   opacity: 0.92;
+  letter-spacing: 2px;
 }
 
 .hero-search-row {
@@ -311,6 +318,7 @@ onMounted(async () => {
   gap: 12px;
 }
 
+/* [UI美化] 区块标题：主色竖条强调，统一各区块视觉锚点 */
 .section {
   max-width: 1080px;
   margin: 0 auto;
@@ -322,6 +330,19 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  padding-left: 10px;
+  position: relative;
+}
+
+.section-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: #409eff;
 }
 
 .section-head h2 {
@@ -342,18 +363,23 @@ onMounted(async () => {
   gap: 14px;
 }
 
+/* [UI美化] 行情看板卡：白卡 + hover 上浮，与商品卡微交互一致 */
 .board-card {
   background: #fff;
   border-radius: 10px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   cursor: pointer;
   border: 1px solid #ebeef5;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .board-card:hover {
-  border-color: #409eff;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.12);
+  border-color: #d9ecff;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .board-rank {
@@ -363,26 +389,27 @@ onMounted(async () => {
   color: #fff;
   background: linear-gradient(135deg, #f59e0b, #f97316);
   border-radius: 4px;
-  padding: 1px 8px;
+  padding: 2px 8px;
+  letter-spacing: 0.5px;
 }
 
 .board-name {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 16px;
   font-weight: 600;
   color: #303133;
 }
 
 .board-meta {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 13px;
   color: #909399;
 }
 
 .board-price {
-  margin-top: 2px;
-  font-size: 14px;
-  color: #ff6b6b;
+  margin-top: 4px;
+  font-size: 16px;
+  color: #f56c6c;
   font-weight: 600;
 }
 
@@ -392,25 +419,37 @@ onMounted(async () => {
   gap: 12px;
 }
 
+/* [UI美化] 分类入口：hover 淡蓝底 + 轻微上浮，替代纯描边变化 */
 .category-item {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   text-align: center;
   padding: 18px 4px;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.2s;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .category-item:hover {
-  border-color: #409eff;
+  border-color: #d9ecff;
+  background: #f7fbff;
   color: #409eff;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.12);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.08);
 }
 
 .category-name {
   font-size: 14px;
   color: #303133;
+  transition: color 0.2s ease;
+}
+
+.category-item:hover .category-name {
+  color: #409eff;
 }
 
 .product-grid {
@@ -421,7 +460,7 @@ onMounted(async () => {
 
 .product-skeleton {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   padding-bottom: 8px;
 }

@@ -35,19 +35,23 @@ export default {
 </script>
 
 <style scoped>
+/* [UI美化] 认证页背景：紫色渐变统一为项目主色（Element 蓝）系渐变，加柔光装饰，与全站主色一致 */
 .auth-layout {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    radial-gradient(1000px 500px at 10% -10%, rgba(255, 255, 255, 0.14), transparent 60%),
+    radial-gradient(800px 400px at 110% 110%, rgba(255, 255, 255, 0.1), transparent 55%),
+    linear-gradient(135deg, #409eff 0%, #2563eb 100%);
   padding: 20px;
 }
 
 .auth-container {
   background: white;
-  border-radius: 10px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(16, 24, 40, 0.18);
   width: 100%;
   max-width: 450px;
   overflow: hidden;
@@ -56,35 +60,35 @@ export default {
 .auth-header {
   text-align: center;
   padding: 40px 30px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f5f7fa;
 }
 
 .auth-header h1 {
   margin: 0;
-  color: #333;
+  color: #303133;
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .auth-header p {
   margin: 10px 0 0;
-  color: #666;
-  font-size: 16px;
+  color: #909399;
+  font-size: 15px;
 }
 
 .auth-content {
-  padding: 40px 30px;
+  padding: 32px 30px;
 }
 
 .auth-footer {
   text-align: center;
-  padding: 20px 30px;
-  border-top: 1px solid #f0f0f0;
+  padding: 18px 30px;
+  border-top: 1px solid #f5f7fa;
 }
 
 .auth-footer p {
   margin: 0;
-  color: #999;
-  font-size: 14px;
+  color: #c0c4cc;
+  font-size: 13px;
 }
 </style>

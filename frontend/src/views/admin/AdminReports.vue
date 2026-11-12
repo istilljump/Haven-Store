@@ -294,11 +294,13 @@ onMounted(loadReports)
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .header-title h1 {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   color: #303133;
   margin: 0 0 8px 0;
@@ -321,6 +323,6 @@ onMounted(loadReports)
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 </style>

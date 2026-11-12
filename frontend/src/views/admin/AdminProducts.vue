@@ -516,11 +516,13 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .header-title h1 {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   color: #303133;
   margin: 0 0 8px 0;
@@ -545,10 +547,13 @@ onMounted(() => {
   border-radius: 8px;
 }
 
+/* [UI美化] 筛选条换行时的纵向留白放宽，节奏更统一 */
 .search-form {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  row-gap: 16px;
+  align-items: flex-start;
 }
 
 .products-section {
@@ -591,7 +596,7 @@ onMounted(() => {
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .product-detail {
@@ -639,15 +644,17 @@ onMounted(() => {
 
 .description {
   padding: 12px;
-  background: #f5f7fa;
+  background: #f8fafd;
   border-radius: 8px;
   color: #606266;
   line-height: 1.6;
 }
 
+/* [UI美化] 交易地址面板加淡蓝描边，与描述面板区分层级 */
 .address {
   padding: 12px;
   background: #f0f9ff;
+  border: 1px solid #d9ecff;
   border-radius: 8px;
   color: #409eff;
 }

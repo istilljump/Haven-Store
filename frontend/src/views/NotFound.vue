@@ -41,21 +41,26 @@ export default {
   max-width: 400px;
 }
 
+/* [UI美化] 404 主数字：主色渐变字，弱化报错的生硬感 */
 .not-found-content h1 {
   font-size: 72px;
-  color: #409eff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #409eff, #2563eb);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   margin-bottom: 20px;
 }
 
 .not-found-content h2 {
   font-size: 24px;
   margin-bottom: 16px;
-  color: #333;
+  color: #303133;
 }
 
 .not-found-content p {
-  font-size: 16px;
-  color: #666;
+  font-size: 15px;
+  color: #909399;
   margin-bottom: 24px;
   line-height: 1.5;
 }

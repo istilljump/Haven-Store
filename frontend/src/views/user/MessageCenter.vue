@@ -355,9 +355,12 @@ export default {
   margin-bottom: 16px;
 }
 
+/* [UI美化] 页面标题对齐文字层级规范 */
 .mc-header h2 {
   margin: 0;
   font-size: 20px;
+  color: var(--hs-text-primary);
+  font-weight: 600;
 }
 
 .mc-body {
@@ -366,27 +369,31 @@ export default {
   height: 620px;
 }
 
+/* [UI美化] 会话面板统一描边、8px 圆角与贴地薄影 */
 .conversation-list {
   width: 320px;
   flex-shrink: 0;
   overflow-y: auto;
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--hs-border);
+  border-radius: 8px;
+  background: var(--hs-bg-card);
+  box-shadow: var(--hs-shadow-sm);
 }
 
+/* [UI美化] 会话条目分隔线换浅色系，悬浮底色加平滑过渡 */
 .conversation-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
   cursor: pointer;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--hs-border-light);
   position: relative;
+  transition: background 0.2s ease;
 }
 
 .conversation-item:hover {
-  background: #f7f8fa;
+  background: #f8fafd;
 }
 
 .conversation-item.active {
@@ -410,7 +417,7 @@ export default {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 9px;
+  border-radius: 999px;
   background: #f56c6c;
   color: #fff;
   font-size: 12px;
@@ -458,22 +465,26 @@ export default {
   white-space: nowrap;
 }
 
+/* [UI美化] 删除按钮淡入更顺滑 */
 .conv-delete {
   opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .conversation-item:hover .conv-delete {
   opacity: 1;
 }
 
+/* [UI美化] 聊天面板与会话面板观感对齐 */
 .chat-pane {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--hs-border);
+  border-radius: 8px;
+  background: var(--hs-bg-card);
+  box-shadow: var(--hs-shadow-sm);
 }
 
 .chat-header {
@@ -481,7 +492,7 @@ export default {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--hs-border-light);
 }
 
 .chat-title {
@@ -505,7 +516,7 @@ export default {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
-  background: #fafafa;
+  background: #f8fafd;
 }
 
 .chat-row {
@@ -519,10 +530,12 @@ export default {
   align-items: flex-end;
 }
 
+/* [UI美化] 气泡加方向性小圆角，贴近聊天形态 */
 .bubble {
   max-width: 70%;
   padding: 8px 12px;
   border-radius: 8px;
+  border-bottom-left-radius: 2px;
   background: #fff;
   border: 1px solid #ebeef5;
   color: #303133;
@@ -535,6 +548,7 @@ export default {
   background: #409eff;
   border-color: #409eff;
   color: #fff;
+  border-bottom-right-radius: 2px;
 }
 
 .bubble-time {
@@ -548,7 +562,7 @@ export default {
   align-items: flex-end;
   gap: 10px;
   padding: 12px 16px;
-  border-top: 1px solid #f2f3f5;
+  border-top: 1px solid var(--hs-border-light);
 }
 
 .chat-input .el-textarea {

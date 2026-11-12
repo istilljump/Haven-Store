@@ -1082,9 +1082,11 @@ export default {
   margin-left: 6px;
 }
 
+/* [UI美化] 详情主卡：白卡 + 圆角 + 贴地薄影 */
 .product-detail {
   background: white;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
   overflow: hidden;
 }
 
@@ -1092,7 +1094,8 @@ export default {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 30px;
-  margin-bottom: 30px;
+  padding: 24px 24px 0;
+  margin-bottom: 24px;
 }
 
 .product-main {
@@ -1101,10 +1104,11 @@ export default {
   gap: 20px;
 }
 
+/* [UI美化] 商品图区：圆角统一 10px，底色压淡 */
 .product-images {
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  background: #f5f5f5;
+  background: #f5f7fa;
 }
 
 .carousel-image {
@@ -1124,15 +1128,16 @@ export default {
   margin-bottom: 20px;
 }
 
+/* [UI美化] 价格：统一为全站价格红 #f56c6c */
 .price {
   font-size: 32px;
   font-weight: bold;
-  color: #ff6b6b;
+  color: #f56c6c;
   margin-right: 15px;
 }
 
 .original-price {
-  color: #999;
+  color: #c0c4cc;
   text-decoration: line-through;
 }
 
@@ -1143,9 +1148,9 @@ export default {
   flex-wrap: wrap;
   gap: 8px;
   margin: -10px 0 16px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: #f0f9eb;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13px;
   color: #67c23a;
 }
@@ -1194,15 +1199,18 @@ export default {
   margin-bottom: 20px;
 }
 
+/* [UI美化] 商品标题：字重加重，层级更清晰 */
 .title-section h1 {
   margin: 0 0 10px 0;
-  color: #333;
+  color: #303133;
   font-size: 24px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .description {
-  color: #666;
-  line-height: 1.6;
+  color: #606266;
+  line-height: 1.8;
   margin-bottom: 20px;
 }
 
@@ -1218,18 +1226,19 @@ export default {
 }
 
 .meta-item .label {
-  color: #999;
+  color: #909399;
   min-width: 80px;
 }
 
 .meta-item .value {
-  color: #333;
+  color: #303133;
 }
 
+/* [UI美化] 侧栏/卖家浅灰面板：底色压淡 + 圆角统一 10px */
 .seller-section {
   padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: #f8fafd;
+  border-radius: 10px;
 }
 
 .seller-info {
@@ -1240,12 +1249,12 @@ export default {
 
 .seller-details .seller-name {
   font-weight: 600;
-  color: #333;
+  color: #303133;
   margin-bottom: 5px;
 }
 
 .seller-meta {
-  color: #666;
+  color: #606266;
   font-size: 14px;
 }
 
@@ -1255,19 +1264,30 @@ export default {
   gap: 20px;
 }
 
+/* [UI美化-本轮] 桌面端：操作侧栏滚动时悬浮跟随（浏览长介绍时联系卖家/操作常驻可见） */
+@media (min-width: 769px) {
+  .product-sidebar {
+    position: sticky;
+    top: 76px;
+    align-self: start;
+  }
+}
+
 .contact-seller,
 .product-actions,
 .product-stats {
   padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: #f8fafd;
+  border-radius: 10px;
 }
 
 .contact-seller h3,
 .product-actions h3,
 .product-stats h3 {
   margin: 0 0 15px 0;
-  color: #333;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .seller-actions {
@@ -1282,18 +1302,20 @@ export default {
   gap: 10px;
 }
 
+/* [UI美化] 统计列表：分隔线压淡 */
 .stats-list .stat-item {
   display: flex;
   justify-content: space-between;
   margin-bottom: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0f2f7;
 }
 
+/* [UI美化] 详情/评价内容区：与主卡同层，顶部以细线分区 */
 .product-detail-content {
   background: white;
-  border-radius: 8px;
-  padding: 30px;
+  border-top: 1px solid #f5f7fa;
+  padding: 24px 24px 30px;
 }
 
 .detail-content,
@@ -1307,7 +1329,7 @@ export default {
 }
 
 .notice-list h4 {
-  color: #333;
+  color: #303133;
   margin: 20px 0 10px 0;
 }
 
@@ -1316,9 +1338,10 @@ export default {
   padding-left: 20px;
 }
 
+/* [UI美化] 评价列表：分隔线压淡 */
 .review-item {
   padding: 20px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0f2f7;
 }
 
 .review-header {
@@ -1334,12 +1357,12 @@ export default {
 
 .review-user .username {
   font-weight: 600;
-  color: #333;
+  color: #303133;
   margin-bottom: 5px;
 }
 
 .review-user .review-time {
-  color: #999;
+  color: #909399;
   font-size: 14px;
 }
 
@@ -1348,15 +1371,15 @@ export default {
 }
 
 .review-content {
-  color: #666;
-  line-height: 1.6;
+  color: #606266;
+  line-height: 1.7;
 }
 
 .comment-form {
-  padding: 16px;
+  padding: 18px;
   margin-bottom: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: #f8fafd;
+  border-radius: 10px;
 }
 
 .comment-form-title {
@@ -1398,6 +1421,7 @@ export default {
 @media (max-width: 768px) {
   .product-content {
     grid-template-columns: 1fr;
+    padding: 16px;
   }
 
   .price-section .price {

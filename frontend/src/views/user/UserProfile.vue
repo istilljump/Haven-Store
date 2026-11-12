@@ -414,21 +414,24 @@ export default {
   gap: 15px;
 }
 
+/* [UI美化] 用户名标题对齐文字层级规范 */
 .user-info h2 {
   margin: 0 0 10px 0;
-  color: #333;
+  color: var(--hs-text-primary);
+  font-weight: 600;
 }
 
 .user-info p {
   margin: 0 0 15px 0;
-  color: #666;
+  color: var(--hs-text-regular);
 }
 
+/* [UI美化] 主内容面板换贴地薄影并统一 10px 大面板圆角 */
 .profile-content {
-  background: white;
-  border-radius: 8px;
+  background: var(--hs-bg-card);
+  border-radius: 10px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--hs-shadow-sm);
 }
 
 .products-section {
@@ -444,7 +447,7 @@ export default {
 
 .section-header h3 {
   margin: 0;
-  color: #333;
+  color: var(--hs-text-primary);
 }
 
 .products-grid {
@@ -462,22 +465,30 @@ export default {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  /* [UI美化-本轮] min(300px, 100%) 防小屏（<300px 容器）横向溢出 */
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
   gap: 20px;
 }
 
+/* [UI美化] 商品卡换贴地薄影，悬浮轻微上浮 */
 .product-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--hs-bg-card);
+  border-radius: 10px;
+  box-shadow: var(--hs-shadow-sm);
   overflow: hidden;
-  border: 1px solid #eee;
+  border: 1px solid var(--hs-border);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.1);
 }
 
 .product-image {
   position: relative;
   height: 200px;
-  background: #f5f5f5;
+  background: #f8fafd;
 }
 
 .product-image img {
@@ -486,14 +497,15 @@ export default {
   object-fit: cover;
 }
 
+/* [UI美化] 价格角标统一价格色并改胶囊造型 */
 .price {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #ff6b6b;
+  background: var(--hs-price);
   color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
   font-weight: bold;
   font-size: 14px;
 }
@@ -506,12 +518,12 @@ export default {
   margin: 0 0 10px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--hs-text-primary);
 }
 
 .description {
   margin: 0 0 15px 0;
-  color: #666;
+  color: var(--hs-text-regular);
   font-size: 14px;
   line-height: 1.4;
 }
@@ -523,9 +535,10 @@ export default {
   margin-bottom: 15px;
 }
 
+/* [UI美化] 状态标签改为胶囊造型 */
 .status {
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
   font-size: 12px;
 }
 
@@ -537,9 +550,18 @@ export default {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--hs-border);
   cursor: pointer;
   object-fit: cover;
+  /* [UI美化-本轮] 可点击头像补齐 hover 反馈：描边主色化 + 轻透明度过渡 */
+  transition:
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.avatar-preview:hover {
+  border-color: #409eff;
+  opacity: 0.9;
 }
 
 .avatar-tip {
@@ -564,12 +586,32 @@ export default {
 }
 
 .time {
-  color: #999;
+  color: var(--hs-text-secondary);
   font-size: 12px;
 }
 
 .actions {
   display: flex;
   gap: 10px;
+}
+
+/* [UI美化-本轮] 小屏适配：留白收紧、头像略缩，头部行在窄屏不拥挤 */
+@media (max-width: 768px) {
+  .user-profile-container {
+    padding: 12px;
+  }
+
+  .header-content {
+    gap: 16px;
+  }
+
+  .avatar-preview {
+    width: 96px;
+    height: 96px;
+  }
+
+  .profile-content {
+    padding: 16px;
+  }
 }
 </style>

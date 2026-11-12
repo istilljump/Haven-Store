@@ -487,9 +487,12 @@ export default {
   margin-bottom: 8px;
 }
 
+/* [UI美化] 页面标题对齐文字层级规范 */
 .page-header h2 {
   margin: 0;
   font-size: 20px;
+  color: var(--hs-text-primary);
+  font-weight: 600;
 }
 
 .header-tip {
@@ -502,14 +505,16 @@ export default {
   font-size: 13px;
 }
 
+/* [UI美化] 工具条统一浅灰面板底色与 8px 小面板圆角，补细描边 */
 .toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  background: #f7f8fa;
-  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #f8fafd;
+  border: 1px solid var(--hs-border-light);
+  border-radius: 8px;
 }
 
 .toolbar-count {
@@ -532,19 +537,28 @@ export default {
   font-weight: 600;
 }
 
+/* [UI美化] 列表大面板统一 10px 圆角与贴地薄影 */
 .item-list {
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border: 1px solid var(--hs-border);
+  border-radius: 10px;
   overflow: hidden;
+  background: var(--hs-bg-card);
+  box-shadow: var(--hs-shadow-sm);
 }
 
+/* [UI美化] 条目分隔线换浅色系，补行悬浮底色反馈 */
 .cart-item {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 14px;
-  border-bottom: 1px solid #f2f3f5;
-  background: #fff;
+  border-bottom: 1px solid var(--hs-border-light);
+  background: var(--hs-bg-card);
+  transition: background 0.2s ease;
+}
+
+.cart-item:hover {
+  background: #f8fafd;
 }
 
 .cart-item:last-child {
@@ -552,7 +566,7 @@ export default {
 }
 
 .cart-item.unavailable {
-  background: #fafafa;
+  background: #f8fafd;
   opacity: 0.75;
 }
 
@@ -567,7 +581,13 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: #f8fafd;
+  /* [UI美化-本轮] 可点击封面补齐 hover 反馈：轻微透明度过渡 */
+  transition: opacity 0.2s ease;
+}
+
+.item-cover:hover {
+  opacity: 0.85;
 }
 
 .item-main {
@@ -575,6 +595,7 @@ export default {
   min-width: 0;
 }
 
+/* [UI美化] 标题悬浮加平滑过渡 */
 .item-title {
   font-size: 15px;
   color: #303133;
@@ -582,6 +603,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color 0.2s ease;
 }
 
 .item-title:hover {
@@ -646,7 +668,7 @@ export default {
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--hs-border-light);
 }
 
 .checkout-item img {
@@ -679,5 +701,43 @@ export default {
 
 .checkout-notice {
   margin-top: 12px;
+}
+
+/* [UI美化-本轮] 小屏适配：工具条允许换行，条目改为「图+文 / 价格+操作」两行式，避免挤压 */
+@media (max-width: 768px) {
+  .toolbar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .cart-item {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .item-cover {
+    width: 64px;
+    height: 64px;
+  }
+
+  .item-main {
+    flex: 1 1 160px;
+    min-width: 0;
+  }
+
+  .item-price {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .item-actions {
+    flex-direction: row;
+    gap: 8px;
+  }
 }
 </style>

@@ -208,12 +208,14 @@ export default {
   padding: 20px;
 }
 
+/* [UI美化] 主面板补贴地薄影，与灰底分层 */
 .page-container {
   max-width: 1080px;
   margin: 0 auto;
   background: #fff;
   border-radius: 10px;
   padding: 20px 24px 28px;
+  box-shadow: var(--hs-shadow-sm);
 }
 
 .page-head {
@@ -222,10 +224,12 @@ export default {
   align-items: center;
 }
 
+/* [UI美化] 页面标题加重，对齐标题层级规范 */
 .page-head h2 {
   margin: 0;
   font-size: 20px;
   color: #303133;
+  font-weight: 600;
 }
 
 .product-grid {

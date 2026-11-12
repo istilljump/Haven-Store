@@ -1,0 +1,371 @@
+/**
+ * ============================================================
+ * Haven-Store 全局视觉主题（UI 美化专项 · 纯样式层，零业务逻辑）
+ * ============================================================
+ * 引入位置：main.js（紧跟 element-plus 的 index.css 之后，保证覆盖优先级）
+ *
+ * 设计原则：
+ * 1. 遵循项目现有主色 #409eff（Element Plus 蓝），只做柔和化分层，不换色系；
+ * 2. 通过覆写 --el-* CSS 变量，让 Element Plus 全组件自动跟随，无需逐页修改；
+ * 3. 新增 --hs-* 设计变量（文字层级/边框/圆角/阴影），供各页面 scoped 样式复用；
+ * 4. 只覆盖观感（圆角、阴影、间距、hover、过渡），不改变任何组件行为与结构。
+ */
+
+/* ============================================================
+ * 一、设计变量（新增样式代码）
+ * ============================================================ */
+:root {
+  /* —— 品牌色：沿用项目现有 Element 蓝 —— */
+  --hs-primary: #409eff;
+  --hs-primary-dark: #337ecc;
+  --hs-primary-light: #79bbff;
+  --hs-primary-bg: #ecf5ff;
+  /* 主色hover时的柔和投影（用于按钮/卡片强调） */
+  --hs-primary-shadow: rgba(64, 158, 255, 0.28);
+
+  /* —— 文字层级：标题 / 正文 / 辅助 / 占位 —— */
+  --hs-text-primary: #303133;
+  --hs-text-regular: #606266;
+  --hs-text-secondary: #909399;
+  --hs-text-placeholder: #c0c4cc;
+
+  /* —— 边框与背景 —— */
+  --hs-border: #ebeef5;
+  --hs-border-light: #f0f2f7;
+  --hs-bg-page: #f5f7fa;
+  --hs-bg-card: #ffffff;
+
+  /* —— 价格红：沿用商品卡现用的价格色 —— */
+  --hs-price: #f56c6c;
+
+  /* —— 圆角：小（按钮/输入）/ 中（卡片）/ 大（弹窗） —— */
+  --hs-radius-sm: 6px;
+  --hs-radius-md: 8px;
+  --hs-radius-lg: 12px;
+
+  /* —— 阴影：由「贴地薄影 → hover 浮起」分级，避免发黑发重 —— */
+  --hs-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
+  --hs-shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --hs-shadow-lg: 0 8px 32px rgba(16, 24, 40, 0.12);
+
+  /* —— 统一过渡时长：hover / 浮动等微交互共用 —— */
+  --hs-transition: 0.2s ease;
+
+  /* ============================================================
+   * 二、映射到 Element Plus 全局变量（新增样式代码）
+   * 组件库全站自动跟随，一处声明全站生效
+   * ============================================================ */
+  --el-color-primary: #409eff;
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-primary-dark-2: #337ecc;
+
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
+  --el-border-color: #e4e8ee;
+  --el-border-color-light: #ebeef5;
+  --el-border-color-lighter: #f0f2f7;
+
+  --el-text-color-primary: #303133;
+  --el-text-color-regular: #606266;
+  --el-text-color-secondary: #909399;
+  --el-text-color-placeholder: #c0c4cc;
+
+  --el-box-shadow-light: 0 2px 12px rgba(16, 24, 40, 0.08);
+
+  /* 表格观感：浅色表头 + 淡蓝行悬浮，去掉发灰的默认观感 */
+  --el-table-header-bg-color: #f8fafd;
+  --el-table-header-text-color: #4e5969;
+  --el-table-row-hover-bg-color: #f5f9ff;
+  --el-table-border-color: #ebeef5;
+}
+
+/* ============================================================
+ * 三、基础排版（新增样式代码）
+ * ============================================================ */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: 1.5;
+}
+
+/* 文字选区跟随主色，细节统一 */
+::selection {
+  background: var(--hs-primary-bg);
+  color: var(--hs-primary-dark);
+}
+
+/* 全站细滚动条：桌面端更精致，移动端无影响 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d3d8e0;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c0c5cf;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+ * 四、Element Plus 组件统一美化（新增样式代码）
+ * 以下均为纯视觉覆盖，不改组件结构、事件与默认行为
+ * ============================================================ */
+
+/* —— 按钮：统一圆角/字重，区分主次按钮层级 —— */
+.el-button {
+  font-weight: 500;
+  transition: all var(--hs-transition);
+}
+/* 主按钮：hover 轻微上浮 + 主色柔影，强化「主要操作」的层级 */
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):hover {
+  box-shadow: 0 4px 12px var(--hs-primary-shadow);
+}
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):active {
+  box-shadow: 0 2px 6px var(--hs-primary-shadow);
+}
+/* 次按钮（default）：hover 淡蓝底 + 主色描边，弱化视觉重量 */
+.el-button--default:not(.is-link):not(.is-text):hover {
+  background: #f5f9ff;
+  border-color: var(--hs-primary-light);
+  color: var(--hs-primary);
+}
+
+/* —— 卡片：统一圆角与贴地薄影 —— */
+.el-card {
+  border-radius: var(--hs-radius-md);
+  border-color: var(--hs-border-light);
+  box-shadow: var(--hs-shadow-sm);
+}
+.el-card__header {
+  border-bottom-color: var(--hs-border-light);
+  font-weight: 600;
+  color: var(--hs-text-primary);
+}
+
+/* —— 弹窗 / 对话框：大圆角 + 柔影，标题加重 —— */
+.el-dialog {
+  border-radius: var(--hs-radius-lg);
+  box-shadow: var(--hs-shadow-lg);
+}
+.el-dialog__title {
+  font-weight: 600;
+  color: var(--hs-text-primary);
+}
+.el-dialog__body {
+  color: var(--hs-text-regular);
+}
+/* MessageBox（确认框）与弹窗保持同一观感 */
+.el-message-box {
+  border-radius: var(--hs-radius-lg);
+  box-shadow: var(--hs-shadow-lg);
+}
+.el-message-box__title {
+  font-weight: 600;
+}
+
+/* —— 消息提示：轻圆角，避免生硬 —— */
+.el-message {
+  border-radius: var(--hs-radius-md);
+  box-shadow: var(--hs-shadow-md);
+}
+
+/* —— 表格：表头加重、行悬浮反馈、行高留白 —— */
+.el-table {
+  --el-table-header-bg-color: #f8fafd;
+}
+.el-table th.el-table__cell {
+  font-weight: 600;
+  color: var(--hs-text-regular);
+}
+.el-table .el-table__cell {
+  padding: 10px 0;
+}
+/* 圆角表格：外层带边框时裁切出圆角 */
+.el-table--border {
+  border-radius: var(--hs-radius-md);
+  overflow: hidden;
+}
+
+/* —— 表单控件：hover/focus 描边柔和化（圆角经 --el-border-radius-base 已统一） —— */
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  transition:
+    box-shadow var(--hs-transition),
+    border-color var(--hs-transition);
+}
+.el-input__wrapper.is-error,
+.el-select__wrapper.is-error {
+  box-shadow: 0 0 0 1px var(--el-color-danger) inset;
+}
+
+/* —— 标签：微圆角 + 细描边，去掉默认的硬朗感 —— */
+.el-tag {
+  border-radius: 4px;
+}
+
+/* —— 下拉菜单：圆角 + 柔影 + 条目 hover 淡蓝底 —— */
+.el-dropdown-menu,
+.el-select-dropdown {
+  border-radius: var(--hs-radius-md);
+  box-shadow: var(--hs-shadow-md);
+}
+.el-dropdown-menu__item:not(.is-disabled):hover,
+.el-dropdown-menu__item:not(.is-disabled):focus {
+  background-color: var(--hs-primary-bg);
+  color: var(--hs-primary);
+}
+.el-select-dropdown__item.is-hovering {
+  background-color: var(--hs-primary-bg);
+}
+
+/* —— 分页：条目圆角与主色反馈 —— */
+.el-pagination {
+  --el-pagination-hover-color: var(--hs-primary);
+}
+.el-pagination .el-pager li {
+  border-radius: var(--hs-radius-sm);
+  transition:
+    color var(--hs-transition),
+    background-color var(--hs-transition);
+}
+.el-pagination .el-pager li.is-active {
+  border-radius: var(--hs-radius-sm);
+}
+
+/* —— 空状态 / 骨架屏：降低存在感，避免抢主内容 —— */
+.el-empty__description p {
+  color: var(--hs-text-secondary);
+}
+
+/* —— 警示条：微圆角 —— */
+.el-alert {
+  border-radius: var(--hs-radius-md);
+}
+
+/* —— 步骤条 / 描述列表（订单详情等页使用）：文字层级统一 —— */
+.el-descriptions__label {
+  color: var(--hs-text-secondary);
+}
+.el-steps .el-step__title {
+  font-size: 14px;
+}
+
+/* ============================================================
+ * 五、细节专项（本轮迭代新增样式代码）
+ * 审定项：空状态与加载态 / 报错提示 / 标签样式 —— 轻量柔和方向
+ * ============================================================ */
+
+/* —— 空状态：留白收紧一档、插画降透明度，降低对空白页的突兀感 —— */
+.el-empty {
+  padding: 32px 0;
+}
+.el-empty__image {
+  opacity: 0.85;
+}
+
+/* —— 加载态：骨架屏底色压淡柔和；loading 遮罩提高透出度，避免"白屏感" —— */
+.el-skeleton {
+  --el-skeleton-color: #f1f4f9;
+  --el-skeleton-to-color: #e9eef6;
+}
+.el-loading-mask {
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+/* —— 报错/提示：警示条内边距与文字层级微调，标题加重、描述转辅助色字号 —— */
+.el-alert {
+  padding: 10px 16px;
+}
+.el-alert__title {
+  font-weight: 500;
+}
+.el-alert__description {
+  font-size: 13px;
+  line-height: 1.6;
+}
+/* 表单校验错误文案：与输入框间距稍放宽，减少拥挤 */
+.el-form-item__error {
+  padding-top: 3px;
+}
+
+/* —— 标签：统一字号与圆角基准（描边/底色已由 --el-color-* 变量体系接管） —— */
+.el-tag {
+  font-size: 12px;
+  border-radius: 4px;
+  /* 过渡声明在基础态，hover 进出双向平滑 */
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+/* 可点击的选中态标签（成色筛选 chip 等）：hover 轻浮起反馈 */
+.el-tag.el-tag--primary.el-tag--dark:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+}
+
+/* ============================================================
+ * 六、组件专项精修（本轮迭代新增样式代码）
+ * 审定项：弹窗/抽屉/表单/分页的操作区与层级深度打磨
+ * ============================================================ */
+
+/* —— 弹窗：底部操作区加细线分区，主（确认）/次（取消）操作区更清晰 —— */
+.el-dialog__footer {
+  padding-top: 14px;
+  border-top: 1px solid var(--hs-border-light);
+}
+
+/* —— 抽屉：头部加细线分区与标题加重（导航抽屉等共用） —— */
+.el-drawer__header {
+  margin-bottom: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hs-border-light);
+}
+.el-drawer__title {
+  font-weight: 600;
+  color: var(--hs-text-primary);
+}
+
+/* —— 表单：标签加重半档，与正文文字区分层级 —— */
+.el-form-item__label {
+  font-weight: 500;
+}
+
+/* —— 分页：窄屏可换行不溢出容器（行为不变，仅排列方式） —— */
+.el-pagination {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+/* ============================================================
+ * 七、移动端适配（本轮迭代新增样式代码）
+ * 审定项：弹窗/确认框/轻提示小屏全宽化，防横向溢出
+ * ============================================================ */
+@media (max-width: 768px) {
+  /* 弹窗：小屏占满可用宽度（!important 覆盖组件传入的固定宽度） */
+  .el-dialog {
+    width: 92% !important;
+    margin-top: 8vh !important;
+  }
+
+  /* 确认框（MessageBox）：小屏全宽化并保留上限 */
+  .el-message-box {
+    width: 90% !important;
+    max-width: 420px;
+  }
+
+  /* 轻提示（Message）：EP 默认 min-width 380px，小屏会横向溢出，放开为自适应 */
+  .el-message {
+    min-width: auto;
+    max-width: calc(100vw - 32px);
+  }
+}

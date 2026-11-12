@@ -483,11 +483,13 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .header-title h1 {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   color: #303133;
   margin: 0 0 8px 0;
@@ -517,12 +519,13 @@ onMounted(() => {
   padding: 20px;
 }
 
+/* [UI美化] 分组标题改细分隔线并收敛字号，去掉整条蓝色粗下划线 */
 .settings-section h3 {
   margin: 0 0 20px 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #303133;
-  border-bottom: 2px solid #409eff;
+  border-bottom: 1px solid #f0f2f7;
   padding-bottom: 8px;
 }
 
@@ -544,30 +547,30 @@ onMounted(() => {
   height: 80px;
   border-radius: 8px;
   object-fit: cover;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #ebeef5;
 }
 
 .upload-demo {
   width: 100%;
 }
 
-/* 自定义滚动条 */
+/* [UI美化] 设置卡滚动条改浅色细轨，与全局滚动条观感统一 */
 .settings-card::-webkit-scrollbar {
   width: 8px;
 }
 
 .settings-card::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
   border-radius: 4px;
 }
 
 .settings-card::-webkit-scrollbar-thumb {
-  background: #909399;
+  background: #d3d8e0;
   border-radius: 4px;
 }
 
 .settings-card::-webkit-scrollbar-thumb:hover {
-  background: #606266;
+  background: #c0c5cf;
 }
 
 /* 响应式设计 */

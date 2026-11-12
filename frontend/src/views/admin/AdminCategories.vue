@@ -313,11 +313,13 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .header-title h1 {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   color: #303133;
   margin: 0 0 8px 0;
@@ -344,6 +346,7 @@ onMounted(() => {
   align-items: center;
 }
 
+/* [UI美化] 分类图标托底加淡蓝描边，圆点更精致 */
 .category-icon {
   width: 32px;
   height: 32px;
@@ -352,6 +355,7 @@ onMounted(() => {
   justify-content: center;
   border-radius: 8px;
   background: #ecf5ff;
+  border: 1px solid #d9ecff;
   color: #409eff;
   font-size: 18px;
 }

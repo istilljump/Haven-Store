@@ -214,12 +214,14 @@ export default {
   padding: 20px;
 }
 
+/* [UI美化] 主面板补贴地薄影，与灰底分层 */
 .page-container {
   max-width: 860px;
   margin: 0 auto;
   background: #fff;
   border-radius: 10px;
   padding: 20px 24px;
+  box-shadow: var(--hs-shadow-sm);
 }
 
 .page-head {
@@ -242,19 +244,20 @@ export default {
   margin-top: 8px;
 }
 
+/* [UI美化] 消息行分隔线与悬浮过渡对齐统一规范 */
 .msg-item {
   display: flex;
   gap: 12px;
   padding: 14px 12px;
-  border-bottom: 1px solid #f0f2f5;
+  border-bottom: 1px solid var(--hs-border-light);
   cursor: pointer;
   border-radius: 6px;
-  transition: background 0.15s;
+  transition: background 0.2s ease;
 }
 
 .msg-item:hover,
 .msg-item.checked {
-  background: #f5f7fa;
+  background: #f8fafd;
 }
 
 .msg-item.unread .msg-title {
