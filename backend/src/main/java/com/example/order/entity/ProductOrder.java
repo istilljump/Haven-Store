@@ -54,6 +54,15 @@ public class ProductOrder implements Serializable {
     /** 取消时间 */
     private LocalDateTime cancelTime;
 
+    /** 面交确认码（轮8：支付成功生成，买家持码卖家输码，一次性） */
+    private String confirmCode;
+
+    /** 面交码错误尝试次数（达 5 次锁定卖家输码路径） */
+    private Integer confirmFailCount;
+
+    /** 完成确认方式：1 买家确认 2 卖家输码面交 3 超时自动 */
+    private Integer confirmedBy;
+
     /** 创建时间（插入时自动填充） */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

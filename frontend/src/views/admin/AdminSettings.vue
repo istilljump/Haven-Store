@@ -207,15 +207,27 @@
                 </el-form-item>
                 <el-form-item label="成色二次筛选">
                   <el-switch v-model="settings.trade.searchConditionFilter" />
-                  <span class="form-tip"
-                    >（进阶能力：搜索结果按成色二次筛选，缺省关闭）</span
-                  >
+                  <span class="form-tip">（进阶能力：搜索结果按成色二次筛选，缺省关闭）</span>
                 </el-form-item>
                 <h3>外观设置</h3>
                 <el-form-item label="暗色模式">
                   <el-switch v-model="settings.trade.themeDarkEnabled" />
                   <span class="form-tip"
                     >（前台/后台三模式主题切换总开关：跟随系统/亮色/暗色；关闭后强制亮色并隐藏切换入口）</span
+                  >
+                </el-form-item>
+                <!-- [轮8] 议价功能总开关（交易设置 trade 分组，缺省开启；关闭后卖家报价/接受报价等议价能力整体停用） -->
+                <el-form-item label="议价功能">
+                  <el-switch v-model="settings.trade.tradeNegotiationEnabled" />
+                  <span class="form-tip"
+                    >（卖家对在售商品报价、买家接受报价等议价能力的总开关，关闭后议价消息不可发送）</span
+                  >
+                </el-form-item>
+                <!-- [轮8] 面交确认码总开关（交易设置 trade 分组，缺省开启；关闭后线下订单不再生成确认码） -->
+                <el-form-item label="面交确认码">
+                  <el-switch v-model="settings.trade.tradeConfirmCodeEnabled" />
+                  <span class="form-tip"
+                    >（线下交易订单生成六位面交确认码用于当面核验的总开关，关闭后订单不再生成确认码）</span
                   >
                 </el-form-item>
               </el-form>
@@ -368,7 +380,10 @@ const defaultSettings = {
     recommendEnabled: true,
     searchConditionFilter: false,
     // 暗色模式总开关（缺省开启）
-    themeDarkEnabled: true
+    themeDarkEnabled: true,
+    // [轮8] 议价功能 / 面交确认码总开关（与后端 SystemSettingDTO.defaults 对齐，均缺省开启）
+    tradeNegotiationEnabled: true,
+    tradeConfirmCodeEnabled: true
   },
   contact: {
     email: 'admin@secondhand.com',

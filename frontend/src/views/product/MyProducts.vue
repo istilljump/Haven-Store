@@ -22,12 +22,7 @@
             <ProductCard :product="item" />
             <div v-if="item.priceSuggestion" class="price-suggest">
               <div class="suggest-text">{{ item.priceSuggestion.reason }}</div>
-              <el-button
-                size="mini"
-                type="warning"
-                plain
-                @click="applySuggestion(item)"
-              >
+              <el-button size="mini" type="warning" plain @click="applySuggestion(item)">
                 一键降至 ¥{{ item.priceSuggestion.suggestedPrice }}
               </el-button>
             </div>
@@ -84,7 +79,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ProductCard from '@/components/ProductCard.vue'
-import { getMyProducts, removeProduct, reshelfProduct, purgeProduct, updateProductPrice } from '@/api/product'
+import {
+  getMyProducts,
+  removeProduct,
+  reshelfProduct,
+  purgeProduct,
+  updateProductPrice
+} from '@/api/product'
 
 /**
  * 我的发布（独立管理页）

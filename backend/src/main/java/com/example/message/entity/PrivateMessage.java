@@ -44,6 +44,15 @@ public class PrivateMessage implements Serializable {
     /** 私信内容 */
     private String content;
 
+    /** 议价报价金额（轮8：仅卖家报价消息非空） */
+    private java.math.BigDecimal offerPrice;
+
+    /** 报价失效时间（发送+30分钟） */
+    private LocalDateTime offerExpireTime;
+
+    /** 报价状态：0 待处理 / 1 已接受 / 2 已失效；非报价消息为 NULL */
+    private Integer offerStatus;
+
     /** 接收方是否已读：0 未读，1 已读 */
     private Integer isRead;
 

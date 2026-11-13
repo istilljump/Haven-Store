@@ -477,7 +477,9 @@ export default {
   box-shadow: var(--hs-shadow-sm);
   overflow: hidden;
   border: 1px solid var(--hs-border);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .product-card:hover {

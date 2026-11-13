@@ -190,4 +190,12 @@ public interface ProductService {
      * @param dto       评论入参
      */
     void addComment(Long productId, CommentAddDTO dto);
+
+    /**
+     * 卖家回评（轮8 业务迭代新增）
+     *
+     * @param commentId 评价 ID
+     * @param dto       回评内容
+     */
+    void replyComment(Long commentId, com.example.product.dto.CommentReplyDTO dto);
 }

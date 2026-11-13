@@ -76,6 +76,12 @@ public class OrderServiceImpl implements OrderService {
     /** 搜索埋点服务（成交归因用；order→search 单向依赖，失败不影响支付） */
     private final com.example.search.service.SearchLogService searchLogService;
 
+    /** 交易事件通知服务（轮8：下单/支付/取消/完成等事件定向通知买卖双方与收藏者） */
+    private final com.example.message.service.TradeNotifyService tradeNotifyService;
+
+    /** 系统设置服务（轮8：面交码/议价总开关读取） */
+    private final com.example.admin.service.SystemSettingService systemSettingService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderVO createOrder(CreateOrderDTO dto) {
@@ -153,9 +159,121 @@ public class OrderServiceImpl implements OrderService {
                 .eq(UserProductRelation::getRelationType, RelationTypeConstant.CART)
                 .in(UserProductRelation::getProductId, productIds));
 
+        // 7. 交易事件通知（轮8）：通知各卖家「商品被下单锁定」；通知收藏者「收藏的商品已被买走」
+        notifyOrderCreated(order, products, buyerId);
+
         log.info("订单创建成功，订单号：{}，买家ID：{}，金额：{}，商品数：{}",
                 order.getOrderNo(), buyerId, totalAmount, productIds.size());
         return toOrderVO(order, items, displayName(userMapper.selectById(buyerId)));
+    }
+
+    /**
+     * 下单事件通知（轮8）：通知卖家与收藏者（try/catch，通知失败不影响下单事务）
+     */
+    private void notifyOrderCreated(ProductOrder order, List<Product> products, Long buyerId) {
+        try {
+            // 卖家通知：按卖家分组，说明锁定与超时释放规则
+            Map<Long, List<Product>> bySeller = products.stream()
+                    .filter(p -> p.getUserId() != null)
+                    .collect(Collectors.groupingBy(Product::getUserId));
+            bySeller.forEach((sellerId, list) -> {
+                String titles = list.stream().map(Product::getTitle)
+                        .reduce((a, b) -> a + "、" + b).orElse("");
+                tradeNotifyService.notifyUser(sellerId, "你的商品有人下单了",
+                        "商品「" + titles + "」已被买家下单锁定（订单号 " + order.getOrderNo()
+                                + "）。买家支付后请准备面交；若 30 分钟内未支付，订单将自动取消、商品自动恢复在售。");
+            });
+            // 收藏者通知：每件商品各自通知其收藏者（排除买家本人；售出由商品锁定事件天然保证一次）
+            for (Product product : products) {
+                List<Long> collectorIds = findCollectorIds(product.getId());
+                collectorIds.remove(buyerId);
+                if (!collectorIds.isEmpty()) {
+                    tradeNotifyService.notifyUsers(collectorIds, "收藏的「" + product.getTitle() + "」已被买走",
+                            "你收藏的「" + product.getTitle() + "」已被其他同学下单买走。喜欢同类闲置？去商品详情页看看同校区同类推荐。");
+                }
+            }
+        } catch (Exception e) {
+            // 通知属于增强信息，失败只告警不影响下单事务
+            log.warn("下单事件通知异常（忽略）：{}", e.getMessage());
+        }
+    }
+
+    /** 查询商品的收藏者ID列表（去重；无收藏返回空列表） */
+    private List<Long> findCollectorIds(Long productId) {
+        return userProductRelationMapper.selectList(new LambdaQueryWrapper<UserProductRelation>()
+                        .eq(UserProductRelation::getProductId, productId)
+                        .eq(UserProductRelation::getRelationType, RelationTypeConstant.COLLECT))
+                .stream().map(UserProductRelation::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 按议价价创建单商品订单（轮8：买家接受私信报价后由 message 模块调用）
+     * <p>
+     * 复用购物车下单的校验与锁定语义；差异仅在成交价取议价价——
+     * order_item 快照价即议价价，随支付状态回流行情样本（议价也是真实成交）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO createFromOffer(Long productId, Long buyerId, BigDecimal negotiatedPrice) {
+        Product product = productMapper.selectById(productId);
+        if (product == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (buyerId.equals(product.getUserId())) {
+            throw new BusinessException("不能购买自己发布的商品");
+        }
+        if (!ProductStatusEnum.ON_SHELF.getCode().equals(product.getStatus())) {
+            String desc = ProductStatusEnum.OFF_SHELF.getCode().equals(product.getStatus())
+                    ? "已下架" : "已售出";
+            throw new BusinessException("「" + product.getTitle() + "」" + desc + "，报价已失效");
+        }
+        if (negotiatedPrice == null || negotiatedPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("议价价格不合法");
+        }
+
+        // 落订单主表（总价即议价价）
+        ProductOrder order = new ProductOrder();
+        order.setOrderNo(generateOrderNo());
+        order.setBuyerId(buyerId);
+        order.setTotalAmount(negotiatedPrice);
+        order.setItemCount(1);
+        order.setStatus(OrderStatusEnum.PENDING_PAY.getCode());
+        productOrderMapper.insert(order);
+
+        // CAS 锁定商品（与购物车下单同一语义：并发下更新不到即已被买走）
+        int changed = productMapper.update(null, new LambdaUpdateWrapper<Product>()
+                .eq(Product::getId, product.getId())
+                .eq(Product::getStatus, ProductStatusEnum.ON_SHELF.getCode())
+                .set(Product::getStatus, ProductStatusEnum.SOLD.getCode()));
+        if (changed == 0) {
+            throw new BusinessException("「" + product.getTitle() + "」刚刚被其他买家买走了，报价已失效");
+        }
+
+        // 订单明细：成交快照价取议价价
+        OrderItem item = new OrderItem();
+        item.setOrderId(order.getId());
+        item.setProductId(product.getId());
+        item.setSellerId(product.getUserId());
+        item.setTitle(product.getTitle());
+        item.setCoverImage(product.getCoverImage());
+        item.setPrice(negotiatedPrice);
+        orderItemMapper.insert(item);
+
+        // 该商品若在买家购物车中，同步移除
+        userProductRelationMapper.delete(new LambdaQueryWrapper<UserProductRelation>()
+                .eq(UserProductRelation::getUserId, buyerId)
+                .eq(UserProductRelation::getRelationType, RelationTypeConstant.CART)
+                .eq(UserProductRelation::getProductId, productId));
+
+        // 交易事件通知（复用下单通知：卖家锁定提醒 + 收藏者售出提醒）
+        notifyOrderCreated(order, List.of(product), buyerId);
+
+        log.info("议价订单创建成功，订单号：{}，买家：{}，商品：{}，议价价：{}",
+                order.getOrderNo(), buyerId, productId, negotiatedPrice);
+        return toOrderVO(order, List.of(item), displayName(userMapper.selectById(buyerId)));
     }
 
     @Override
@@ -216,7 +334,8 @@ public class OrderServiceImpl implements OrderService {
         ProductOrder order = getOrderByNoOrThrow(orderNo);
         // 买家本人可见；非买家但订单中有自己发布的商品（卖家）也可查看，
         // 便于卖家核对「谁买走了我的东西」，越权兜底仍在本方法内完成
-        if (!userId.equals(order.getBuyerId())) {
+        boolean isBuyer = userId.equals(order.getBuyerId());
+        if (!isBuyer) {
             Long sellerItemCount = orderItemMapper.selectCount(new LambdaQueryWrapper<OrderItem>()
                     .eq(OrderItem::getOrderId, order.getId())
                     .eq(OrderItem::getSellerId, userId));
@@ -224,8 +343,14 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(ResultCodeEnum.FORBIDDEN.getCode(), "只能查看自己的订单");
             }
         }
-        return toOrderVO(order, listItems(order.getId()),
+        OrderVO vo = toOrderVO(order, listItems(order.getId()),
                 displayName(userMapper.selectById(order.getBuyerId())));
+        // 轮8：面交码仅对「买家本人 + 已支付」可见（卖家通过输码弹窗获得码，不直接下发）
+        if (isBuyer && OrderStatusEnum.PAID.getCode().equals(order.getStatus())) {
+            vo.setConfirmCode(order.getConfirmCode());
+        }
+        vo.setConfirmedBy(order.getConfirmedBy());
+        return vo;
     }
 
     @Override
@@ -236,11 +361,16 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 条件更新：并发下（如定时取消同时发生）状态被别人改过时更新不到，避免重复推进
+        // 轮8：支付成功同时生成面交确认码（总开关开启时；6 位数字，订单级一次性）
+        boolean codeEnabled = isConfirmCodeEnabled();
+        String confirmCode = codeEnabled ? generateConfirmCode() : null;
         int changed = productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
                 .eq(ProductOrder::getId, order.getId())
                 .eq(ProductOrder::getStatus, OrderStatusEnum.PENDING_PAY.getCode())
                 .set(ProductOrder::getStatus, OrderStatusEnum.PAID.getCode())
-                .set(ProductOrder::getPayTime, LocalDateTime.now()));
+                .set(ProductOrder::getPayTime, LocalDateTime.now())
+                .set(confirmCode != null, ProductOrder::getConfirmCode, confirmCode)
+                .set(ProductOrder::getConfirmFailCount, 0));
         if (changed == 0) {
             throw new BusinessException("订单状态已变化，请刷新后重试");
         }
@@ -258,6 +388,54 @@ public class OrderServiceImpl implements OrderService {
             searchLogService.markDeals(productIds);
         } catch (Exception e) {
             log.warn("搜索埋点成交归因异常（忽略）：{}", e.getMessage());
+        }
+
+        // 支付事件通知（轮8）：买家（含面交码说明）+ 各卖家（待面交）
+        notifyOrderPaid(order, confirmCode);
+    }
+
+    /** 面交码总开关（缺省开启） */
+    private boolean isConfirmCodeEnabled() {
+        return !Boolean.FALSE.equals(systemSettingService.get().getTrade().getTradeConfirmCodeEnabled());
+    }
+
+    /** 生成 6 位数字面交确认码（订单级，首零允许） */
+    private String generateConfirmCode() {
+        return String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000));
+    }
+
+    /**
+     * 支付事件通知（轮8）：买家收到面交码说明、卖家收到待面交提醒（try/catch 不影响支付）
+     */
+    private void notifyOrderPaid(ProductOrder order, String confirmCode) {
+        try {
+            List<OrderItem> items = listItems(order.getId());
+            String titles = items.stream().map(OrderItem::getTitle)
+                    .reduce((a, b) -> a + "、" + b).orElse("");
+            if (confirmCode != null) {
+                tradeNotifyService.notifyUser(order.getBuyerId(), "支付成功，面交码已生成",
+                        "订单 " + order.getOrderNo() + "（「" + titles + "」）已支付。面交时向卖家出示 6 位确认码 "
+                                + confirmCode + "，卖家输码后订单即完成；你也可以在收货后手动确认，7 天未确认将自动完成。");
+            } else {
+                tradeNotifyService.notifyUser(order.getBuyerId(), "支付成功",
+                        "订单 " + order.getOrderNo() + "（「" + titles + "」）已支付。请在面交完成后确认收货，7 天未确认将自动完成。");
+            }
+            // 卖家通知：按明细卖家分组
+            Map<Long, List<OrderItem>> bySeller = items.stream()
+                    .filter(i -> i.getSellerId() != null)
+                    .collect(Collectors.groupingBy(OrderItem::getSellerId));
+            bySeller.forEach((sellerId, list) -> {
+                String t = list.stream().map(OrderItem::getTitle)
+                        .reduce((a, b) -> a + "、" + b).orElse("");
+                String codeHint = confirmCode != null
+                        ? "买家面交时会出示 6 位确认码，请在「我卖出的」订单详情输入该码完成交付；"
+                        : "";
+                tradeNotifyService.notifyUser(sellerId, "你的商品已售出，待面交",
+                        "订单 " + order.getOrderNo() + "（「" + t + "」）已支付。" + codeHint
+                                + "买家确认收货或 7 天后订单也会自动完成。");
+            });
+        } catch (Exception e) {
+            log.warn("支付事件通知异常（忽略）：{}", e.getMessage());
         }
     }
 
@@ -279,6 +457,22 @@ public class OrderServiceImpl implements OrderService {
         }
         releaseOrderItems(order.getId());
         log.info("订单已取消，订单号：{}，商品已释放回在售", order.getOrderNo());
+
+        // 取消事件通知（轮8）：通知卖家商品已回架（try/catch 不影响取消流程）
+        try {
+            List<OrderItem> items = listItems(order.getId());
+            Map<Long, List<OrderItem>> bySeller = items.stream()
+                    .filter(i -> i.getSellerId() != null)
+                    .collect(Collectors.groupingBy(OrderItem::getSellerId));
+            bySeller.forEach((sellerId, list) -> {
+                String t = list.stream().map(OrderItem::getTitle)
+                        .reduce((a, b) -> a + "、" + b).orElse("");
+                tradeNotifyService.notifyUser(sellerId, "订单已取消，商品已回架",
+                        "订单 " + order.getOrderNo() + "（「" + t + "」）被买家取消，商品已恢复在售。");
+            });
+        } catch (Exception e) {
+            log.warn("取消事件通知异常（忽略）：{}", e.getMessage());
+        }
     }
 
     @Override
@@ -292,11 +486,146 @@ public class OrderServiceImpl implements OrderService {
                 .eq(ProductOrder::getId, order.getId())
                 .eq(ProductOrder::getStatus, OrderStatusEnum.PAID.getCode())
                 .set(ProductOrder::getStatus, OrderStatusEnum.FINISHED.getCode())
-                .set(ProductOrder::getFinishTime, LocalDateTime.now()));
+                .set(ProductOrder::getFinishTime, LocalDateTime.now())
+                .set(ProductOrder::getConfirmedBy, CONFIRMED_BY_BUYER));
         if (changed == 0) {
             throw new BusinessException("订单状态已变化，请刷新后重试");
         }
         log.info("订单已完成，订单号：{}", order.getOrderNo());
+
+        // 完成事件通知（轮8）：通知卖家（含评价引导——评分将回流信用画像）
+        try {
+            List<OrderItem> items = listItems(order.getId());
+            Map<Long, List<OrderItem>> bySeller = items.stream()
+                    .filter(i -> i.getSellerId() != null)
+                    .collect(Collectors.groupingBy(OrderItem::getSellerId));
+            bySeller.forEach((sellerId, list) -> {
+                String t = list.stream().map(OrderItem::getTitle)
+                        .reduce((a, b) -> a + "、" + b).orElse("");
+                tradeNotifyService.notifyUser(sellerId, "订单已完成",
+                        "订单 " + order.getOrderNo() + "（「" + t + "」）已被买家确认完成。买家评价后评分将计入你的信用画像，好的评价来自好的面交体验。");
+            });
+        } catch (Exception e) {
+            log.warn("完成事件通知异常（忽略）：{}", e.getMessage());
+        }
+    }
+
+    /** 完成确认方式：1 买家确认收货 */
+    private static final int CONFIRMED_BY_BUYER = 1;
+    /** 完成确认方式：2 卖家输码面交 */
+    private static final int CONFIRMED_BY_SELLER_CODE = 2;
+    /** 完成确认方式：3 超时自动完成 */
+    private static final int CONFIRMED_BY_TIMEOUT = 3;
+    /** 面交码最大错误尝试次数（超过后卖家输码路径锁定，买家确认路径仍可用） */
+    private static final int MAX_CONFIRM_FAIL_COUNT = 5;
+
+    /**
+     * 卖家输码面交确认（轮8）：支付成功的订单，卖家输入买家出示的 6 位码即完成交付
+     * <p>
+     * 校验链：总开关 → 订单存在且当前用户是本单卖家 → 状态为已支付 → 输码未锁定
+     * → 码匹配。任一 sellership/状态不满足即拒绝；错码累计 fail_count，达 5 次
+     * 后输码路径锁定（买家手动确认路径不受影响）。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmByCode(String orderNo, String code) {
+        Long sellerId = requireLoginUserId();
+        if (!isConfirmCodeEnabled()) {
+            throw new BusinessException("面交确认码功能未开启");
+        }
+        if (!StringUtils.hasText(code) || !code.trim().matches("\\d{6}")) {
+            throw new BusinessException("请输入 6 位数字确认码");
+        }
+        ProductOrder order = getOrderByNoOrThrow(orderNo);
+        // 卖家身份校验：当前用户必须是本订单任一明细的卖家
+        List<Long> sellerIds = listItems(order.getId()).stream()
+                .map(OrderItem::getSellerId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (!sellerIds.contains(sellerId)) {
+            throw new BusinessException("只有该订单的卖家才能输入面交确认码");
+        }
+        if (!OrderStatusEnum.PAID.getCode().equals(order.getStatus())) {
+            throw new BusinessException("订单当前为「" + OrderStatusEnum.descOf(order.getStatus()) + "」，无需面交确认");
+        }
+        int failCount = order.getConfirmFailCount() == null ? 0 : order.getConfirmFailCount();
+        if (failCount >= MAX_CONFIRM_FAIL_COUNT) {
+            throw new BusinessException("确认码错误次数过多，输码已锁定；请联系买家在其订单中直接确认收货");
+        }
+        if (!code.trim().equals(order.getConfirmCode())) {
+            productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
+                    .eq(ProductOrder::getId, order.getId())
+                    .set(ProductOrder::getConfirmFailCount, failCount + 1));
+            throw new BusinessException("确认码不正确（剩余尝试次数 " + (MAX_CONFIRM_FAIL_COUNT - failCount - 1) + " 次）");
+        }
+
+        // 码匹配：条件更新完成订单（并发下与买家确认/超时自动互斥，谁先改到谁生效）
+        int changed = productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
+                .eq(ProductOrder::getId, order.getId())
+                .eq(ProductOrder::getStatus, OrderStatusEnum.PAID.getCode())
+                .set(ProductOrder::getStatus, OrderStatusEnum.FINISHED.getCode())
+                .set(ProductOrder::getFinishTime, LocalDateTime.now())
+                .set(ProductOrder::getConfirmedBy, CONFIRMED_BY_SELLER_CODE));
+        if (changed == 0) {
+            throw new BusinessException("订单状态已变化，请刷新后重试");
+        }
+        log.info("订单经卖家输码面交完成，订单号：{}", order.getOrderNo());
+
+        // 完成事件通知（轮8）：通知买家
+        try {
+            List<OrderItem> items = listItems(order.getId());
+            String t = items.stream().map(OrderItem::getTitle)
+                    .reduce((a, b) -> a + "、" + b).orElse("");
+            tradeNotifyService.notifyUser(order.getBuyerId(), "面交完成，订单已交付",
+                    "订单 " + order.getOrderNo() + "（「" + t + "」）经卖家输码确认交付完成。欢迎对本次交易评价，让信用数据帮到下一位同学。");
+        } catch (Exception e) {
+            log.warn("面交完成通知异常（忽略）：{}", e.getMessage());
+        }
+    }
+
+    /**
+     * 支付后超时自动完成（轮8 兜底）：已支付订单超过 autoFinishDays 天未确认，
+     * 由定时任务自动推进为已完成（confirmed_by=3），并通知买卖双方
+     */
+    @Override
+    public int autoFinishPaidOrders(int autoFinishDays) {
+        LocalDateTime deadline = LocalDateTime.now().minusDays(autoFinishDays);
+        List<ProductOrder> staleOrders = productOrderMapper.selectList(new LambdaQueryWrapper<ProductOrder>()
+                .eq(ProductOrder::getStatus, OrderStatusEnum.PAID.getCode())
+                .lt(ProductOrder::getPayTime, deadline));
+        int finished = 0;
+        for (ProductOrder order : staleOrders) {
+            try {
+                int changed = productOrderMapper.update(null, new LambdaUpdateWrapper<ProductOrder>()
+                        .eq(ProductOrder::getId, order.getId())
+                        .eq(ProductOrder::getStatus, OrderStatusEnum.PAID.getCode())
+                        .set(ProductOrder::getStatus, OrderStatusEnum.FINISHED.getCode())
+                        .set(ProductOrder::getFinishTime, LocalDateTime.now())
+                        .set(ProductOrder::getConfirmedBy, CONFIRMED_BY_TIMEOUT));
+                if (changed > 0) {
+                    finished++;
+                    log.info("已支付订单超时自动完成，订单号：{}", order.getOrderNo());
+                    try {
+                        List<OrderItem> items = listItems(order.getId());
+                        String t = items.stream().map(OrderItem::getTitle)
+                                .reduce((a, b) -> a + "、" + b).orElse("");
+                        tradeNotifyService.notifyUser(order.getBuyerId(), "订单已自动完成",
+                                "订单 " + order.getOrderNo() + "（「" + t + "」）支付后 7 天未确认，已自动完成。如对交易有异议请联系平台客服。");
+                        List<Long> sellerIds = items.stream().map(OrderItem::getSellerId)
+                                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
+                        tradeNotifyService.notifyUsers(sellerIds, "订单已自动完成",
+                                "订单 " + order.getOrderNo() + "（「" + t + "」）支付后 7 天未确认，已自动完成。");
+                    } catch (Exception e) {
+                        log.warn("自动完成通知异常（忽略）：{}", e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                // 单笔失败不影响其余订单
+                log.error("自动完成订单失败，订单号：{}", order.getOrderNo(), e);
+            }
+        }
+        return finished;
     }
 
     /**
@@ -323,6 +652,15 @@ public class OrderServiceImpl implements OrderService {
                     releaseOrderItems(order.getId());
                     cancelled++;
                     log.info("超时未支付订单已自动取消，订单号：{}", order.getOrderNo());
+                    // 超时取消事件通知（轮8）：告知买家订单已取消、商品已回架
+                    try {
+                        String t = listItems(order.getId()).stream().map(OrderItem::getTitle)
+                                .reduce((a, b) -> a + "、" + b).orElse("");
+                        tradeNotifyService.notifyUser(order.getBuyerId(), "订单超时未支付已取消",
+                                "订单 " + order.getOrderNo() + "（「" + t + "」）超过 30 分钟未支付已自动取消，商品已恢复在售。");
+                    } catch (Exception e) {
+                        log.warn("超时取消通知异常（忽略）：{}", e.getMessage());
+                    }
                 }
             } catch (Exception e) {
                 // 单笔失败不影响其余订单的自动取消

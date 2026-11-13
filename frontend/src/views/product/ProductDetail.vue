@@ -58,8 +58,10 @@
               </el-tag>
               <span class="market-summary">
                 近{{ product.marketBasis.days }}天同类成交 {{ product.marketBasis.sampleSize }} 件 ·
-                中位价 ¥{{ product.marketBasis.medianPrice }} · 区间
-                ¥{{ product.marketBasis.minPrice }} ~ ¥{{ product.marketBasis.maxPrice }}
+                中位价 ¥{{ product.marketBasis.medianPrice }} · 区间 ¥{{
+                  product.marketBasis.minPrice
+                }}
+                ~ ¥{{ product.marketBasis.maxPrice }}
               </span>
               <!-- 行情走势：按日聚合的成交中位价迷你折线（ECharts 惰性加载） -->
               <div v-show="trendPoints.length" ref="trendChartRef" class="trend-chart"></div>
@@ -116,30 +118,49 @@
             <div class="seller-section">
               <div class="seller-info">
                 <el-avatar :src="product.seller.avatar" size="small" />
-                  <div class="seller-details">
-                    <div class="seller-name">{{ product.seller.username }}</div>
-                    <div class="seller-meta">
-                      <span>发布在售: {{ product.seller.productCount }} 件</span>
-                      <span v-if="product.contactPhone">|</span>
-                      <span v-if="product.contactPhone">联系电话: {{ product.contactPhone }}</span>
-                    </div>
-                    <!-- 可信交易轻量层：卖家信用画像（确定性公式，随交易即时变化） -->
-                    <div v-if="product.sellerCredit" class="seller-credit">
+                <div class="seller-details">
+                  <div class="seller-name">{{ product.seller.username }}</div>
+                  <div class="seller-meta">
+                    <span>发布在售: {{ product.seller.productCount }} 件</span>
+                    <span v-if="product.contactPhone">|</span>
+                    <span v-if="product.contactPhone">联系电话: {{ product.contactPhone }}</span>
+                  </div>
+                  <!-- 可信交易轻量层：卖家信用画像（确定性公式，随交易即时变化） -->
+                  <div v-if="product.sellerCredit" class="seller-credit">
+                    <!-- [轮8] 信用徽章悬浮展示「好评标签」Top3（详情接口内嵌 CreditVO.topTags）；
+                           无标签时 tooltip 禁用，徽章展示与原先完全一致 -->
+                    <el-tooltip
+                      :disabled="!creditTopTags.length"
+                      :content="creditTopTagsText"
+                      placement="top"
+                    >
                       <el-tag
                         size="small"
-                        :type="product.sellerCredit.creditScore >= 85 ? 'success' : (product.sellerCredit.creditScore >= 70 ? 'primary' : 'info')"
+                        :type="
+                          product.sellerCredit.creditScore >= 85
+                            ? 'success'
+                            : product.sellerCredit.creditScore >= 70
+                              ? 'primary'
+                              : 'info'
+                        "
                       >
-                        信用 {{ product.sellerCredit.creditScore }} · {{ product.sellerCredit.level }}
+                        信用 {{ product.sellerCredit.creditScore }} ·
+                        {{ product.sellerCredit.level }}
                       </el-tag>
-                      <span class="seller-credit-meta">
-                        成交 {{ product.sellerCredit.completedDeals }} 件 ·
-                        评分 {{ product.sellerCredit.avgRating === null ? '暂无' : product.sellerCredit.avgRating + ' 分' }}
-                        <template v-if="product.sellerCredit.validReports > 0">
-                          · 有效举报 {{ product.sellerCredit.validReports }} 次
-                        </template>
-                      </span>
-                    </div>
+                    </el-tooltip>
+                    <span class="seller-credit-meta">
+                      成交 {{ product.sellerCredit.completedDeals }} 件 · 评分
+                      {{
+                        product.sellerCredit.avgRating === null
+                          ? '暂无'
+                          : product.sellerCredit.avgRating + ' 分'
+                      }}
+                      <template v-if="product.sellerCredit.validReports > 0">
+                        · 有效举报 {{ product.sellerCredit.validReports }} 次
+                      </template>
+                    </span>
                   </div>
+                </div>
               </div>
             </div>
           </div>
@@ -303,6 +324,22 @@
                   <span class="label">评分：</span>
                   <el-rate v-model="commentForm.rating" />
                 </div>
+                <!-- [轮8] 交易标签：4 个预置标签点选（≤3，后端校验白名单），随评价一起提交 -->
+                <div class="comment-tags">
+                  <span class="label">交易标签：</span>
+                  <div class="comment-tags-list">
+                    <el-tag
+                      v-for="tag in presetCommentTags"
+                      :key="tag"
+                      class="comment-tag"
+                      :effect="commentForm.tags.includes(tag) ? 'dark' : 'plain'"
+                      @click="toggleCommentTag(tag)"
+                    >
+                      {{ tag }}
+                    </el-tag>
+                  </div>
+                  <span class="comment-tags-tip">最多选 3 个，可不选</span>
+                </div>
                 <el-input
                   v-model="commentForm.content"
                   type="textarea"
@@ -360,6 +397,32 @@
                   </div>
                   <div class="review-content">
                     {{ review.content }}
+                  </div>
+                  <!-- [轮8] 评价交易标签：小标签展示，无标签不渲染 -->
+                  <div v-if="review.tags && review.tags.length" class="review-tags">
+                    <el-tag
+                      v-for="tag in review.tags"
+                      :key="tag"
+                      size="small"
+                      type="success"
+                      effect="plain"
+                    >
+                      {{ tag }}
+                    </el-tag>
+                  </div>
+                  <!-- [轮8] 卖家回评：浅色面板展示，前缀「卖家回复」+ 回评时间 -->
+                  <div v-if="review.reply" class="review-reply">
+                    <div class="review-reply-head">
+                      <span class="review-reply-label">卖家回复</span>
+                      <span class="review-reply-time">{{ formatTime(review.replyTime) }}</span>
+                    </div>
+                    <div class="review-reply-content">{{ review.reply }}</div>
+                  </div>
+                  <!-- [轮8] 卖家回评入口：当前用户是商品发布者且该评价尚无回评时可见（每条仅一条，后端校验） -->
+                  <div v-if="isOwner && !review.reply" class="review-reply-action">
+                    <el-button link type="primary" size="small" @click="openReplyDialog(review)">
+                      回复
+                    </el-button>
                   </div>
                 </div>
                 <div class="comment-pagination">
@@ -450,6 +513,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import productApi from '@/api/product'
 import campusApi from '@/api/campus'
+// [轮8修复] 补上缺失的 marketApi 导入：详情页行情走势图此前静默失败（历史遗留 bug）
+import marketApi from '@/api/market'
 import recommendApi from '@/api/recommend'
 import RecommendSection from '@/components/RecommendSection.vue'
 import messageApi from '@/api/message'
@@ -486,7 +551,24 @@ export default {
     const commentPage = ref(1)
     const commentPageSize = ref(10)
     const commentSubmitting = ref(false)
-    const commentForm = reactive({ content: '', rating: 5 })
+    // [轮8] 评论表单新增 tags：选中的交易标签数组（≤3，随评价提交）
+    const commentForm = reactive({ content: '', rating: 5, tags: [] })
+    // [轮8] 预置交易标签白名单（与后端 CommentTagConstant 一致，后端做白名单与上限校验）
+    const presetCommentTags = ['准时赴约', '成色如一', '沟通顺畅', '描述相符']
+
+    // [轮8] 点选/取消交易标签；超过 3 个给出提示（不请求后端，本地即时拦截）
+    const toggleCommentTag = (tag) => {
+      const index = commentForm.tags.indexOf(tag)
+      if (index >= 0) {
+        commentForm.tags.splice(index, 1)
+        return
+      }
+      if (commentForm.tags.length >= 3) {
+        ElMessage.warning('交易标签最多选择 3 个')
+        return
+      }
+      commentForm.tags.push(tag)
+    }
     const activeTab = ref('detail')
     const isFavorited = ref(false)
 
@@ -577,6 +659,17 @@ export default {
         : `高于近期 ${100 - product.pricePosition}% 的同类成交价`
     })
 
+    // [轮8] 卖家好评标签 Top3：详情接口内嵌的 CreditVO.topTags（该卖家收到的评价标签聚合，可为空数组）
+    const creditTopTags = computed(() => {
+      const tags = product.sellerCredit && product.sellerCredit.topTags
+      return Array.isArray(tags) ? tags : []
+    })
+
+    // [轮8] 信用徽章悬浮文案：「好评标签：准时赴约 · 成色如一 …」；无标签时 tooltip 禁用不展示
+    const creditTopTagsText = computed(() => {
+      return creditTopTags.value.length ? `好评标签：${creditTopTags.value.join(' · ')}` : ''
+    })
+
     // 行情走势（轮3）：按日聚合的中位价迷你折线；echarts 惰性加载避免拖慢首屏
     const trendPoints = ref([])
     const trendDays = ref(90)
@@ -588,11 +681,12 @@ export default {
         return
       }
       try {
-        const points = (await marketApi.getMarketTrend({
-          categoryId,
-          condition,
-          days: trendDays.value
-        })) || []
+        const points =
+          (await marketApi.getMarketTrend({
+            categoryId,
+            condition,
+            days: trendDays.value
+          })) || []
         trendPoints.value = points
         if (!points.length) {
           return
@@ -753,15 +847,19 @@ export default {
         ElMessage.warning('评价内容至少 2 个字符')
         return
       }
+
       try {
         commentSubmitting.value = true
+        // [轮8] 随评价提交选中的交易标签数组（可为空数组，后端校验白名单与 ≤3 上限）
         await productApi.addProductComment(productId.value, {
           content: commentForm.content.trim(),
-          rating: commentForm.rating
+          rating: commentForm.rating,
+          tags: commentForm.tags.slice()
         })
         ElMessage.success('评价已发表')
         commentForm.content = ''
         commentForm.rating = 5
+        commentForm.tags = []
         commentPage.value = 1
         await Promise.all([loadComments(), fetchProductDetail()])
       } catch (error) {
@@ -769,6 +867,36 @@ export default {
       } finally {
         commentSubmitting.value = false
       }
+    }
+
+    // [轮8] 卖家回评：仅商品发布者可见入口（模板层 isOwner && !review.reply 已把关）。
+    // 弹窗输入回评（≤500 字）→ 调回评接口 → 成功后刷新评价列表；取消/关闭不做事
+    const openReplyDialog = (review) => {
+      ElMessageBox.prompt('回复将展示在该评价下方，每条评价仅可回评一次', '回复买家评价', {
+        confirmButtonText: '发送回评',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputPlaceholder: '请输入回评内容（不超过 500 字）',
+        inputValidator: (value) => {
+          const text = (value || '').trim()
+          if (!text) {
+            return '回评内容不能为空'
+          }
+          if (text.length > 500) {
+            return '回评内容不能超过 500 字'
+          }
+          return true
+        }
+      })
+        .then(({ value }) => productApi.replyComment(review.id, value.trim()))
+        .then(() => {
+          ElMessage.success('回评已发送')
+          // 重新拉取评价列表，展示刚发的回评
+          loadComments()
+        })
+        .catch(() => {
+          // 用户取消或发送失败（失败原因由请求拦截器统一提示）
+        })
     }
 
     const getStatusType = (status) => {
@@ -1015,8 +1143,13 @@ export default {
       commentPageSize,
       commentSubmitting,
       commentForm,
+      presetCommentTags,
+      toggleCommentTag,
       loadComments,
       submitComment,
+      openReplyDialog,
+      creditTopTags,
+      creditTopTagsText,
       toggleFavorite,
       contactSeller,
       callSeller,
@@ -1086,7 +1219,9 @@ export default {
 .product-detail {
   background: var(--hs-bg-card, #fff);
   border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 2px 8px rgba(16, 24, 40, 0.04);
   overflow: hidden;
 }
 
@@ -1384,6 +1519,52 @@ export default {
   line-height: 1.7;
 }
 
+/* [轮8] 评价交易标签：小标签行 */
+.review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* [轮8] 卖家回评块：浅色面板 + 圆角，与评价正文区分层级 */
+.review-reply {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--hs-bg-panel, #f8fafd);
+  border-radius: 6px;
+}
+
+.review-reply-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.review-reply-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hs-text-primary, #303133);
+}
+
+.review-reply-time {
+  font-size: 12px;
+  color: var(--hs-text-secondary, #909399);
+}
+
+.review-reply-content {
+  color: var(--hs-text-regular, #606266);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* [轮8] 卖家回评入口：右对齐的「回复」链接按钮 */
+.review-reply-action {
+  margin-top: 6px;
+  text-align: right;
+}
+
 .comment-form {
   padding: 18px;
   margin-bottom: 20px;
@@ -1406,6 +1587,37 @@ export default {
 .comment-rate .label {
   color: var(--hs-text-regular, #606266);
   margin-right: 8px;
+}
+
+/* [轮8] 交易标签点选区：与评分行同节奏，chips 可点击 */
+.comment-tags {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.comment-tags .label {
+  color: var(--hs-text-regular, #606266);
+  margin-right: 8px;
+  line-height: 24px;
+  flex-shrink: 0;
+}
+
+.comment-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.comment-tag {
+  cursor: pointer;
+}
+
+.comment-tags-tip {
+  color: var(--hs-text-secondary, #909399);
+  font-size: 12px;
+  margin-left: 8px;
+  line-height: 24px;
 }
 
 .comment-submit {

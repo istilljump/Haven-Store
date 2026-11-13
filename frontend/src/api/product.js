@@ -195,10 +195,21 @@ export function getProductComments(productId, queryParams) {
  * @param {Object} commentData - 评论内容
  * @param {string} commentData.content - 评论内容
  * @param {number} commentData.rating - 评分 1-5
+ * @param {string[]} [commentData.tags] - [轮8] 交易标签数组（可选，≤3，后端校验预置白名单）
  * @returns {Promise} 返回发表结果
  */
 export function addProductComment(productId, commentData) {
   return request.post(`/product/${productId}/comments`, commentData)
+}
+
+/**
+ * [轮8] 卖家回评：仅商品发布者可回评，每条评价仅一条回评
+ * @param {number} commentId - 评论ID
+ * @param {string} reply - 回评内容（≤500 字，后端校验）
+ * @returns {Promise} 返回回评结果
+ */
+export function replyComment(commentId, reply) {
+  return request.post(`/product/comments/${commentId}/reply`, { reply })
 }
 
 /**
@@ -221,5 +232,6 @@ export default {
   getMyProducts,
   uploadProductImage,
   getProductComments,
-  addProductComment
+  addProductComment,
+  replyComment
 }

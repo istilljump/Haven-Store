@@ -42,4 +42,7 @@ public class CreditVO implements Serializable {
     /** 信用等级：优秀/良好/一般/待积累 */
     @ApiModelProperty("信用等级")
     private String level;
+
+    /** 评价标签聚合 Top（轮8：卖家收到的评价标签按次数取前 3） */
+    private java.util.List<String> topTags;
 }

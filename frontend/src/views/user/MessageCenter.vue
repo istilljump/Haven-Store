@@ -78,7 +78,31 @@
               class="chat-row"
               :class="{ self: message.self }"
             >
-              <div class="bubble">{{ message.content }}</div>
+              <!-- [轮8] 报价消息渲染为报价卡片（嵌在聊天气泡位），普通消息保持原气泡 -->
+              <div v-if="message.offerPrice != null" class="bubble bubble-offer">
+                <div class="offer-head">
+                  <span class="offer-title">议价报价</span>
+                  <el-tag size="small" :type="offerStatusTagType(message)">
+                    {{ offerStatusText(message) }}
+                  </el-tag>
+                </div>
+                <div class="offer-price">¥{{ message.offerPrice }}</div>
+                <div class="offer-content">{{ message.content }}</div>
+                <div v-if="showOfferExpire(message)" class="offer-expire">
+                  {{ offerExpireText(message) }}
+                </div>
+                <!-- [轮8] 接收方（买家）且待处理且未过期：可直接按报价下单 -->
+                <el-button
+                  v-if="canAcceptOffer(message)"
+                  class="offer-accept"
+                  type="primary"
+                  size="small"
+                  @click="acceptOffer(message)"
+                >
+                  接受报价并下单
+                </el-button>
+              </div>
+              <div v-else class="bubble">{{ message.content }}</div>
               <div class="bubble-time">{{ formatDate(message.createTime, 'MM-DD HH:mm') }}</div>
             </div>
           </div>
@@ -93,6 +117,8 @@
               placeholder="输入消息，Enter 发送，Shift + Enter 换行"
               @keydown.enter.exact.prevent="send"
             />
+            <!-- [轮8] 卖家发报价入口：仅当会话商品是我发布的且议价开关开启时显示 -->
+            <el-button v-if="canOffer" :disabled="sending" @click="openOfferDialog">报价</el-button>
             <el-button type="primary" :loading="sending" @click="send">发送</el-button>
           </div>
         </template>
@@ -102,11 +128,13 @@
 </template>
 
 <script>
-import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Refresh } from '@element-plus/icons-vue'
 import messageApi from '@/api/message'
+import { getProductDetail } from '@/api/product'
+import { getPublicSettings } from '@/api/public'
 import { useUserStore } from '@/store/index'
 import { formatDate, formatRelativeTime } from '@/utils/format'
 
@@ -119,6 +147,7 @@ export default {
   components: {},
   setup() {
     const route = useRoute()
+    const router = useRouter()
     const userStore = useUserStore()
 
     /** 会话列表 */
@@ -134,7 +163,16 @@ export default {
     /** 聊天记录容器，用于发送后滚到底部 */
     const chatBodyRef = ref(null)
 
+    // [轮8] 议价总开关（后台交易设置，后端缺省开启；读取失败也按开启处理）
+    const tradeNegotiationEnabled = ref(true)
+    // [轮8] 当前会话商品摘要（sellerId / price），供「报价」入口归属判断与金额提示使用
+    const activeProduct = ref(null)
+    // [轮8] 报价倒计时基准时间（每秒跳动，驱动 mm:ss 刷新）
+    const now = ref(Date.now())
+
     let pollTimer = null
+    // [轮8] 报价倒计时定时器
+    let offerTimer = null
 
     /** 会话唯一标识：对方用户 + 关联商品 */
     const conversationId = (item) => `${item.peerId}-${item.productId || 0}`
@@ -299,6 +337,133 @@ export default {
       }, POLL_INTERVAL_MS)
     }
 
+    // ==================== [轮8] 议价：报价卡片与卖家报价入口 ====================
+
+    /** 拉取当前会话商品摘要（归属 + 现价），商品删除/无权查看时置空隐藏报价入口 */
+    const loadActiveProductMeta = async () => {
+      const productId = active.value?.productId
+      if (!productId) {
+        activeProduct.value = null
+        return
+      }
+      try {
+        const data = await getProductDetail(productId)
+        // 会话可能已切换，仅当仍是当前会话商品时才写入
+        if (active.value?.productId === productId) {
+          activeProduct.value = { sellerId: data.sellerId, price: data.price }
+        }
+      } catch (error) {
+        if (active.value?.productId === productId) {
+          activeProduct.value = null
+        }
+      }
+    }
+
+    // 会话切换时跟随刷新商品摘要（纯增量监听，不影响既有打开会话逻辑）
+    watch(active, loadActiveProductMeta)
+
+    /** 读取交易开关（议价总开关），挂载时调用一次 */
+    const loadTradeSettings = async () => {
+      try {
+        const settings = await getPublicSettings()
+        tradeNegotiationEnabled.value = settings?.tradeNegotiationEnabled !== false
+      } catch (error) {
+        // 读取失败按缺省开启处理，业务校验仍由后端兜底
+      }
+    }
+
+    /** 是否可发起报价：议价开启 + 会话关联商品 + 商品是我发布的（沿用商品详情页 sellerId 比对口径） */
+    const canOffer = computed(
+      () =>
+        tradeNegotiationEnabled.value &&
+        active.value?.productId != null &&
+        activeProduct.value != null &&
+        userStore.userId != null &&
+        Number(activeProduct.value.sellerId) === Number(userStore.userId)
+    )
+
+    /** 报价是否已过有效期（后端是「30 分钟内有效」的本地时间字符串） */
+    const isOfferExpired = (message) => {
+      if (!message.offerExpireTime) return false
+      const expireAt = new Date(String(message.offerExpireTime).replace(' ', 'T')).getTime()
+      return Number.isFinite(expireAt) && expireAt <= now.value
+    }
+
+    /** 待处理报价才显示倒计时；已接受/已失效由徽标表达状态 */
+    const showOfferExpire = (message) => message.offerStatus === 0 && !!message.offerExpireTime
+
+    /** 有效期倒计时文案：距今 mm:ss，过期显示「已过期」 */
+    const offerExpireText = (message) => {
+      if (!message.offerExpireTime) return ''
+      const expireAt = new Date(String(message.offerExpireTime).replace(' ', 'T')).getTime()
+      const remaining = Math.floor((expireAt - now.value) / 1000)
+      if (remaining <= 0) return '已过期'
+      const mm = String(Math.floor(remaining / 60)).padStart(2, '0')
+      const ss = String(remaining % 60).padStart(2, '0')
+      return `剩余有效期 ${mm}:${ss}`
+    }
+
+    /** 报价状态徽标文案：0 待处理 / 1 已接受 / 2 已失效 */
+    const offerStatusText = (message) =>
+      ({ 0: '待处理', 1: '已接受', 2: '已失效' })[message.offerStatus] || '待处理'
+
+    /** 报价状态徽标类型：待处理=primary / 已接受=success / 已失效=info */
+    const offerStatusTagType = (message) =>
+      ({ 0: 'primary', 1: 'success', 2: 'info' })[message.offerStatus] || 'primary'
+
+    /** 接收方（买家）且待处理且未过期，才展示「接受报价并下单」 */
+    const canAcceptOffer = (message) =>
+      !message.self && message.offerStatus === 0 && !isOfferExpired(message)
+
+    /** 买家接受报价并按议价价下单，成功后跳订单列表 */
+    const acceptOffer = (message) => {
+      ElMessageBox.confirm(`确认按 ¥${message.offerPrice} 接受该报价并创建订单吗？`, '接受报价', {
+        type: 'info',
+        confirmButtonText: '接受并下单',
+        cancelButtonText: '再想想'
+      })
+        .then(async () => {
+          // 校验失败（过期/不在售等）由拦截器弹出后端文案，这里只处理成功路径
+          await messageApi.acceptOffer(message.id)
+          ElMessage.success('下单成功，订单已创建')
+          router.push('/orders')
+        })
+        .catch(() => {})
+    }
+
+    /** 卖家发报价：输入金额（前端仅校验正数，「低于现价」等业务校验由后端完成） */
+    const openOfferDialog = () => {
+      if (!active.value || !activeProduct.value) return
+      ElMessageBox.prompt(
+        `向买家「${active.value.peerName}」就当前咨询商品发起议价，报价金额须低于现价 ¥${activeProduct.value.price}`,
+        '发送议价报价',
+        {
+          confirmButtonText: '发送报价',
+          cancelButtonText: '取消',
+          inputPlaceholder: '请输入报价金额',
+          inputValidator: (value) => {
+            const price = Number(value)
+            if (!value || !Number.isFinite(price) || price <= 0) {
+              return '请输入大于 0 的金额'
+            }
+            return true
+          }
+        }
+      )
+        .then(async ({ value }) => {
+          await messageApi.sendOffer({
+            toUserId: active.value.peerId,
+            productId: active.value.productId,
+            price: Number(value)
+          })
+          ElMessage.success('报价已发送，等待买家处理')
+          // 刷新聊天记录让报价卡片立即可见，会话列表预览同步跟进
+          await loadChat()
+          await loadConversations()
+        })
+        .catch(() => {})
+    }
+
     watch(
       () => route.query,
       () => {
@@ -315,10 +480,26 @@ export default {
       startPolling()
     })
 
+    // [轮8] 议价配套：读取交易开关 + 启动报价倒计时跳秒（独立钩子，纯增量）
+    onMounted(() => {
+      loadTradeSettings()
+      offerTimer = setInterval(() => {
+        now.value = Date.now()
+      }, 1000)
+    })
+
     onBeforeUnmount(() => {
       if (pollTimer) {
         clearInterval(pollTimer)
         pollTimer = null
+      }
+    })
+
+    // [轮8] 卸载时清理报价倒计时定时器（独立钩子，纯增量）
+    onBeforeUnmount(() => {
+      if (offerTimer) {
+        clearInterval(offerTimer)
+        offerTimer = null
       }
     })
 
@@ -336,7 +517,16 @@ export default {
       refreshAll,
       send,
       formatDate,
-      formatRelativeTime
+      formatRelativeTime,
+      // [轮8] 议价相关绑定
+      canOffer,
+      openOfferDialog,
+      acceptOffer,
+      canAcceptOffer,
+      offerStatusText,
+      offerStatusTagType,
+      showOfferExpire,
+      offerExpireText
     }
   }
 }
@@ -549,6 +739,66 @@ export default {
   border-color: #409eff;
   color: #fff;
   border-bottom-right-radius: 2px;
+}
+
+/* [轮8] 报价卡片：嵌在聊天气泡位的卡片形态，10px 圆角、Token 配色（暗色自动适配） */
+.bubble-offer {
+  min-width: 230px;
+  max-width: 70%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--hs-bg-card);
+  border: 1px solid var(--hs-border);
+}
+
+/* [轮8] 自己发的报价卡同样使用卡片底色，避免被气泡蓝底吞掉 */
+.chat-row.self .bubble-offer {
+  background: var(--hs-bg-card);
+  border-color: var(--hs-border);
+  color: var(--hs-text-primary);
+}
+
+.offer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.offer-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hs-text-secondary);
+}
+
+/* [轮8] 报价金额用价格专用色放大展示 */
+.offer-price {
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--hs-price);
+  font-variant-numeric: tabular-nums;
+}
+
+.offer-content {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--hs-text-regular);
+  word-break: break-word;
+}
+
+/* [轮8] 倒计时数字等宽，避免跳动 */
+.offer-expire {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--hs-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.offer-accept {
+  margin-top: 8px;
+  width: 100%;
 }
 
 .bubble-time {

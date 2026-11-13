@@ -61,6 +61,27 @@ public class MaintenanceTask {
         }
     }
 
+    /** 支付后自动完成天数（轮8：已支付订单超过该天数未确认即自动完成） */
+    private static final int ORDER_AUTOFINISH_DAYS = 7;
+
+    /**
+     * 已支付订单超时自动完成兜底（轮8）
+     * <p>
+     * 买家确认 / 卖家输码任一路径完成后订单即结束；两者都未发生时，
+     * 支付后 7 天由本任务自动推进为已完成（confirmed_by=3）并通知双方
+     */
+    @Scheduled(fixedDelay = FIXED_DELAY_MS, initialDelay = INITIAL_DELAY_MS)
+    public void autoFinishPaidOrders() {
+        try {
+            int finished = orderService.autoFinishPaidOrders(ORDER_AUTOFINISH_DAYS);
+            if (finished > 0) {
+                log.info("定时任务：自动完成超期未确认订单 {} 笔（支付后 {} 天）", finished, ORDER_AUTOFINISH_DAYS);
+            }
+        } catch (Exception e) {
+            log.error("定时任务：自动完成订单执行失败", e);
+        }
+    }
+
     /**
      * 超期在售商品自动下架
      * <p>

@@ -2,12 +2,7 @@
   <!-- 主题切换按钮：三模式循环（跟随系统 → 亮色 → 暗色） -->
   <!-- [审定转正] 入口位置：前台/后台顶栏图标钮（用户已确认） -->
   <el-tooltip v-if="FEATURE_ENABLED" :content="tipText" placement="bottom">
-    <button
-      class="theme-toggle"
-      type="button"
-      :aria-label="tipText"
-      @click="cycleMode"
-    >
+    <button class="theme-toggle" type="button" :aria-label="tipText" @click="cycleMode">
       <el-icon><component :is="modeIcon" /></el-icon>
     </button>
   </el-tooltip>

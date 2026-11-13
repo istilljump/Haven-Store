@@ -86,6 +86,17 @@
               </el-button>
               <span v-if="order.status === 1" class="pay-tip">支付为模拟支付，不会真实扣款</span>
             </template>
+            <!-- [轮8] 卖家侧：已支付且尚无完成方式时，可输码面交交付 -->
+            <template v-else-if="role === 'seller'">
+              <el-button
+                v-if="order.status === 2 && order.confirmedBy == null"
+                text
+                type="success"
+                @click="confirmByCode(order)"
+              >
+                输码交付
+              </el-button>
+            </template>
           </div>
         </div>
       </div>
@@ -106,7 +117,7 @@
 <script>
 import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import orderApi from '@/api/order'
+import orderApi, { confirmByCode as confirmByCodeApi } from '@/api/order'
 import { formatMoney } from '@/utils/format'
 
 const PLACEHOLDER_IMAGE = '/default-product.png'
@@ -227,6 +238,27 @@ export default {
         .catch(() => {})
     }
 
+    // [轮8] 卖家输码面交交付：与订单详情页同一 API，前端仅做 6 位数字校验，错码锁定由后端兜底
+    const confirmByCode = (order) => {
+      ElMessageBox.prompt('请输入买家当面出示的 6 位面交确认码', '输码确认交付', {
+        type: 'info',
+        confirmButtonText: '确认交付',
+        cancelButtonText: '取消',
+        inputPattern: /^\d{6}$/,
+        inputErrorMessage: '请输入 6 位数字确认码'
+      })
+        .then(async ({ value }) => {
+          try {
+            await confirmByCodeApi(order.orderNo, value)
+            ElMessage.success('面交确认成功，订单已完成')
+            await loadOrders()
+          } catch (error) {
+            console.error('输码确认失败:', error)
+          }
+        })
+        .catch(() => {})
+    }
+
     onMounted(loadOrders)
 
     return {
@@ -243,6 +275,8 @@ export default {
       payOrder,
       cancelOrder,
       confirmOrder,
+      // [轮8] 卖家输码交付
+      confirmByCode,
       formatMoney,
       PLACEHOLDER_IMAGE
     }
@@ -301,7 +335,9 @@ export default {
   background: var(--hs-bg-card);
   box-shadow: var(--hs-shadow-sm);
   overflow: hidden;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .order-card:hover {

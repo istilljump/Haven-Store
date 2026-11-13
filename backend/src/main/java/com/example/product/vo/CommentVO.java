@@ -47,6 +47,15 @@ public class CommentVO implements Serializable {
     @ApiModelProperty("是否已验证购买")
     private Boolean verifiedBuyer;
 
+    /** 评价标签数组（轮8：服务端把逗号串拆为数组） */
+    private java.util.List<String> tags;
+
+    /** 卖家回评内容（轮8） */
+    private String reply;
+
+    /** 卖家回评时间（轮8） */
+    private LocalDateTime replyTime;
+
     /** 评论时间 */
     @ApiModelProperty("评论时间")
     private LocalDateTime createTime;

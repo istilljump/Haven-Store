@@ -73,6 +73,17 @@ export function confirmOrder(orderNo) {
   return request.post(`/order/${orderNo}/confirm`)
 }
 
+// [轮8] 面交码：卖家输入买家出示的确认码完成交付
+/**
+ * 卖家输码面交确认（须 6 位数字，错码累计 5 次后端会锁定）
+ * @param {string} orderNo - 订单号
+ * @param {string} code - 买家出示的 6 位面交确认码
+ * @returns {Promise} 返回操作结果（成功后订单转为已完成）
+ */
+export function confirmByCode(orderNo, code) {
+  return request.post(`/order/${orderNo}/confirm-code`, { code })
+}
+
 /**
  * 默认导出：便于以 orderApi.xxx() 的形式统一调用
  */
@@ -83,5 +94,7 @@ export default {
   getOrderDetail,
   payOrder,
   cancelOrder,
-  confirmOrder
+  confirmOrder,
+  // [轮8] 面交码确认并入默认导出，保持 orderApi.xxx() 统一调用风格
+  confirmByCode
 }

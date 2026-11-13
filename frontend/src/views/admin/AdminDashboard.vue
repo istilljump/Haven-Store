@@ -267,8 +267,20 @@ let categoryChart = null
 const isDarkTheme = () => document.documentElement.classList.contains('dark')
 const chartPalette = () =>
   isDarkTheme()
-    ? { legendText: '#aeb8c7', axisLabel: '#8d97a8', axisLine: '#2a3442', splitLine: '#232c37', pieBorder: '#171e28' }
-    : { legendText: '#606266', axisLabel: '#909399', axisLine: '#dcdfe6', splitLine: '#e0e6ed', pieBorder: '#ffffff' }
+    ? {
+        legendText: '#aeb8c7',
+        axisLabel: '#8d97a8',
+        axisLine: '#2a3442',
+        splitLine: '#232c37',
+        pieBorder: '#171e28'
+      }
+    : {
+        legendText: '#606266',
+        axisLabel: '#909399',
+        axisLine: '#dcdfe6',
+        splitLine: '#e0e6ed',
+        pieBorder: '#ffffff'
+      }
 
 // 主题切换重绘用的数据缓存（避免重复请求接口）
 let lastTrendData = null
@@ -283,7 +295,11 @@ const renderTrendChart = (trend) => {
   const pal = chartPalette()
   trendChart.setOption({
     tooltip: { trigger: 'axis' },
-    legend: { data: ['新增用户', '新增商品', '新增订单'], top: 0, textStyle: { color: pal.legendText } },
+    legend: {
+      data: ['新增用户', '新增商品', '新增订单'],
+      top: 0,
+      textStyle: { color: pal.legendText }
+    },
     grid: { left: 40, right: 20, top: 34, bottom: 28 },
     xAxis: {
       type: 'category',
@@ -332,7 +348,13 @@ const renderCategoryChart = (stats) => {
   const pal = chartPalette()
   categoryChart.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} 件（{d}%）' },
-    legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle', textStyle: { color: pal.legendText } },
+    legend: {
+      type: 'scroll',
+      orient: 'vertical',
+      right: 0,
+      top: 'middle',
+      textStyle: { color: pal.legendText }
+    },
     series: [
       {
         type: 'pie',

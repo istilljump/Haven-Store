@@ -146,6 +146,12 @@ public class SystemSettingDTO implements Serializable {
         private Boolean recommendEnabled;
         /** 是否启用搜索结果按成色二次筛选（进阶能力，缺省关闭） */
         private Boolean searchConditionFilter;
+        /** 是否启用暗色模式（前台/后台三模式主题切换的总开关，缺省开启；关闭后强制亮色并隐藏切换入口） */
+        private Boolean themeDarkEnabled;
+        /** 是否启用私信议价（卖家会话内发报价、买家一键接受下单，缺省开启） */
+        private Boolean tradeNegotiationEnabled;
+        /** 是否启用面交确认码（支付后生成 6 位码，卖家输码确认交付，缺省开启） */
+        private Boolean tradeConfirmCodeEnabled;
     }
 
     /** 联系方式 */

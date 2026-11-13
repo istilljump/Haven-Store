@@ -2,6 +2,7 @@ package com.example.order.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.common.Result;
+import com.example.order.dto.ConfirmCodeDTO;
 import com.example.order.dto.CreateOrderDTO;
 import com.example.order.service.OrderService;
 import com.example.order.vo.OrderVO;
@@ -129,6 +130,17 @@ public class OrderController {
     @PostMapping("/{orderNo}/confirm")
     public Result<Void> confirmFinish(@PathVariable String orderNo) {
         orderService.confirmFinish(orderNo);
+        return Result.success();
+    }
+
+    /**
+     * 卖家输码面交确认（轮8）：卖家输入买家出示的 6 位面交码完成交付
+     */
+    @ApiOperation(value = "面交码确认", notes = "需要登录；卖家输入买家出示的 6 位面交确认码完成交付，错码累计 5 次锁定")
+    @PostMapping("/{orderNo}/confirm-code")
+    public Result<Void> confirmByCode(@PathVariable String orderNo,
+                                      @RequestBody @Validated ConfirmCodeDTO dto) {
+        orderService.confirmByCode(orderNo, dto.getCode());
         return Result.success();
     }
 }

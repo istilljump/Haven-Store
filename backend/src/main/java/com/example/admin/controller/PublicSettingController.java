@@ -56,6 +56,11 @@ public class PublicSettingController {
             // 增强搜索与场景推荐的可选开关（推荐缺省开启，成色二次筛选缺省关闭）
             data.put("recommendEnabled", !Boolean.FALSE.equals(settings.getTrade().getRecommendEnabled()));
             data.put("searchConditionFilter", Boolean.TRUE.equals(settings.getTrade().getSearchConditionFilter()));
+            // 暗色模式总开关（缺省开启；关闭后前端强制亮色并隐藏主题切换入口）
+            data.put("themeDarkEnabled", !Boolean.FALSE.equals(settings.getTrade().getThemeDarkEnabled()));
+            // 议价与面交码总开关（轮8 业务迭代，缺省开启）
+            data.put("tradeNegotiationEnabled", !Boolean.FALSE.equals(settings.getTrade().getTradeNegotiationEnabled()));
+            data.put("tradeConfirmCodeEnabled", !Boolean.FALSE.equals(settings.getTrade().getTradeConfirmCodeEnabled()));
         }
         return Result.success(data);
     }

@@ -71,7 +71,10 @@ export default {
   height: 10px;
   margin-right: var(--brand-logo-dot-gap, 8px);
   border-radius: 50%;
-  background: var(--brand-logo-dot-inner, radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb));
+  background: var(
+    --brand-logo-dot-inner,
+    radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb)
+  );
   vertical-align: -1px;
 }
 

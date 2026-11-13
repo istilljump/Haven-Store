@@ -109,6 +109,9 @@ public class ProductServiceImpl implements ProductService {
     /** 系统设置服务：价格上限、单次上传张数、AI 估价开关均从后台设置读取 */
     private final SystemSettingService systemSettingService;
 
+    /** 交易事件通知服务（轮8：降价事件通知收藏者，按商品+标题去重） */
+    private final com.example.message.service.TradeNotifyService tradeNotifyService;
+
     /** 成交行情服务：详情页划算指数与「我的发布」降价建议的数据来源 */
     private final MarketDataService marketDataService;
 
@@ -885,6 +888,31 @@ public class ProductServiceImpl implements ProductService {
         update.setId(productId);
         update.setPrice(price);
         productMapper.updateById(update);
+
+        // 轮8：降价事件通知收藏者（涨价不通知；按接收人+标题+未读去重，反复调价不重复打扰）
+        if (exist.getPrice() != null && price.compareTo(exist.getPrice()) < 0) {
+            try {
+                List<Long> collectorIds = userProductRelationMapper.selectList(
+                                new LambdaQueryWrapper<UserProductRelation>()
+                                        .eq(UserProductRelation::getProductId, productId)
+                                        .eq(UserProductRelation::getRelationType, RelationTypeConstant.COLLECT))
+                        .stream().map(UserProductRelation::getUserId)
+                        .filter(java.util.Objects::nonNull)
+                        .filter(uid -> !userId.equals(uid))
+                        .distinct()
+                        .collect(Collectors.toList());
+                for (Long collectorId : collectorIds) {
+                    String title = "收藏的「" + exist.getTitle() + "」降价了";
+                    if (!tradeNotifyService.hasUnreadNotice(collectorId, title)) {
+                        tradeNotifyService.notifyUser(collectorId, title,
+                                "你收藏的「" + exist.getTitle() + "」价格从 ¥" + exist.getPrice()
+                                        + " 降至 ¥" + price + "，比近期行情更划算时可以放心入手。");
+                    }
+                }
+            } catch (Exception e) {
+                // 通知属于增强信息，失败不影响改价主流程
+            }
+        }
         log.info("商品改价成功，商品ID：{}，新价格：{}，用户ID：{}", productId, price, userId);
     }
 
@@ -1012,6 +1040,12 @@ public class ProductServiceImpl implements ProductService {
             vo.setAvatar(author == null ? null : author.getAvatar());
             vo.setVerifiedBuyer(verifiedBuyerIds.contains(c.getUserId()));
             vo.setCreateTime(c.getCreateTime());
+            // 轮8：回填评价标签（逗号串拆数组）与卖家回评
+            vo.setTags(c.getTags() == null || c.getTags().isEmpty()
+                    ? java.util.Collections.emptyList()
+                    : java.util.Arrays.asList(c.getTags().split(",")));
+            vo.setReply(c.getReply());
+            vo.setReplyTime(c.getReplyTime());
             return vo;
         }).collect(Collectors.toList()));
         return result;
@@ -1045,9 +1079,47 @@ public class ProductServiceImpl implements ProductService {
         comment.setProductId(productId);
         comment.setContent(dto.getContent());
         comment.setRating(dto.getRating());
+        // 轮8：预置正向标签（≤3 个，白名单校验后逗号落库）
+        comment.setTags(com.example.product.constant.CommentTagConstant.validateAndJoin(dto.getTags()));
         comment.setStatus(COMMENT_STATUS_NORMAL);
         commentMapper.insert(comment);
-        log.info("用户发表评价，用户ID：{}，商品ID：{}，评分：{}", userId, productId, dto.getRating());
+        log.info("用户发表评价，用户ID：{}，商品ID：{}，评分：{}，标签：{}",
+                userId, productId, dto.getRating(), comment.getTags());
+    }
+
+    /**
+     * 卖家回评（轮8 业务迭代新增）：商品发布者对收到的评价回复一条说明
+     * <p>
+     * 校验链：评价存在且正常状态 → 当前用户是该商品发布者 → 尚未回评 → 内容非空 ≤500 字。
+     * 评分公式不因回评变化——回评只承担「卖家回应」的展示职责
+     */
+    @Override
+    public void replyComment(Long commentId, com.example.product.dto.CommentReplyDTO dto) {
+        Long me = requireLoginUserId();
+        Comment comment = commentMapper.selectById(commentId);
+        if (comment == null || !Integer.valueOf(COMMENT_STATUS_NORMAL).equals(comment.getStatus())) {
+            throw new BusinessException("评价不存在或已隐藏");
+        }
+        Product product = productMapper.selectById(comment.getProductId());
+        if (product == null || !me.equals(product.getUserId())) {
+            throw new BusinessException("只有商品发布者可以回评");
+        }
+        if (StringUtils.hasText(comment.getReply())) {
+            throw new BusinessException("该评价已回复过");
+        }
+        String reply = dto.getReply() == null ? "" : dto.getReply().trim();
+        if (!StringUtils.hasText(reply)) {
+            throw new BusinessException("回评内容不能为空");
+        }
+        if (reply.length() > 500) {
+            throw new BusinessException("回评内容最多 500 字");
+        }
+        Comment update = new Comment();
+        update.setId(commentId);
+        update.setReply(reply);
+        update.setReplyTime(java.time.LocalDateTime.now());
+        commentMapper.updateById(update);
+        log.info("卖家回评成功，评论ID：{}，卖家：{}", commentId, me);
     }
 
     /**

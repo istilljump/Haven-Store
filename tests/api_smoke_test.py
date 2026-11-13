@@ -1608,6 +1608,231 @@ def main():
     check("详情页带回卖家信用画像", r, '"sellerCredit"')
     check("详情页信用含成交与评分", r, '"completedDeals"')
 
+    # ---------- 38. 交易事件通知（轮8） ----------
+    section("38. 交易事件通知")
+    # 鉴权：交易通知走通知中心拉取，无独立接口；此处验证各事件确实落了 type=3 交易消息
+    _, _, r = call("POST", "/product/add",
+                   {"title": "冒烟商品-通知商品A", "categoryId": 1, "price": 50.00,
+                    "productCondition": "九成新", "tradeType": "线上"}, token=peer_token)
+    check("通知场景发布商品A", r, '"code":200')
+    _, _, r = call("GET", "/product/mine?page=1&pageSize=50", token=peer_token)
+    _pid_a = None
+    for _item in ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []:
+        if _item.get("title") == "冒烟商品-通知商品A":
+            _pid_a = _item.get("id")
+            break
+    check("商品A已上架", _pid_a, None)
+
+    # admin 收藏商品A（构造第三方收藏者，验证「收藏的商品已被买走」通知）
+    _, _, r = call("POST", "/product/%s/favorite" % _pid_a, token=admin_token)
+    check("管理员收藏商品A", r, '"code":200')
+
+    # 买家咨询建会话后下单：触发「卖家下单锁定」+「收藏者已买走」两类通知
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "productId": _pid_a, "content": "冒烟通知场景咨询"},
+                   token=me_token)
+    check("买家咨询商品A建会话", r, '"code":200')
+    _, _, r = call("POST", "/order/create", {"productIds": [_pid_a], "remark": "通知场景下单"},
+                   token=me_token)
+    check("买家下单商品A（锁定）", r, '"code":200')
+    notify_order_no = ((r.get("data") or {}).get("orderNo") if isinstance(r, dict) else None)
+
+    # 卖家收到「下单锁定」交易通知（type=3 交易消息首次被生产）
+    _, _, r = call("GET", "/message/list?page=1&pageSize=50", token=peer_token)
+    check("卖家收到商品有人下单交易通知", r, "你的商品有人下单了")
+    check("通知类型为交易消息", r, '"messageType":3')
+    # 收藏者（admin）收到「已被买走」通知
+    _, _, r = call("GET", "/message/list?page=1&pageSize=50", token=admin_token)
+    check("收藏者收到已被买走通知", r, "已被买走")
+
+    # 支付：触发「买家面交码」+「卖家待面交」两类通知
+    _, _, r = call("POST", "/order/%s/pay" % notify_order_no, token=me_token)
+    check("买家支付订单A", r, '"code":200')
+    _, _, r = call("GET", "/order/%s" % notify_order_no, token=me_token)
+    _code_a = ((r.get("data") or {}).get("confirmCode") if isinstance(r, dict) else None)
+    check("买家订单详情下发6位面交码",
+          {"ok": isinstance(_code_a, str) and len(_code_a) == 6 and _code_a.isdigit()},
+          '"ok":true')
+    _, _, r = call("GET", "/message/list?page=1&pageSize=50", token=me_token)
+    check("买家收到面交码通知", r, "面交码已生成")
+    _, _, r = call("GET", "/message/list?page=1&pageSize=50", token=peer_token)
+    check("卖家收到待面交通知", r, "待面交")
+
+    # 卖家输错码被拒 + 输对码完成订单
+    _wrong_code = "000000" if _code_a != "000000" else "111111"
+    _, _, r = call("POST", "/order/%s/confirm-code" % notify_order_no,
+                   {"code": _wrong_code}, token=peer_token)
+    check("卖家输错码被拒", r, "确认码不正确")
+    _, _, r = call("POST", "/order/%s/confirm-code" % notify_order_no,
+                   {"code": _code_a}, token=peer_token)
+    check("卖家输对码完成交付", r, '"code":200')
+    _, _, r = call("GET", "/order/%s" % notify_order_no, token=me_token)
+    check("订单完成方式为卖家输码", r, '"confirmedBy":2')
+    _, _, r = call("GET", "/message/list?page=1&pageSize=50", token=me_token)
+    check("买家收到面交完成通知", r, "面交完成")
+
+    # 评价（已验证购买）：带标签评价，41 节做边界断言
+    _, _, r = call("POST", "/product/%s/comments" % _pid_a,
+                   {"content": "面交顺利，成色与描述一致", "rating": 5,
+                    "tags": ["准时赴约", "成色如一"]}, token=me_token)
+    check("带标签评价成功", r, '"code":200')
+
+    # ---------- 39. 私信议价（轮8） ----------
+    section("39. 私信议价")
+    _, _, r = call("POST", "/product/add",
+                   {"title": "冒烟商品-议价商品B", "categoryId": 1, "price": 100.00,
+                    "productCondition": "全新", "tradeType": "线上"}, token=peer_token)
+    check("议价场景发布商品B", r, '"code":200')
+    _, _, r = call("GET", "/product/mine?page=1&pageSize=50", token=peer_token)
+    _pid_b = None
+    for _item in ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []:
+        if _item.get("title") == "冒烟商品-议价商品B":
+            _pid_b = _item.get("id")
+            break
+    check("商品B已上架", _pid_b, None)
+
+    # 买家先咨询建会话（报价必须挂在已有会话内）
+    _, _, r = call("POST", "/message/private/send",
+                   {"toUserId": peer_id, "productId": _pid_b, "content": "能便宜点吗"},
+                   token=me_token)
+    check("买家咨询商品B", r, '"code":200')
+
+    # 买家发报价被拒（仅卖家可发）
+    _, _, r = call("POST", "/message/private/offer",
+                   {"toUserId": peer_id, "productId": _pid_b, "price": 80.00}, token=me_token)
+    check("买家发报价被拒", r, "只有卖家可以发送报价")
+    # 报价高于现价被拒
+    _, _, r = call("POST", "/message/private/offer",
+                   {"toUserId": me_id, "productId": _pid_b, "price": 120.00}, token=peer_token)
+    check("报价高于现价被拒", r, "报价须低于商品现价")
+
+    # 卖家发报价 80：状态待处理、带有效期
+    _, _, r = call("POST", "/message/private/offer",
+                   {"toUserId": me_id, "productId": _pid_b, "price": 80.00}, token=peer_token)
+    check("卖家发报价80", r, '"code":200')
+    _offer_1 = r.get("data") if isinstance(r, dict) else None
+    _, _, r = call("GET", "/message/private/chat?peerId=%s&productId=%s" % (peer_id, _pid_b),
+                   token=me_token)
+    _msgs = (r.get("data") or []) if isinstance(r, dict) else []
+    _offer_msg = None
+    for m in _msgs:
+        if m.get("offerPrice") is not None:
+            _offer_msg = m
+            break
+    check("聊天记录回填报价字段", _offer_msg, None)
+    check("报价状态为待处理",
+          {"v": _offer_msg.get("offerStatus") if _offer_msg else None}, '"v":0')
+    check("报价带有效期", _offer_msg.get("offerExpireTime") if _offer_msg else None, None)
+
+    # 卖家再发报价 70：旧报价（80）自动失效，一次只有一个有效报价
+    _, _, r = call("POST", "/message/private/offer",
+                   {"toUserId": me_id, "productId": _pid_b, "price": 70.00}, token=peer_token)
+    check("卖家发报价70", r, '"code":200')
+    _offer_2 = r.get("data") if isinstance(r, dict) else None
+    _, _, r = call("GET", "/message/private/chat?peerId=%s&productId=%s" % (peer_id, _pid_b),
+                   token=me_token)
+    _msgs = (r.get("data") or []) if isinstance(r, dict) else []
+    _by_id = {}
+    for m in _msgs:
+        if m.get("offerPrice") is not None:
+            _by_id[m.get("id")] = m
+    check("旧报价已置失效",
+          {"v": (_by_id.get(_offer_1) or {}).get("offerStatus")}, '"v":2')
+    check("新报价仍待处理",
+          {"v": (_by_id.get(_offer_2) or {}).get("offerStatus")}, '"v":0')
+
+    # 买家接受报价 70：按议价价创建订单
+    _, _, r = call("POST", "/message/private/offer/%s/accept" % _offer_2, token=me_token)
+    check("买家接受报价下单", r, '"code":200')
+    _offer_order_no = ((r.get("data") or {}).get("orderNo") if isinstance(r, dict) else None)
+    check("议价订单号返回", _offer_order_no, None)
+    # 订单总价=议价价 70（order_item 快照同步为议价价，回流行情样本）
+    _, _, r = call("GET", "/order/%s" % _offer_order_no, token=me_token)
+    _amt = ((r.get("data") or {}).get("totalAmount") if isinstance(r, dict) else None)
+    check("议价订单金额为议价价70",
+          {"v": float(_amt) if _amt is not None else None}, '"v":70.0')
+    # 重复接受被拒
+    _, _, r = call("POST", "/message/private/offer/%s/accept" % _offer_2, token=me_token)
+    check("重复接受报价被拒", r, "已被接受或已失效")
+    # 商品已锁定：卖家再发报价被拒
+    _, _, r = call("POST", "/message/private/offer",
+                   {"toUserId": me_id, "productId": _pid_b, "price": 60.00}, token=peer_token)
+    check("商品锁定后发报价被拒", r, "商品当前不在售")
+    # 卖家收到「报价已被接受」交易通知
+    _, _, r = call("GET", "/message/list?page=1&pageSize=50", token=peer_token)
+    check("卖家收到报价被接受通知", r, "报价已被接受")
+    # 支付议价订单（覆盖议价订单的支付链路）
+    _, _, r = call("POST", "/order/%s/pay" % _offer_order_no, token=me_token)
+    check("议价订单支付", r, '"code":200')
+
+    # ---------- 40. 收藏降价提醒（轮8） ----------
+    section("40. 收藏降价提醒")
+    _, _, r = call("POST", "/product/add",
+                   {"title": "冒烟商品-降价商品C", "categoryId": 1, "price": 60.00,
+                    "productCondition": "八成新", "tradeType": "线上"}, token=me_token)
+    check("降价场景发布商品C", r, '"code":200')
+    _, _, r = call("GET", "/product/mine?page=1&pageSize=50", token=me_token)
+    _pid_c = None
+    for _item in ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []:
+        if _item.get("title") == "冒烟商品-降价商品C":
+            _pid_c = _item.get("id")
+            break
+    check("商品C已上架", _pid_c, None)
+    _, _, r = call("POST", "/product/%s/favorite" % _pid_c, token=peer_token)
+    check("peer收藏商品C", r, '"code":200')
+    # 卖家降价 → 收藏者收到提醒
+    _, _, r = call("POST", "/product/%s/price" % _pid_c, {"price": 50.00}, token=me_token)
+    check("卖家降价商品C", r, '"code":200')
+    _, _, r = call("GET", "/message/list?page=1&pageSize=100", token=peer_token)
+    check("收藏者收到降价提醒", r, "降价了")
+    # 未读降价提醒存在时再次降价不重复打扰（按接收人+标题+未读去重）
+    _, _, r = call("POST", "/product/%s/price" % _pid_c, {"price": 45.00}, token=me_token)
+    check("卖家再次降价", r, '"code":200')
+    _, _, r = call("GET", "/message/list?page=1&pageSize=100", token=peer_token)
+    _records = ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []
+    _drop_unread = 0
+    for _m in _records:
+        if _m.get("messageType") == 3 and "降价商品C" in (_m.get("title") or "") and _m.get("isRead") == 0:
+            _drop_unread += 1
+    check("未读降价提醒去重（同商品仅一条）",
+          {"v": _drop_unread}, '"v":1')
+
+    # ---------- 41. 评价标签与卖家回评（轮8） ----------
+    section("41. 评价标签与卖家回评")
+    # 非法标签被拒（白名单外）
+    _, _, r = call("POST", "/product/%s/comments" % _pid_b,
+                   {"content": "标签白名单外被拒", "rating": 5, "tags": ["乱写的标签"]},
+                   token=me_token)
+    check("白名单外标签被拒", r, "不在可选范围内")
+    # 超 3 个被拒
+    _, _, r = call("POST", "/product/%s/comments" % _pid_b,
+                   {"content": "标签超限被拒", "rating": 5,
+                    "tags": ["准时赴约", "成色如一", "沟通顺畅", "描述相符"]}, token=me_token)
+    check("标签超过3个被拒", r, "最多选择")
+    # 合法标签评价已在 38 节完成，此处验证列表回填与回评闭环
+    _, _, r = call("GET", "/product/%s/comments?page=1&pageSize=10" % _pid_a)
+    check("评论回填标签数组", r, '["准时赴约","成色如一"]')
+    _cmt_list = ((r.get("data") or {}).get("records") or []) if isinstance(r, dict) else []
+    _cmt_id = _cmt_list[0].get("id") if _cmt_list else None
+    check("取到评价ID用于回评", _cmt_id, None)
+    # 卖家（peer 是商品A发布者）回评
+    _, _, r = call("POST", "/product/comments/%s/reply" % _cmt_id,
+                   {"reply": "感谢认可，欢迎下次再来"}, token=peer_token)
+    check("卖家回评成功", r, '"code":200')
+    _, _, r = call("GET", "/product/%s/comments?page=1&pageSize=10" % _pid_a)
+    check("评论回填卖家回评", r, "感谢认可")
+    # 重复回评被拒
+    _, _, r = call("POST", "/product/comments/%s/reply" % _cmt_id,
+                   {"reply": "再回一次应被拒"}, token=peer_token)
+    check("重复回评被拒", r, "已回复过")
+    # 买家（非发布者）回评被拒
+    _, _, r = call("POST", "/product/comments/%s/reply" % _cmt_id,
+                   {"reply": "买家回评应被拒"}, token=me_token)
+    check("非发布者回评被拒", r, "只有商品发布者可以回评")
+    # 信用接口带标签聚合 Top（详情页徽章悬浮数据源）
+    _, _, r = call("GET", "/credit/%s" % peer_id)
+    check("信用接口返回标签聚合", r, '"topTags"')
+
     # ---------- 收尾：清理本次产生的测试数据 ----------
     cleanup_test_products(admin_token)
     # 把演示账号 testuser1 的资料恢复为初始状态（邮箱与简介在种子里为空）

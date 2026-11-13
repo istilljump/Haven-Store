@@ -283,6 +283,21 @@ public class ProductController {
     }
 
     /**
+     * 卖家回评（轮8 业务迭代新增）
+     *
+     * @param commentId 评价 ID
+     * @param dto       回评内容
+     * @return 操作结果
+     */
+    @ApiOperation(value = "卖家回评", notes = "需要登录；仅商品发布者可回评，每条评价仅一条回评")
+    @PostMapping("/comments/{commentId}/reply")
+    public Result<Void> replyComment(@PathVariable Long commentId,
+                                     @RequestBody @Validated com.example.product.dto.CommentReplyDTO dto) {
+        productService.replyComment(commentId, dto);
+        return Result.success();
+    }
+
+    /**
      * 获取收藏的商品列表
      *
      * @param page     页码

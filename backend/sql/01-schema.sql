@@ -184,6 +184,9 @@ CREATE TABLE `comment` (
     `product_id`  BIGINT   NOT NULL                COMMENT '商品ID',
     `content`     TEXT     NOT NULL                COMMENT '评论内容',
     `rating`      TINYINT  NOT NULL DEFAULT 5      COMMENT '评分 1-5',
+    `tags`        VARCHAR(200) DEFAULT NULL            COMMENT '评价标签，逗号分隔（预置正向标签，≤3个）',
+    `reply`       VARCHAR(500) DEFAULT NULL            COMMENT '卖家回评内容（每条评价仅一条）',
+    `reply_time`  DATETIME DEFAULT NULL                COMMENT '卖家回评时间',
     `status`      TINYINT  NOT NULL DEFAULT 1      COMMENT '状态：1正常 0隐藏',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -203,6 +206,9 @@ CREATE TABLE `private_message` (
     `to_user_id`       BIGINT       NOT NULL                COMMENT '接收者ID',
     `product_id`       BIGINT       DEFAULT NULL            COMMENT '关联商品ID：商品咨询填写，普通私信为空',
     `content`          VARCHAR(500) NOT NULL                COMMENT '私信内容',
+    `offer_price`      DECIMAL(10,2) DEFAULT NULL           COMMENT '议价报价金额（仅卖家报价消息非空）',
+    `offer_expire_time` DATETIME    DEFAULT NULL            COMMENT '报价失效时间（发送+30分钟）',
+    `offer_status`     TINYINT      DEFAULT NULL            COMMENT '报价状态：0待处理 1已接受 2已失效；非报价消息为NULL',
     `is_read`          TINYINT      NOT NULL DEFAULT 0      COMMENT '接收方是否已读：0未读 1已读',
     `create_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -210,8 +216,9 @@ CREATE TABLE `private_message` (
     KEY `idx_conversation_key` (`conversation_key`),
     KEY `idx_from_user_id` (`from_user_id`),
     KEY `idx_to_user_id` (`to_user_id`),
-    KEY `idx_product_id` (`product_id`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '私信表（含商品咨询）';
+    KEY `idx_product_id` (`product_id`),
+    KEY `idx_offer` (`offer_status`, `offer_expire_time`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '私信表（含商品咨询与议价报价）';
 
 -- ------------------------------------------------------------
 -- 订单表
@@ -231,6 +238,9 @@ CREATE TABLE `product_order` (
     `pay_time`     DATETIME      DEFAULT NULL            COMMENT '支付时间',
     `finish_time`  DATETIME      DEFAULT NULL            COMMENT '完成时间',
     `cancel_time`  DATETIME      DEFAULT NULL            COMMENT '取消时间',
+    `confirm_code` CHAR(6)       DEFAULT NULL            COMMENT '面交确认码（支付成功生成，买家持码卖家输码，一次性）',
+    `confirm_fail_count` INT     NOT NULL DEFAULT 0       COMMENT '面交码错误尝试次数（达5次锁定输码）',
+    `confirmed_by` TINYINT       DEFAULT NULL            COMMENT '完成确认方式：1买家确认 2卖家输码 3超时自动',
     `create_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),

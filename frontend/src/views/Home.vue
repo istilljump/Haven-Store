@@ -7,11 +7,7 @@
         <p class="hero-slogan">毕业不甩卖，闲置有归宿 · 校园闲置循环平台</p>
         <div class="hero-search-row">
           <div class="hero-search">
-            <SearchSuggest
-              v-model="keyword"
-              :campus-id="campusId"
-              @search="goSearch"
-            />
+            <SearchSuggest v-model="keyword" :campus-id="campusId" @search="goSearch" />
           </div>
           <el-select
             v-model="campusId"
@@ -192,7 +188,8 @@ const loadBoard = async () => {
   }
   boardLoading.value = true
   try {
-    board.value = (await marketApi.getCampusSummary({ campusId: boardCampusId.value, topN: 3 })) || []
+    board.value =
+      (await marketApi.getCampusSummary({ campusId: boardCampusId.value, topN: 3 })) || []
   } catch (err) {
     board.value = []
   } finally {

@@ -85,7 +85,40 @@ public class CreditServiceImpl implements CreditService {
         // 4. 确定性公式：夹取 [0,100]；无成交卖家等级固定「待积累」
         vo.setCreditScore(creditScore(deals, avgRating, reports));
         vo.setLevel(deals <= 0 ? "待积累" : levelOf(vo.getCreditScore()));
+        // 轮8：评价标签聚合 Top3（该卖家全部正常评论的标签计数）
+        vo.setTopTags(topTags(userId));
         return vo;
+    }
+
+    /**
+     * 评价标签聚合（轮8）：该卖家全部正常状态评论的标签按出现次数取前 3
+     */
+    private java.util.List<String> topTags(Long userId) {
+        // 卖家的商品集合 → 评论 → 标签串拆分计数
+        List<Long> productIds = productMapper.selectList(new LambdaQueryWrapper<com.example.product.entity.Product>()
+                        .eq(com.example.product.entity.Product::getUserId, userId))
+                .stream().map(com.example.product.entity.Product::getId).collect(Collectors.toList());
+        if (productIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        List<com.example.product.entity.Comment> comments = commentMapper.selectList(
+                new LambdaQueryWrapper<com.example.product.entity.Comment>()
+                        .in(com.example.product.entity.Comment::getProductId, productIds)
+                        .eq(com.example.product.entity.Comment::getStatus, 1)
+                        .isNotNull(com.example.product.entity.Comment::getTags));
+        java.util.Map<String, Long> counts = new java.util.HashMap<>();
+        for (com.example.product.entity.Comment c : comments) {
+            for (String tag : c.getTags().split(",")) {
+                if (!tag.trim().isEmpty()) {
+                    counts.merge(tag.trim(), 1L, Long::sum);
+                }
+            }
+        }
+        return counts.entrySet().stream()
+                .sorted(java.util.Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(3)
+                .map(java.util.Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 
     /**

@@ -54,4 +54,27 @@ public interface PrivateMessageService extends IService<PrivateMessage> {
      * @param productId 关联商品 ID（普通私信传 null）
      */
     void deleteConversation(Long peerId, Long productId);
+
+    /**
+     * 卖家发送议价报价（轮8 业务迭代新增）
+     * <p>
+     * 校验链：议价总开关 → 发送者是商品发布者 → 双方存在该商品会话 → 商品在售
+     * → 报价低于现价。同一会话的旧待处理报价会被置为失效（一次只有一个有效报价）。
+     *
+     * @param dto 接收人 + 商品 + 报价金额
+     * @return 报价消息 ID
+     */
+    Long sendOffer(com.example.message.dto.SendOfferDTO dto);
+
+    /**
+     * 买家接受报价并按议价价创建订单（轮8 业务迭代新增）
+     * <p>
+     * 校验链：接收者是报价消息的接收人 → 报价待处理且未过期 → 商品仍在售。
+     * 接受后调用订单服务按议价价创建订单（成交快照即议价价，回流行情样本），
+     * 并把该商品其余待处理报价置为失效。
+     *
+     * @param messageId 报价消息 ID
+     * @return 订单 VO（orderNo 供前端跳转）
+     */
+    com.example.order.vo.OrderVO acceptOffer(Long messageId);
 }

@@ -38,6 +38,15 @@ public class Comment implements Serializable {
     /** 评分 1-5 */
     private Integer rating;
 
+    /** 评价标签，逗号分隔（轮8：预置正向标签，≤3 个） */
+    private String tags;
+
+    /** 卖家回评内容（轮8：每条评价仅一条） */
+    private String reply;
+
+    /** 卖家回评时间 */
+    private LocalDateTime replyTime;
+
     /** 状态：1 正常，0 隐藏（管理端下架用，当前无对应入口） */
     private Integer status;
 

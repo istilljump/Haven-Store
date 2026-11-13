@@ -67,7 +67,11 @@
               <span v-if="autoEstimateEnabled" class="estimate-hint">填写标题/分类/成色后可用</span>
               <div v-if="estimateInfo" class="estimate-basis" :type="estimateInfo.basisType">
                 <div class="estimate-basis-title">
-                  {{ estimateInfo.basisType === 'MARKET_DATA' ? '📊 依据平台成交行情' : 'ℹ️ 依据规则基线' }}
+                  {{
+                    estimateInfo.basisType === 'MARKET_DATA'
+                      ? '📊 依据平台成交行情'
+                      : 'ℹ️ 依据规则基线'
+                  }}
                   （建议价 ¥{{ estimateInfo.estimatedPrice }}，已回填）
                 </div>
                 <ul class="estimate-basis-list">

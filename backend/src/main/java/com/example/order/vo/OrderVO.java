@@ -51,6 +51,12 @@ public class OrderVO {
     /** 取消时间 */
     private LocalDateTime cancelTime;
 
+    /** 面交确认码（仅订单买家本人、已支付状态可见） */
+    private String confirmCode;
+
+    /** 完成确认方式：1 买家确认 2 卖家输码面交 3 超时自动（未完成为 null） */
+    private Integer confirmedBy;
+
     /** 下单时间 */
     private LocalDateTime createTime;
 

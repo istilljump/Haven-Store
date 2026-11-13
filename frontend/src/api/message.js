@@ -95,6 +95,29 @@ export function getUnreadCount() {
   return request.get('/message/private/unread/count')
 }
 
+// [轮8] 议价：卖家向咨询买家发送报价
+/**
+ * 发送议价报价（仅商品卖家可发，报价须低于现价，30 分钟内有效）
+ * @param {Object} offerData - 报价参数
+ * @param {number} offerData.toUserId - 报价接收人（买家）用户ID
+ * @param {number} offerData.productId - 关联商品ID
+ * @param {number} offerData.price - 报价金额（正数，业务校验由后端完成）
+ * @returns {Promise} 返回报价消息ID
+ */
+export function sendOffer(offerData) {
+  return request.post('/message/private/offer', offerData)
+}
+
+// [轮8] 议价：买家接受报价并按议价价下单
+/**
+ * 接受报价并下单（仅报价接收人/买家可操作，须在有效期内）
+ * @param {number} messageId - 报价消息ID
+ * @returns {Promise} 返回新建订单（OrderVO，含 orderNo）
+ */
+export function acceptOffer(messageId) {
+  return request.post(`/message/private/offer/${messageId}/accept`)
+}
+
 /**
  * 删除会话（删除后会话双方均不再可见）
  * @param {number} peerId - 对方用户ID
@@ -119,5 +142,8 @@ export default {
   getConversations,
   getChat,
   getUnreadCount,
-  deleteConversation
+  deleteConversation,
+  // [轮8] 议价接口并入默认导出，保持 messageApi.xxx() 统一调用风格
+  sendOffer,
+  acceptOffer
 }

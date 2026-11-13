@@ -101,4 +101,28 @@ public class PrivateMessageController {
         privateMessageService.deleteConversation(peerId, productId);
         return Result.success();
     }
+
+    /**
+     * 卖家发送议价报价（轮8 业务迭代新增）
+     *
+     * @param dto 接收人 + 商品 + 报价金额
+     * @return 报价消息 ID
+     */
+    @ApiOperation(value = "发送议价报价", notes = "需要登录；仅卖家可发，报价须低于现价，30 分钟内有效")
+    @PostMapping("/offer")
+    public Result<Long> sendOffer(@RequestBody @Validated com.example.message.dto.SendOfferDTO dto) {
+        return Result.success(privateMessageService.sendOffer(dto));
+    }
+
+    /**
+     * 买家接受报价并按议价价下单（轮8 业务迭代新增）
+     *
+     * @param messageId 报价消息 ID
+     * @return 订单 VO（orderNo 供前端跳转）
+     */
+    @ApiOperation(value = "接受报价下单", notes = "需要登录；仅报价接收人可接受，按议价价创建订单")
+    @PostMapping("/offer/{messageId}/accept")
+    public Result<com.example.order.vo.OrderVO> acceptOffer(@org.springframework.web.bind.annotation.PathVariable Long messageId) {
+        return Result.success(privateMessageService.acceptOffer(messageId));
+    }
 }

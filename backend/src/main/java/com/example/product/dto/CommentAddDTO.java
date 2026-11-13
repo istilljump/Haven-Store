@@ -35,4 +35,7 @@ public class CommentAddDTO implements Serializable {
     @Min(value = 1, message = "评分最低为1")
     @Max(value = 5, message = "评分最高为5")
     private Integer rating;
+
+    /** 评价标签（轮8：预置正向标签，最多 3 个，可空） */
+    private java.util.List<String> tags;
 }

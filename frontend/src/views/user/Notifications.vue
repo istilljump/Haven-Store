@@ -48,6 +48,10 @@
             <div class="msg-title-row">
               <span class="msg-title">{{ msg.title }}</span>
               <el-tag v-if="Number(msg.messageType) === 2" size="mini" type="warning">公告</el-tag>
+              <!-- [轮8] 交易消息（message_type=3）：补文案标签映射，图标沿用 Van（交易物流语义） -->
+              <el-tag v-else-if="Number(msg.messageType) === 3" size="mini" type="success"
+                >交易</el-tag
+              >
               <span v-if="!msg.isRead" class="unread-dot" />
             </div>
             <div class="msg-content">{{ msg.content }}</div>

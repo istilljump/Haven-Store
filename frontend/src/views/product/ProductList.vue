@@ -572,7 +572,9 @@ export default {
   padding: 18px 20px;
   background: var(--hs-bg-card, #fff);
   border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.04),
+    0 2px 8px rgba(16, 24, 40, 0.04);
 }
 
 .filter-row {

@@ -20,6 +20,7 @@ import com.example.utils.UserHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -55,6 +56,25 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
 
     /** 商品数据访问对象（校验被咨询商品、回填商品标题封面） */
     private final ProductMapper productMapper;
+
+    /** 系统设置服务（轮8：议价总开关） */
+    private final com.example.admin.service.SystemSettingService systemSettingService;
+
+    /** 订单服务（轮8：买家接受报价后按议价价创建订单） */
+    private final com.example.order.service.OrderService orderService;
+
+    /** 交易事件通知服务（轮8：报价/接受事件通知对方） */
+    private final com.example.message.service.TradeNotifyService tradeNotifyService;
+
+    /** 报价有效期（分钟，与订单待支付超时对齐） */
+    private static final int OFFER_EXPIRE_MINUTES = 30;
+
+    /** 报价状态：待处理 */
+    private static final Integer OFFER_PENDING = 0;
+    /** 报价状态：已接受 */
+    private static final Integer OFFER_ACCEPTED = 1;
+    /** 报价状态：已失效 */
+    private static final Integer OFFER_EXPIRED = 2;
 
     @Override
     public Long send(SendPrivateMessageDTO dto) {
@@ -229,6 +249,10 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
             vo.setProductId(message.getProductId());
             vo.setContent(message.getContent());
             vo.setCreateTime(message.getCreateTime());
+            // 轮8：议价报价消息回填报价三字段（非报价消息为 null，前端按普通气泡渲染）
+            vo.setOfferPrice(message.getOfferPrice());
+            vo.setOfferExpireTime(message.getOfferExpireTime());
+            vo.setOfferStatus(message.getOfferStatus());
             // 本轮刚标记完已读，返回给前端时按已读展示，避免气泡状态与列表不一致
             vo.setIsRead(PrivateMessageConstant.READ);
             vo.setSelf(me.equals(message.getFromUserId()));
@@ -324,5 +348,126 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
             throw new BusinessException(ResultCodeEnum.UNAUTHORIZED);
         }
         return userId;
+    }
+
+    // ==================== 议价（轮8 业务迭代新增） ====================
+
+    @Override
+    public Long sendOffer(com.example.message.dto.SendOfferDTO dto) {
+        Long me = requireLoginUserId();
+        // 1. 议价总开关（后台交易设置，缺省开启）
+        if (Boolean.FALSE.equals(systemSettingService.get().getTrade().getTradeNegotiationEnabled())) {
+            throw new BusinessException("议价功能未开启");
+        }
+        // 2. 只有商品发布者（卖家）能发报价——与「定价权在卖家」的产品叙事一致
+        Product product = productMapper.selectById(dto.getProductId());
+        if (product == null) {
+            throw new BusinessException("商品不存在");
+        }
+        if (!me.equals(product.getUserId())) {
+            throw new BusinessException("只有卖家可以发送报价");
+        }
+        if (dto.getToUserId().equals(me)) {
+            throw new BusinessException("接收人不能是自己");
+        }
+        // 3. 双方必须已存在该商品会话（报价挂在会话内，不允许凭空开新会话报价）
+        if (!hasConversationAboutProduct(me, dto.getToUserId(), dto.getProductId())) {
+            throw new BusinessException("该买家尚未咨询过此商品，无法发送报价");
+        }
+        // 4. 商品必须在售（已锁定/已下架无法议价）
+        if (!com.example.product.enums.ProductStatusEnum.ON_SHELF.getCode().equals(product.getStatus())) {
+            throw new BusinessException("商品当前不在售，无法报价");
+        }
+        // 5. 报价金额：大于 0 且低于现价（让利才构成议价；定价权仍在卖家）
+        java.math.BigDecimal price = dto.getPrice();
+        if (price == null || price.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("报价金额必须大于 0");
+        }
+        if (product.getPrice() != null && price.compareTo(product.getPrice()) >= 0) {
+            throw new BusinessException("报价须低于商品现价 ¥" + product.getPrice());
+        }
+        // 6. 同会话旧待处理报价置失效（一次只有一个有效报价）
+        expirePendingOffers(buildConversationKey(me, dto.getToUserId(), dto.getProductId()));
+
+        // 7. 落报价消息（content 为自动说明文案，前端以报价卡片渲染）
+        PrivateMessage message = new PrivateMessage();
+        message.setConversationKey(buildConversationKey(me, dto.getToUserId(), dto.getProductId()));
+        message.setFromUserId(me);
+        message.setToUserId(dto.getToUserId());
+        message.setProductId(dto.getProductId());
+        message.setContent("卖家发起议价：¥" + price + "（原价 ¥" + product.getPrice() + "），点击卡片可直接按此价下单");
+        message.setOfferPrice(price);
+        message.setOfferExpireTime(java.time.LocalDateTime.now().plusMinutes(OFFER_EXPIRE_MINUTES));
+        message.setOfferStatus(OFFER_PENDING);
+        message.setIsRead(PrivateMessageConstant.UNREAD);
+        privateMessageMapper.insert(message);
+        log.info("议价报价发送成功，消息ID：{}，卖家：{}，买家：{}，商品：{}，报价：{}",
+                message.getId(), me, dto.getToUserId(), dto.getProductId(), price);
+
+        // 8. 通知买家收到报价（交易消息）
+        tradeNotifyService.notifyUser(dto.getToUserId(), "收到议价报价",
+                "卖家就「" + product.getTitle() + "」向你发起议价 ¥" + price
+                        + "（原价 ¥" + product.getPrice() + "），30 分钟内有效，请在私信中查看并决定是否接受。");
+        return message.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public com.example.order.vo.OrderVO acceptOffer(Long messageId) {
+        Long me = requireLoginUserId();
+        // 1. 议价总开关
+        if (Boolean.FALSE.equals(systemSettingService.get().getTrade().getTradeNegotiationEnabled())) {
+            throw new BusinessException("议价功能未开启");
+        }
+        // 2. 消息存在且是报价消息
+        PrivateMessage offer = privateMessageMapper.selectById(messageId);
+        if (offer == null || offer.getOfferPrice() == null) {
+            throw new BusinessException("报价不存在");
+        }
+        // 3. 只有报价的接收人（买家）能接受
+        if (!me.equals(offer.getToUserId())) {
+            throw new BusinessException("只有报价的接收人可以接受报价");
+        }
+        // 4. 状态校验：待处理且未过期（惰性置失效后按过期拒绝）
+        if (!OFFER_PENDING.equals(offer.getOfferStatus())) {
+            throw new BusinessException("该报价已被接受或已失效");
+        }
+        if (offer.getOfferExpireTime() != null && offer.getOfferExpireTime().isBefore(java.time.LocalDateTime.now())) {
+            privateMessageMapper.update(null, new LambdaUpdateWrapper<PrivateMessage>()
+                    .eq(PrivateMessage::getId, messageId)
+                    .set(PrivateMessage::getOfferStatus, OFFER_EXPIRED));
+            throw new BusinessException("报价已过期（有效期 30 分钟），请让卖家重新报价");
+        }
+        // 5. 商品仍在售
+        Product product = productMapper.selectById(offer.getProductId());
+        if (product == null
+                || !com.example.product.enums.ProductStatusEnum.ON_SHELF.getCode().equals(product.getStatus())) {
+            privateMessageMapper.update(null, new LambdaUpdateWrapper<PrivateMessage>()
+                    .eq(PrivateMessage::getId, messageId)
+                    .set(PrivateMessage::getOfferStatus, OFFER_EXPIRED));
+            throw new BusinessException("商品已不在售，报价失效");
+        }
+
+        // 6. 置为已接受，并按议价价创建订单（成交快照即议价价，回流行情样本）
+        privateMessageMapper.update(null, new LambdaUpdateWrapper<PrivateMessage>()
+                .eq(PrivateMessage::getId, messageId)
+                .eq(PrivateMessage::getOfferStatus, OFFER_PENDING)
+                .set(PrivateMessage::getOfferStatus, OFFER_ACCEPTED));
+        com.example.order.vo.OrderVO order = orderService.createFromOffer(offer.getProductId(), me, offer.getOfferPrice());
+
+        // 7. 通知卖家报价被接受（订单号供核对）
+        tradeNotifyService.notifyUser(offer.getFromUserId(), "你的报价已被接受",
+                "买家已接受你对「" + product.getTitle() + "」的报价 ¥" + offer.getOfferPrice()
+                        + "，订单 " + order.getOrderNo() + " 已创建。买家支付后请准备面交。");
+        log.info("报价被接受，消息ID：{}，买家：{}，订单：{}", messageId, me, order.getOrderNo());
+        return order;
+    }
+
+    /** 把某会话内旧的待处理报价置为失效（一次只有一个有效报价） */
+    private void expirePendingOffers(String conversationKey) {
+        privateMessageMapper.update(null, new LambdaUpdateWrapper<PrivateMessage>()
+                .eq(PrivateMessage::getConversationKey, conversationKey)
+                .eq(PrivateMessage::getOfferStatus, OFFER_PENDING)
+                .set(PrivateMessage::getOfferStatus, OFFER_EXPIRED));
     }
 }

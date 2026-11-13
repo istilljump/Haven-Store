@@ -15,6 +15,15 @@
           <div class="status-no">订单号：{{ order.orderNo }}</div>
         </div>
 
+        <!-- [轮8] 买家面交确认码卡片：仅买家本人 + 已支付 + 后端已下发 confirmCode 时展示 -->
+        <div v-if="showConfirmCode" class="block confirm-code-card">
+          <h3>面交确认码</h3>
+          <div class="confirm-code-value">{{ order.confirmCode }}</div>
+          <p class="confirm-code-tip">
+            面交时向卖家出示此码，卖家输码后订单完成；也可收货后手动确认，7 天未确认自动完成
+          </p>
+        </div>
+
         <!-- 商品明细 -->
         <div class="block">
           <h3>商品明细</h3>
@@ -53,6 +62,10 @@
             <el-descriptions-item v-if="order.finishTime" label="完成时间">{{
               order.finishTime
             }}</el-descriptions-item>
+            <!-- [轮8] 完成方式：1 买家确认收货 / 2 卖家输码面交 / 3 超时自动完成 -->
+            <el-descriptions-item v-if="order.confirmedBy" label="完成方式">{{
+              confirmByLabel
+            }}</el-descriptions-item>
             <el-descriptions-item v-if="order.cancelTime" label="取消时间">{{
               order.cancelTime
             }}</el-descriptions-item>
@@ -61,13 +74,22 @@
         </div>
 
         <!-- 操作区 -->
-        <div class="action-bar" v-if="canPay || canCancel || canConfirm">
+        <div class="action-bar" v-if="canPay || canCancel || canConfirm || canConfirmByCode">
           <el-button v-if="canPay" type="primary" :loading="acting" @click="payOrder"
             >模拟支付</el-button
           >
           <el-button v-if="canCancel" :loading="acting" @click="cancelOrder">取消订单</el-button>
           <el-button v-if="canConfirm" type="success" :loading="acting" @click="confirmOrder"
             >确认收货</el-button
+          >
+          <!-- [轮8] 卖家输码面交：已支付且尚无完成方式时展示 -->
+          <el-button
+            v-if="canConfirmByCode"
+            type="success"
+            plain
+            :loading="acting"
+            @click="confirmByCode"
+            >输码确认交付</el-button
           >
         </div>
       </template>
@@ -84,10 +106,12 @@ import {
   getOrderDetail,
   payOrder as payOrderApi,
   cancelOrder as cancelOrderApi,
-  confirmOrder as confirmOrderApi
+  confirmOrder as confirmOrderApi,
+  confirmByCode as confirmByCodeApi
 } from '@/api/order'
 import { formatMoney } from '@/utils/format'
 import { ORDER_STATUS } from '@/utils/constants'
+import { useUserStore } from '@/store/index'
 
 /**
  * 订单详情页
@@ -101,6 +125,7 @@ export default {
   setup() {
     const route = useRoute()
     const router = useRouter()
+    const userStore = useUserStore()
     const order = ref(null)
     const loading = ref(false)
     const acting = ref(false)
@@ -108,6 +133,40 @@ export default {
     const canPay = computed(() => order.value?.status === ORDER_STATUS.PENDING_PAY)
     const canCancel = computed(() => order.value?.status === ORDER_STATUS.PENDING_PAY)
     const canConfirm = computed(() => order.value?.status === ORDER_STATUS.PAID)
+
+    // [轮8] 买家本人视角（后端仅向订单买家本人下发 confirmCode，这里按 buyerId 再做一层判断）
+    const isBuyerView = computed(
+      () =>
+        userStore.userId != null &&
+        order.value != null &&
+        Number(order.value.buyerId) === Number(userStore.userId)
+    )
+
+    // [轮8] 卖家视角：订单内任一商品的卖家是当前登录用户
+    const isSellerView = computed(() => {
+      if (userStore.userId == null || !order.value?.items) return false
+      return order.value.items.some((item) => Number(item.sellerId) === Number(userStore.userId))
+    })
+
+    // [轮8] 买家面交确认码卡片：买家本人 + 已支付 + 后端已下发确认码
+    const showConfirmCode = computed(
+      () =>
+        isBuyerView.value && order.value?.status === ORDER_STATUS.PAID && !!order.value?.confirmCode
+    )
+
+    // [轮8] 卖家输码入口：卖家视角 + 已支付 + 尚未产生完成方式
+    const canConfirmByCode = computed(
+      () =>
+        isSellerView.value &&
+        order.value?.status === ORDER_STATUS.PAID &&
+        order.value?.confirmedBy == null
+    )
+
+    // [轮8] 完成方式文案：1 买家确认收货 / 2 卖家输码面交 / 3 超时自动完成
+    const confirmByLabel = computed(() => {
+      const labelMap = { 1: '买家确认收货', 2: '卖家输码面交', 3: '超时自动完成' }
+      return labelMap[order.value?.confirmedBy] || '-'
+    })
 
     const statusHint = computed(() => {
       switch (order.value?.status) {
@@ -194,6 +253,28 @@ export default {
         .catch(() => {})
     }
 
+    // [轮8] 卖家输码确认交付：6 位数字校验（错码累计 5 次后端会锁定），成功后刷新详情
+    const confirmByCode = () => {
+      ElMessageBox.prompt('请输入买家当面出示的 6 位面交确认码', '输码确认交付', {
+        type: 'info',
+        confirmButtonText: '确认交付',
+        cancelButtonText: '取消',
+        inputPattern: /^\d{6}$/,
+        inputErrorMessage: '请输入 6 位数字确认码'
+      })
+        .then(async ({ value }) => {
+          acting.value = true
+          try {
+            await confirmByCodeApi(order.value.orderNo, value)
+            ElMessage.success('面交确认成功，订单已完成')
+            await loadOrder()
+          } finally {
+            acting.value = false
+          }
+        })
+        .catch(() => {})
+    }
+
     onMounted(loadOrder)
 
     return {
@@ -208,7 +289,12 @@ export default {
       goProduct,
       payOrder,
       cancelOrder,
-      confirmOrder
+      confirmOrder,
+      // [轮8] 面交码相关绑定
+      showConfirmCode,
+      canConfirmByCode,
+      confirmByLabel,
+      confirmByCode
     }
   }
 }
@@ -367,6 +453,29 @@ export default {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* [轮8] 买家面交确认码卡片：10px 圆角面板 + 大号等宽码值（Token 配色，暗色自动适配） */
+.confirm-code-card {
+  border: 1px solid var(--hs-border);
+  border-radius: 10px;
+  background: var(--hs-bg-panel);
+  padding: 14px 16px 16px;
+}
+
+.confirm-code-value {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: var(--hs-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.confirm-code-tip {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--hs-text-secondary);
 }
 
 @media (max-width: 768px) {

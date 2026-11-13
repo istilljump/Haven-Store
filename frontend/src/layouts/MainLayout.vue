@@ -312,7 +312,10 @@ export default {
   height: var(--brand-logo-dot-size, 12px);
   margin-right: var(--brand-logo-dot-gap, 8px);
   border-radius: 50%;
-  background: var(--brand-logo-dot-inner, radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb));
+  background: var(
+    --brand-logo-dot-inner,
+    radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb)
+  );
   box-shadow: var(--brand-logo-dot-shadow, 0 2px 6px rgba(64, 158, 255, 0.4));
   vertical-align: -1px;
 }

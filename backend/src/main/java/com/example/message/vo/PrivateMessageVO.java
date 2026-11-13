@@ -31,6 +31,15 @@ public class PrivateMessageVO {
     /** 私信内容 */
     private String content;
 
+    /** 议价报价金额（报价消息非空，前端渲染报价卡片） */
+    private java.math.BigDecimal offerPrice;
+
+    /** 报价失效时间（前端倒计时用；已失效/已接受也有值） */
+    private LocalDateTime offerExpireTime;
+
+    /** 报价状态：0 待处理 / 1 已接受 / 2 已失效；非报价消息为 NULL */
+    private Integer offerStatus;
+
     /** 是否由当前登录用户发出（前端据此决定气泡左右） */
     private Boolean self;
 

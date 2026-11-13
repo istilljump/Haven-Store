@@ -76,10 +76,39 @@ public interface OrderService {
     void confirmFinish(String orderNo);
 
     /**
+     * 卖家输码面交确认（轮8）：卖家输入买家出示的 6 位面交码完成交付
+     *
+     * @param orderNo 订单号
+     * @param code    6 位数字确认码
+     */
+    void confirmByCode(String orderNo, String code);
+
+    /**
+     * 按议价价创建单商品订单（轮8：买家接受私信报价后调用）
+     * <p>
+     * 与购物车下单同一套校验与锁定语义（不能买自己的、商品在售、条件更新 CAS 锁定），
+     * 差异仅在于成交价使用议价价——order_item 快照价即议价价，自然回流行情样本。
+     *
+     * @param productId       商品 ID
+     * @param buyerId         买家 ID（报价接收人）
+     * @param negotiatedPrice 议价成交价
+     * @return 订单 VO
+     */
+    OrderVO createFromOffer(Long productId, Long buyerId, java.math.BigDecimal negotiatedPrice);
+
+    /**
      * 取消超时未支付的订单并释放商品（供定时任务调用，无登录态）
      *
      * @param timeoutMinutes 超时分钟数（下单后超过该时长仍未支付即取消）
      * @return 本次取消的订单数
      */
     int cancelTimeoutOrders(int timeoutMinutes);
+
+    /**
+     * 支付后超时自动完成兜底（轮8，供定时任务调用，无登录态）
+     *
+     * @param autoFinishDays 自动完成天数（支付后超过该天数未确认即完成）
+     * @return 本次自动完成的订单数
+     */
+    int autoFinishPaidOrders(int autoFinishDays);
 }
