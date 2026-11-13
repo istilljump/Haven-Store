@@ -74,7 +74,7 @@ export default {
 <style scoped>
 /* [UI美化] 商品卡：统一圆角/薄影，hover 上浮 + 主色描边 + 封面轻缩放（纯视觉微交互） */
 .product-card {
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
@@ -82,7 +82,7 @@ export default {
     transform 0.2s ease,
     box-shadow 0.2s ease,
     border-color 0.2s ease;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hs-border, #ebeef5);
   position: relative;
 }
 
@@ -110,7 +110,7 @@ export default {
 .product-card__title {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -150,7 +150,7 @@ export default {
 }
 
 .price-now {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 17px;
   font-weight: 600;
   /* [UI美化-本轮] 价格数字等宽，变动时不跳动 */
@@ -158,7 +158,7 @@ export default {
 }
 
 .price-origin {
-  color: #c0c4cc;
+  color: var(--hs-text-placeholder, #c0c4cc);
   font-size: 12px;
   text-decoration: line-through;
   margin-left: 6px;
@@ -166,7 +166,7 @@ export default {
 
 .product-card__seller {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   max-width: 40%;
   overflow: hidden;
   text-overflow: ellipsis;

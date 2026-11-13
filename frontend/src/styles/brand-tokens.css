@@ -1,0 +1,135 @@
+/**
+ * ============================================================
+ * Haven-Store 品牌资产 Token 层（轮6 新增 · 基础品牌 Token）
+ * ============================================================
+ * 定位：
+ *   本文件是「基础品牌 Token」唯一来源（色板/字体/字重阶梯/间距栅格/
+ *   圆角/描边/阴影/品牌装饰/LOGO 形态），全部挂在 html[data-brand]
+ *   作用域下；业务定制 Token（--hs-*，见 theme.css）从本层引用取值，
+ *   形成两层结构：
+ *     基础品牌 Token（--brand-*）→ 可整层热替换（多品牌扩展点）
+ *     业务定制 Token（--hs-*）  → 全站组件消费，不随品牌更换语义
+ *
+ * 热替换方式（不侵入业务代码）：
+ *   document.documentElement.setAttribute('data-brand', '<brandKey>')
+ *   并为 <html> 提供 data-brand="<brandKey>" 的 Token 覆盖块即可，
+ *   全站 --hs-* 与 Element Plus 变量自动跟随，无需改动任何业务文件。
+ *
+ * 约束（品牌资产使用规范 · 摘要，完整清单见交付物②）：
+ *   1. 业务代码只允许消费 --hs-*，禁止直接写死品牌色值；
+ *   2. 品牌色板 --brand-* 仅允许在 Token 层内部被引用；
+ *   3. 装饰元素（圆点徽标/圆环）尺寸与透明度由 Token 控制，禁止内联覆盖。
+ */
+
+/* ============================================================
+ * 一、默认品牌（Haven-Store）—— 亮色基础 Token
+ * ============================================================ */
+:root,
+html[data-brand='haven'] {
+  /* —— 主色板：以 Element 蓝 #409eff 为 500，向两端展开的阶梯 —— */
+  --brand-primary-50: #ecf5ff;
+  --brand-primary-100: #d9ecff;
+  --brand-primary-200: #c6e2ff;
+  --brand-primary-300: #a0cfff;
+  --brand-primary-400: #79bbff;
+  --brand-primary-500: #409eff; /* 主色基准 */
+  --brand-primary-600: #337ecc;
+  --brand-primary-700: #2b6cb8;
+  --brand-primary-800: #2563eb;
+  --brand-primary-900: #1d4ed8;
+
+  /* —— 功能色：沿用项目现有 Element 语义色（不引入新色相） —— */
+  --brand-success: #67c23a;
+  --brand-warning: #e6a23c;
+  --brand-danger: #f56c6c;
+  --brand-info: #909399;
+
+  /* —— 字体家族与字重阶梯 —— */
+  --brand-font-family:
+    'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    Arial, sans-serif;
+  --brand-font-weight-regular: 400;
+  --brand-font-weight-medium: 500;
+  --brand-font-weight-semibold: 600;
+  --brand-font-weight-bold: 700;
+
+  /* —— 间距栅格（8px 基准，4px 半档） —— */
+  --brand-space-1: 4px;
+  --brand-space-2: 8px;
+  --brand-space-3: 12px;
+  --brand-space-4: 16px;
+  --brand-space-5: 20px;
+  --brand-space-6: 24px;
+  --brand-space-8: 32px;
+  --brand-space-10: 40px;
+
+  /* —— 圆角阶梯 —— */
+  --brand-radius-sm: 4px;
+  --brand-radius-md: 6px;
+  --brand-radius-lg: 8px;
+  --brand-radius-xl: 10px;
+  --brand-radius-2xl: 12px;
+  --brand-radius-round: 999px;
+
+  /* —— 描边 —— */
+  --brand-border-width: 1px;
+  --brand-border-strong-width: 2px;
+
+  /* —— 阴影阶梯（亮色） —— */
+  --brand-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
+  --brand-shadow-2: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --brand-shadow-3: 0 8px 32px rgba(16, 24, 40, 0.12);
+  --brand-shadow-primary: 0 4px 12px rgba(64, 158, 255, 0.28);
+
+  /* —— LOGO 形态（浅底版）：圆点徽标规格 —— */
+  --brand-logo-dot-size: 12px;
+  --brand-logo-dot-gap: 8px;
+  --brand-logo-dot-inner: radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb);
+  --brand-logo-dot-shadow: 0 2px 6px rgba(64, 158, 255, 0.4);
+  /* 小尺寸反白版（页脚/深底场景）：单色圆点 */
+  --brand-logo-dot-muted-opacity: 0.55;
+
+  /* —— 品牌装饰元素：Hero 双圆环 —— */
+  --brand-deco-ring-size: 220px;
+  --brand-deco-ring-size-lg: 260px;
+  --brand-deco-ring-color: rgba(255, 255, 255, 0.16);
+
+  /* —— Hero 品牌渐变（亮色） —— */
+  --brand-hero-gradient: linear-gradient(135deg, #409eff 0%, #2563eb 100%);
+  --brand-hero-glow-a: radial-gradient(900px 400px at 15% -20%, rgba(255, 255, 255, 0.16), transparent 55%);
+  --brand-hero-glow-b: radial-gradient(700px 380px at 105% 120%, rgba(255, 255, 255, 0.12), transparent 50%);
+  /* 认证页渐变（与 Hero 同源） */
+  --brand-auth-gradient: linear-gradient(135deg, #409eff 0%, #2563eb 100%);
+}
+
+/* ============================================================
+ * 二、暗色品牌 Token 覆盖（与 dark.css 的界面级暗色变量分工：
+ *     本层只覆盖「品牌资产」本身；界面色阶见 dark.css）
+ * ============================================================ */
+html.dark[data-brand='haven'],
+html.dark {
+  /* 暗色下主色提亮半档，保证深底上的可读与对比 */
+  --brand-primary-400: #6cb8ff;
+  --brand-primary-500: #4da6ff;
+  --brand-primary-800: #3b82f6;
+  --brand-primary-900: #60a5fa;
+
+  /* 暗色阴影：加深透明度补偿（暗底下阴影天然弱化） */
+  --brand-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --brand-shadow-2: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --brand-shadow-3: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --brand-shadow-primary: 0 4px 12px rgba(64, 158, 255, 0.35);
+
+  /* 暗色 Hero：深蓝夜色渐变（非简单反色，独立设计的暗色品牌面） */
+  --brand-hero-gradient: linear-gradient(135deg, #16304f 0%, #0f2038 100%);
+  --brand-hero-glow-a: radial-gradient(900px 400px at 15% -20%, rgba(77, 166, 255, 0.12), transparent 55%);
+  --brand-hero-glow-b: radial-gradient(700px 380px at 105% 120%, rgba(77, 166, 255, 0.08), transparent 50%);
+  --brand-auth-gradient: linear-gradient(135deg, #16304f 0%, #0f2038 100%);
+
+  /* 暗色装饰圆环：降低亮度避免刺眼 */
+  --brand-deco-ring-color: rgba(122, 168, 224, 0.14);
+
+  /* 暗色 LOGO 圆点：去掉投影（深底投影发灰） */
+  --brand-logo-dot-inner: radial-gradient(circle at 35% 30%, #6cb8ff, #4da6ff 60%, #2563eb);
+  --brand-logo-dot-shadow: none;
+}

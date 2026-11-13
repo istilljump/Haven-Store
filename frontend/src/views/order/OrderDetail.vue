@@ -216,7 +216,7 @@ export default {
 
 <style scoped>
 .order-detail-page {
-  background: #f5f7fa;
+  background: var(--hs-bg-page, #f5f7fa);
   min-height: 100%;
   padding: 20px;
 }
@@ -225,7 +225,7 @@ export default {
 .page-container {
   max-width: 860px;
   margin: 0 auto;
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   padding: 20px 24px 28px;
   box-shadow: var(--hs-shadow-sm);
@@ -247,8 +247,8 @@ export default {
 }
 
 .status-card.status-3 {
-  background: #fef0f0;
-  color: #f56c6c;
+  background: var(--hs-bg-price-soft, #fef0f0);
+  color: var(--hs-price, #f56c6c);
 }
 
 .status-card.status-4 {
@@ -291,7 +291,7 @@ export default {
 .block h3 {
   margin: 0 0 12px;
   font-size: 16px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   font-weight: 600;
 }
 
@@ -300,7 +300,7 @@ export default {
   align-items: center;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px dashed #ebeef5;
+  border-bottom: 1px dashed var(--hs-border, #ebeef5);
 }
 
 .item-cover {
@@ -318,7 +318,7 @@ export default {
 /* [UI美化] 标题悬浮加平滑过渡 */
 .item-title {
   font-size: 14px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   cursor: pointer;
   transition: color 0.2s ease;
 }
@@ -328,18 +328,18 @@ export default {
 }
 
 .item-title.deleted {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   cursor: default;
 }
 
 .item-seller {
   margin-top: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .item-price {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-weight: 600;
 }
 
@@ -347,11 +347,11 @@ export default {
   text-align: right;
   padding-top: 12px;
   font-size: 14px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
 }
 
 .total-amount {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 18px;
   font-weight: 600;
 }

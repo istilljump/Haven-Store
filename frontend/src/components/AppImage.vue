@@ -61,6 +61,7 @@ export default {
 .app-image {
   display: block;
   object-fit: cover;
-  background: #f5f7fa;
+  /* [UI美化-轮6] 占位底色改用主题变量：暗色下自动跟随深色底 */
+  background: var(--hs-bg-page, #f5f7fa);
 }
 </style>

@@ -488,7 +488,7 @@ export default {
 .product-image {
   position: relative;
   height: 200px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
 }
 
 .product-image img {
@@ -566,7 +566,7 @@ export default {
 
 .avatar-tip {
   margin-top: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 13px;
 }
 

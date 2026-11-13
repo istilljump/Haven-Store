@@ -203,12 +203,12 @@ onMounted(loadComments)
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -218,7 +218,7 @@ onMounted(loadComments)
 }
 
 .product-title {
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .pagination-container {

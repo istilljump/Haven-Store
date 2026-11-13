@@ -491,12 +491,12 @@ onMounted(() => {
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -524,13 +524,13 @@ onMounted(() => {
   margin: 0 0 20px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
-  border-bottom: 1px solid #f0f2f7;
+  color: var(--hs-text-primary, #303133);
+  border-bottom: 1px solid var(--hs-border-light, #f0f2f7);
   padding-bottom: 8px;
 }
 
 .form-tip {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 12px;
   margin-left: 8px;
 }
@@ -547,7 +547,7 @@ onMounted(() => {
   height: 80px;
   border-radius: 8px;
   object-fit: cover;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hs-border, #ebeef5);
 }
 
 .upload-demo {

@@ -457,12 +457,12 @@ onBeforeUnmount(() => {
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -510,7 +510,7 @@ onBeforeUnmount(() => {
   width: 60px;
   height: 60px;
   border-radius: 12px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -527,12 +527,12 @@ onBeforeUnmount(() => {
   font-size: 28px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin-bottom: 4px;
 }
 
 .stats-label {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin-bottom: 8px;
 }
@@ -548,7 +548,7 @@ onBeforeUnmount(() => {
 }
 
 .trend-down {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
 }
 
 /* 功能模块 */
@@ -576,7 +576,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--hs-border, #ebeef5);
 }
 
 .product-item:last-child {
@@ -589,7 +589,7 @@ onBeforeUnmount(() => {
 
 .product-title {
   font-weight: 500;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin-bottom: 4px;
 }
 
@@ -609,16 +609,16 @@ onBeforeUnmount(() => {
 }
 
 .status-offline {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .product-time {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .product-price {
   font-weight: 600;
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
 }
 
 .system-messages {
@@ -630,7 +630,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--hs-border, #ebeef5);
 }
 
 .message-item:last-child {
@@ -655,18 +655,18 @@ onBeforeUnmount(() => {
 
 .message-title {
   font-weight: 500;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin-bottom: 4px;
 }
 
 .message-time {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 12px;
 }
 
 .empty-data {
   text-align: center;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   padding: 40px 0;
   font-size: 14px;
 }
@@ -691,8 +691,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   padding: 20px;
   border-radius: 8px;
-  background: #f8fafd;
-  border: 1px solid #f0f2f7;
+  background: var(--hs-bg-panel, #f8fafd);
+  border: 1px solid var(--hs-border-light, #f0f2f7);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -712,13 +712,13 @@ onBeforeUnmount(() => {
 
 .action-title {
   font-weight: 500;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin-bottom: 4px;
 }
 
 .action-desc {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   text-align: center;
   line-height: 1.4;
 }

@@ -261,7 +261,7 @@ onMounted(async () => {
 
 <style scoped>
 .home {
-  background: #f5f7fa;
+  background: var(--hs-bg-page, #f5f7fa);
   min-height: 100%;
 }
 
@@ -278,14 +278,15 @@ onMounted(async () => {
   color: #fff;
 }
 
+/* [UI美化-轮6] 装饰圆环规格收拢到品牌 Token（尺寸/颜色可热换，暗色自动适配） */
 .hero::before {
   content: '';
   position: absolute;
   left: -60px;
   bottom: -110px;
-  width: 220px;
-  height: 220px;
-  border: 2px solid rgba(255, 255, 255, 0.16);
+  width: var(--brand-deco-ring-size, 220px);
+  height: var(--brand-deco-ring-size, 220px);
+  border: 2px solid var(--brand-deco-ring-color, rgba(255, 255, 255, 0.16));
   border-radius: 50%;
   pointer-events: none;
 }
@@ -295,9 +296,9 @@ onMounted(async () => {
   position: absolute;
   right: -90px;
   top: -90px;
-  width: 260px;
-  height: 260px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
+  width: var(--brand-deco-ring-size-lg, 260px);
+  height: var(--brand-deco-ring-size-lg, 260px);
+  border: 2px solid var(--brand-deco-ring-color, rgba(255, 255, 255, 0.18));
   border-radius: 50%;
   pointer-events: none;
 }
@@ -376,7 +377,7 @@ onMounted(async () => {
 .section-head h2 {
   margin: 0;
   font-size: 20px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .board-tools {
@@ -393,11 +394,11 @@ onMounted(async () => {
 
 /* [UI美化] 行情看板卡：白卡 + hover 上浮，与商品卡微交互一致 */
 .board-card {
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   padding: 18px 20px;
   cursor: pointer;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hs-border, #ebeef5);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -426,21 +427,21 @@ onMounted(async () => {
   margin-top: 10px;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .board-meta {
   margin-top: 6px;
   /* [UI美化-本轮] 成交件数转辅助层级，与主数字区分 */
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 /* [UI美化-本轮] 中位价大号等宽强调（数据展示升级：仅重排现有字段） */
 .board-price {
   margin-top: 8px;
   font-size: 22px;
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -453,7 +454,7 @@ onMounted(async () => {
 
 /* [UI美化] 分类入口：hover 淡蓝底 + 轻微上浮，替代纯描边变化 */
 .category-item {
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   text-align: center;
   padding: 18px 4px;
@@ -476,7 +477,7 @@ onMounted(async () => {
 
 .category-name {
   font-size: 14px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   transition: color 0.2s ease;
 }
 
@@ -535,7 +536,7 @@ onMounted(async () => {
 }
 
 .product-skeleton {
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   overflow: hidden;
   padding-bottom: 8px;

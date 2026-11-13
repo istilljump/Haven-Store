@@ -55,12 +55,12 @@ export default {
 .not-found-content h2 {
   font-size: 24px;
   margin-bottom: 16px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .not-found-content p {
   font-size: 15px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   margin-bottom: 24px;
   line-height: 1.5;
 }

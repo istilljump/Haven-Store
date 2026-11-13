@@ -497,11 +497,11 @@ export default {
 
 .header-tip {
   font-size: 13px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .tab-count {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 13px;
 }
 
@@ -512,14 +512,14 @@ export default {
   gap: 12px;
   padding: 12px 16px;
   margin-bottom: 16px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   border: 1px solid var(--hs-border-light);
   border-radius: 8px;
 }
 
 .toolbar-count {
   font-size: 13px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
 }
 
 .toolbar-right {
@@ -531,7 +531,7 @@ export default {
 
 .total em,
 .checkout-total em {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 18px;
   font-style: normal;
   font-weight: 600;
@@ -558,7 +558,7 @@ export default {
 }
 
 .cart-item:hover {
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
 }
 
 .cart-item:last-child {
@@ -566,7 +566,7 @@ export default {
 }
 
 .cart-item.unavailable {
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   opacity: 0.75;
 }
 
@@ -581,7 +581,7 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   flex-shrink: 0;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   /* [UI美化-本轮] 可点击封面补齐 hover 反馈：轻微透明度过渡 */
   transition: opacity 0.2s ease;
 }
@@ -598,7 +598,7 @@ export default {
 /* [UI美化] 标题悬浮加平滑过渡 */
 .item-title {
   font-size: 15px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -616,7 +616,7 @@ export default {
   gap: 8px;
   margin-top: 6px;
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .item-warning {
@@ -628,7 +628,7 @@ export default {
 
 .warning-tip {
   font-size: 12px;
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
 }
 
 .item-price {
@@ -639,7 +639,7 @@ export default {
 }
 
 .item-price em {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 16px;
   font-style: normal;
   font-weight: 600;
@@ -647,7 +647,7 @@ export default {
 
 .origin-price {
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--hs-text-placeholder, #c0c4cc);
   text-decoration: line-through;
 }
 
@@ -689,7 +689,7 @@ export default {
 }
 
 .checkout-price {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 14px;
 }
 

@@ -508,12 +508,12 @@ onMounted(() => {
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -587,21 +587,21 @@ onMounted(() => {
 
 .detail-item label {
   font-weight: 500;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   min-width: 80px;
   flex-shrink: 0;
 }
 
 .detail-item span {
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   flex: 1;
 }
 
 .message-content {
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   padding: 12px;
   border-radius: 8px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   line-height: 1.6;
 }
 
@@ -633,7 +633,7 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -649,12 +649,12 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin-bottom: 4px;
 }
 
 .stats-label {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
 }
 

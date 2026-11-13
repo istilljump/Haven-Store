@@ -15,11 +15,12 @@
  * 一、设计变量（新增样式代码）
  * ============================================================ */
 :root {
-  /* —— 品牌色：沿用项目现有 Element 蓝 —— */
-  --hs-primary: #409eff;
-  --hs-primary-dark: #337ecc;
-  --hs-primary-light: #79bbff;
-  --hs-primary-bg: #ecf5ff;
+  /* —— 品牌色：[轮6] 改为引用品牌 Token 层（brand-tokens.css）——
+     业务语义保持不变，品牌热替换时全站自动跟随 */
+  --hs-primary: var(--brand-primary-500, #409eff);
+  --hs-primary-dark: var(--brand-primary-600, #337ecc);
+  --hs-primary-light: var(--brand-primary-400, #79bbff);
+  --hs-primary-bg: var(--brand-primary-50, #ecf5ff);
   /* 主色hover时的柔和投影（用于按钮/卡片强调） */
   --hs-primary-shadow: rgba(64, 158, 255, 0.28);
 
@@ -34,19 +35,23 @@
   --hs-border-light: #f0f2f7;
   --hs-bg-page: #f5f7fa;
   --hs-bg-card: #ffffff;
+  /* [轮6] 次级面板（图标托底等）与价格强调底（暗色由 dark.css 重定义） */
+  --hs-bg-panel: #f8fafd;
+  --hs-bg-panel-2: #f0f2f7;
+  --hs-bg-price-soft: #fef0f0;
 
   /* —— 价格红：沿用商品卡现用的价格色 —— */
   --hs-price: #f56c6c;
 
-  /* —— 圆角：小（按钮/输入）/ 中（卡片）/ 大（弹窗） —— */
-  --hs-radius-sm: 6px;
-  --hs-radius-md: 8px;
-  --hs-radius-lg: 12px;
+  /* —— 圆角：[轮6] 引用品牌 Token 阶梯（小/中/大面板） —— */
+  --hs-radius-sm: var(--brand-radius-md, 6px);
+  --hs-radius-md: var(--brand-radius-lg, 8px);
+  --hs-radius-lg: var(--brand-radius-2xl, 12px);
 
-  /* —— 阴影：由「贴地薄影 → hover 浮起」分级，避免发黑发重 —— */
-  --hs-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
-  --hs-shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
-  --hs-shadow-lg: 0 8px 32px rgba(16, 24, 40, 0.12);
+  /* —— 阴影：[轮6] 引用品牌 Token 阶梯（贴地薄影 → hover 浮起 → 弹窗柔影） —— */
+  --hs-shadow-sm: var(--brand-shadow-1, 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04));
+  --hs-shadow-md: var(--brand-shadow-2, 0 4px 16px rgba(16, 24, 40, 0.08));
+  --hs-shadow-lg: var(--brand-shadow-3, 0 8px 32px rgba(16, 24, 40, 0.12));
 
   /* —— 统一过渡时长：hover / 浮动等微交互共用 —— */
   --hs-transition: 0.2s ease;

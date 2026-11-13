@@ -321,12 +321,12 @@ onMounted(() => {
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -362,7 +362,7 @@ onMounted(() => {
 
 .category-name {
   font-weight: 500;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .delete-content {
@@ -379,17 +379,17 @@ onMounted(() => {
 
 .warning-text {
   flex: 1;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   line-height: 1.6;
 }
 
 .warning-text strong {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
 }
 
 .warning-desc {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   display: block;
   margin-top: 8px;
 }

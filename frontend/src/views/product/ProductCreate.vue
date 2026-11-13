@@ -848,7 +848,7 @@ export default {
 .estimate-hint {
   margin-left: 10px;
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 /* 估价可解释依据：行情路径绿色、规则基线灰色 */
@@ -870,7 +870,7 @@ export default {
 .estimate-basis[type='RULE_BASELINE'] {
   background: #f4f4f5;
   border: 1px solid #e9e9eb;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .estimate-basis-title {
@@ -892,7 +892,7 @@ export default {
 .image-tips {
   margin-top: 20px;
   padding: 16px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   border-radius: 8px;
 }
 
@@ -912,7 +912,7 @@ export default {
 }
 
 .info-card {
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   border-radius: 8px;
   padding: 20px;
   text-align: left;

@@ -393,7 +393,7 @@ export default {
 }
 
 .conversation-item:hover {
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
 }
 
 .conversation-item.active {
@@ -433,12 +433,12 @@ export default {
 
 .conv-name {
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .conv-time {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .conv-product {
@@ -459,7 +459,7 @@ export default {
 .conv-last {
   margin-top: 4px;
   font-size: 13px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -516,7 +516,7 @@ export default {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
 }
 
 .chat-row {
@@ -536,9 +536,9 @@ export default {
   padding: 8px 12px;
   border-radius: 8px;
   border-bottom-left-radius: 2px;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  color: #303133;
+  background: var(--hs-bg-card, #fff);
+  border: 1px solid var(--hs-border, #ebeef5);
+  color: var(--hs-text-primary, #303133);
   line-height: 1.5;
   word-break: break-word;
   white-space: pre-wrap;
@@ -554,7 +554,7 @@ export default {
 .bubble-time {
   margin-top: 4px;
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--hs-text-placeholder, #c0c4cc);
 }
 
 .chat-input {

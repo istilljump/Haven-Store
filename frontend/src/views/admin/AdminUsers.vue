@@ -645,12 +645,12 @@ onMounted(() => {
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -700,7 +700,7 @@ onMounted(() => {
 }
 
 .user-avatar {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hs-border, #ebeef5);
 }
 
 .username {
@@ -726,19 +726,19 @@ onMounted(() => {
 
 .detail-item label {
   font-weight: 500;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   width: 80px;
   flex-shrink: 0;
 }
 
 .detail-item span {
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   flex: 1;
 }
 
 .confirm-content {
   padding: 16px 0;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   text-align: center;
 }
 

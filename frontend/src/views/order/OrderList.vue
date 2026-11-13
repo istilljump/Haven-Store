@@ -315,13 +315,13 @@ export default {
   align-items: center;
   gap: 14px;
   padding: 10px 14px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   font-size: 13px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
 }
 
 .order-time {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .order-status {
@@ -351,7 +351,7 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   flex-shrink: 0;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   /* [UI美化-本轮] 可点击封面补齐 hover 反馈：轻微透明度过渡 */
   transition: opacity 0.2s ease;
 }
@@ -368,7 +368,7 @@ export default {
 /* [UI美化] 标题悬浮加平滑过渡 */
 .order-item-title {
   font-size: 15px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -386,11 +386,11 @@ export default {
   gap: 8px;
   margin-top: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .order-item-price {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 15px;
   flex-shrink: 0;
 }
@@ -398,7 +398,7 @@ export default {
 .order-remark {
   padding: 0 14px 10px;
   font-size: 13px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .order-foot {
@@ -414,7 +414,7 @@ export default {
 }
 
 .order-summary em {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 17px;
   font-style: normal;
   font-weight: 600;
@@ -431,7 +431,7 @@ export default {
 
 .pay-tip {
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--hs-text-placeholder, #c0c4cc);
 }
 
 .order-pagination {

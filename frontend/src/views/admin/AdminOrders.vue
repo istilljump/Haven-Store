@@ -247,12 +247,12 @@ onMounted(loadOrders)
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -262,7 +262,7 @@ onMounted(loadOrders)
 }
 
 .amount {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-weight: 600;
 }
 
@@ -274,7 +274,7 @@ onMounted(loadOrders)
 
 .items-title {
   margin: 16px 0 8px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .detail-item {
@@ -282,7 +282,7 @@ onMounted(loadOrders)
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px dashed #ebeef5;
+  border-bottom: 1px dashed var(--hs-border, #ebeef5);
 }
 
 .item-cover {
@@ -299,28 +299,28 @@ onMounted(loadOrders)
 
 .item-title {
   font-size: 14px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .item-seller {
   margin-top: 2px;
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .item-price {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-weight: 600;
 }
 
 .detail-total {
   text-align: right;
   padding-top: 10px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
 }
 
 .amount-strong {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-size: 17px;
   font-weight: 700;
 }

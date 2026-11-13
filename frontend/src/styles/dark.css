@@ -1,0 +1,335 @@
+/**
+ * ============================================================
+ * Haven-Store 暗色主题体系（轮6 新增 · 界面级暗色 Token）
+ * ============================================================
+ * 与 brand-tokens.css 的分工：
+ *   本文件负责「界面色阶」——页面底色/卡片/浮层/文字层级/分割线/
+ *   输入/表格/告警等界面语义变量在 html.dark 下的重定义；
+ *   品牌资产（色板/渐变/装饰）在 brand-tokens.css。
+ *
+ * 设计原则（禁止简单反色）：
+ *   1. 底色采用蓝调深色阶（非纯黑），与品牌蓝同源；
+ *   2. 文字四级层级独立设计（不取反），满足 WCAG AA 对比度；
+ *   3. 分割线/填充改用「白色低透明度」体系，而非反转灰阶；
+ *   4. 阴影补偿加深（暗底下阴影天然弱化），描边承担主分层职责。
+ *
+ * 依赖：main.js 需引入 element-plus/theme-chalk/dark/css-vars.css
+ *       （EP 官方暗色变量表，挂 html.dark），本文件在其基础上精调。
+ */
+
+/* ============================================================
+ * 一、界面色阶重定义（html.dark 覆盖 --hs-* 与 --el-*）
+ * ============================================================ */
+html.dark {
+  /* —— 底色体系：蓝调深色阶 —— */
+  --hs-bg-page: #0e131a;    /* 页面底（最深） */
+  --hs-bg-card: #171e28;    /* 卡片底 */
+  --hs-bg-panel: #1d2531;   /* 浅灰面板 → 暗色等价面板 */
+  --hs-bg-panel-2: #212a36; /* 次级面板（图标托底等） */
+  --hs-bg-price-soft: rgba(247, 139, 139, 0.12); /* 价格强调底（暗色低透明等价） */
+  --hs-bg-hover: #1f2937;   /* 行悬浮底 */
+
+  /* —— 文字层级（独立设计，非反转灰） —— */
+  --hs-text-primary: #e6ebf4;
+  --hs-text-regular: #c3cad6;
+  --hs-text-secondary: #8d97a8;
+  --hs-text-placeholder: #5e6879;
+
+  /* —— 分割线/描边：白色低透明度体系 —— */
+  --hs-border: #2a3442;
+  --hs-border-light: #222b37;
+
+  /* —— 价格/功能色：暗色下提亮保证对比 —— */
+  --hs-price: #f78b8b;
+  --hs-primary: var(--brand-primary-500);
+  --hs-primary-dark: var(--brand-primary-900);
+  --hs-primary-light: var(--brand-primary-400);
+  --hs-primary-bg: rgba(77, 166, 255, 0.14);
+  --hs-primary-shadow: rgba(64, 158, 255, 0.35);
+
+  /* —— 阴影（引用品牌层暗色补偿值） —— */
+  --hs-shadow-sm: var(--brand-shadow-1);
+  --hs-shadow-md: var(--brand-shadow-2);
+  --hs-shadow-lg: var(--brand-shadow-3);
+
+  /* —— Element Plus 精调：蓝调底色替换官方中性黑 —— */
+  --el-bg-color: #171e28;         /* 卡片/表单底 */
+  --el-bg-color-page: #0e131a;    /* 页面底 */
+  --el-bg-color-overlay: #1d2531; /* 浮层（下拉/弹窗） */
+  --el-text-color-primary: #e6ebf4;
+  --el-text-color-regular: #c3cad6;
+  --el-text-color-secondary: #8d97a8;
+  --el-text-color-placeholder: #5e6879;
+  --el-border-color: #2a3442;
+  --el-border-color-light: #222b37;
+  --el-border-color-lighter: #1f2833;
+  --el-fill-color: #1f2833;
+  --el-fill-color-light: #1d2531;
+  --el-fill-color-lighter: #1a2230;
+  --el-fill-color-blank: #171e28;
+
+  /* 表格（管理端重点）：表头/悬浮/描边 */
+  --el-table-header-bg-color: #1d2531;
+  --el-table-header-text-color: #aeb8c7;
+  --el-table-row-hover-bg-color: #1f2937;
+  --el-table-border-color: #2a3442;
+  --el-table-bg-color: #171e28;
+  --el-table-tr-bg-color: #171e28;
+}
+
+/* [轮6修复] theme.css 在 .el-table 元素上直接声明了亮色表头变量（元素级声明优先于
+   html.dark 继承），此处以同路径选择器覆盖回去，暗色表头才能生效 */
+html.dark .el-table {
+  --el-table-header-bg-color: #1d2531;
+  --el-table-header-text-color: #aeb8c7;
+  --el-table-row-hover-bg-color: #1f2937;
+  --el-table-border-color: #2a3442;
+  --el-table-bg-color: #171e28;
+  --el-table-tr-bg-color: #171e28;
+}
+
+/* ============================================================
+ * 二、组件级暗色适配（覆盖各页 scoped 的硬编码浅色值；
+ *     html.dark 前缀特异性高于 scoped 属性选择器）
+ * ============================================================ */
+
+/* —— 页面通用底色与正文 —— */
+html.dark body {
+  background-color: var(--hs-bg-page);
+  color: var(--hs-text-primary);
+}
+
+/* —— 布局层 —— */
+html.dark .header,
+html.dark .footer,
+html.dark .admin-header {
+  background-color: var(--hs-bg-card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+html.dark .main-content,
+html.dark .admin-main,
+html.dark .admin-layout {
+  background-color: var(--hs-bg-page);
+}
+html.dark .username {
+  color: var(--hs-text-primary);
+}
+html.dark .user-info:hover {
+  background-color: var(--hs-bg-hover);
+}
+/* 横向菜单悬浮底色 */
+html.dark .nav-menu-inner :deep(.el-menu-item:hover),
+html.dark .nav-menu-inner .el-menu-item:hover {
+  background-color: var(--hs-bg-hover);
+}
+/* 后台侧边菜单：底色与选中态在暗色下的适配 */
+html.dark .admin-sidebar {
+  background: #10161f;
+}
+html.dark .admin-menu .el-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* —— Hero / 认证页：引用品牌层暗色渐变 —— */
+html.dark .hero {
+  background:
+    var(--brand-hero-glow-a),
+    var(--brand-hero-glow-b),
+    var(--brand-hero-gradient);
+}
+html.dark .auth-layout {
+  background:
+    radial-gradient(1000px 500px at 10% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(800px 400px at 110% 110%, rgba(255, 255, 255, 0.05), transparent 55%),
+    var(--brand-auth-gradient);
+}
+/* 后台登录页：暗色切换为品牌夜色渐变（与前台认证页同源） */
+html.dark .admin-login-container {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(77, 166, 255, 0.1), transparent 60%),
+    var(--brand-auth-gradient);
+}
+
+/* —— 卡片体系 —— */
+html.dark .product-card,
+html.dark .recommend-card,
+html.dark .board-card,
+html.dark .order-card,
+html.dark .nearby-card,
+html.dark .category-item,
+html.dark .product-skeleton,
+html.dark .card-skeleton {
+  background-color: var(--hs-bg-card);
+  border-color: var(--hs-border);
+}
+html.dark .product-card:hover,
+html.dark .recommend-card:hover,
+html.dark .board-card:hover,
+html.dark .order-card:hover,
+html.dark .nearby-card:hover {
+  border-color: rgba(77, 166, 255, 0.35);
+}
+/* 卡片内文字层级 */
+html.dark .product-card__title,
+html.dark .recommend-title,
+html.dark .board-name,
+html.dark .nearby-title,
+html.dark .item-title,
+html.dark .order-item-title {
+  color: var(--hs-text-primary);
+}
+html.dark .product-card__seller,
+html.dark .board-meta,
+html.dark .market-hint,
+html.dark .order-item-meta,
+html.dark .price-origin,
+html.dark .recommend-tags,
+html.dark .item-meta,
+html.dark .order-time,
+html.dark .msg-time,
+html.dark .avatar-tip {
+  color: var(--hs-text-secondary);
+}
+
+/* —— 分类/成色小标签（scoped 硬编码 #f3f8fd/#6087a8 的暗色等价） —— */
+html.dark .product-card__category,
+html.dark .product-card__condition {
+  background: rgba(77, 166, 255, 0.12);
+  color: #9ecbff;
+}
+
+/* —— 详情页：价格强调块 / 行情卡 / 浅灰面板 —— */
+html.dark .price-section {
+  background: rgba(247, 139, 139, 0.12);
+}
+html.dark .original-price {
+  color: var(--hs-text-placeholder);
+}
+html.dark .market-section,
+html.dark .seller-section,
+html.dark .contact-seller,
+html.dark .product-actions,
+html.dark .product-stats,
+html.dark .comment-form {
+  background: var(--hs-bg-panel);
+  border-color: var(--hs-border);
+}
+html.dark .meta-item .label,
+html.dark .seller-meta,
+html.dark .review-user .review-time,
+html.dark .review-content,
+html.dark .description {
+  color: var(--hs-text-regular);
+}
+html.dark .review-item,
+html.dark .stats-list .stat-item {
+  border-bottom-color: var(--hs-border-light);
+}
+html.dark .product-detail,
+html.dark .product-detail-content {
+  background: var(--hs-bg-card);
+  box-shadow: none;
+}
+html.dark .product-detail-content {
+  border-top-color: var(--hs-border-light);
+}
+
+/* —— 订单详情：状态横幅浅色底 → 暗色低透明等价（currentColor 色条自动适配） —— */
+html.dark .status-card {
+  background: rgba(77, 166, 255, 0.12);
+}
+html.dark .status-card.status-2,
+html.dark .status-card.status-4 {
+  background: rgba(103, 194, 58, 0.14);
+}
+html.dark .status-card.status-3 {
+  background: rgba(247, 139, 139, 0.12);
+}
+html.dark .status-no {
+  border-top-color: rgba(255, 255, 255, 0.14);
+}
+
+/* —— 购物车/订单/通知/私信：面板与行底 —— */
+html.dark .toolbar,
+html.dark .order-head,
+html.dark .cart-item:hover,
+html.dark .msg-item:hover,
+html.dark .msg-item.checked,
+html.dark .checkout-notice {
+  background-color: var(--hs-bg-panel);
+}
+html.dark .cart-item.unavailable {
+  background: var(--hs-bg-panel);
+}
+html.dark .item-list,
+html.dark .page-container,
+html.dark .profile-content,
+html.dark .notifications-page .page-container,
+html.dark .product-create .create-form {
+  background-color: var(--hs-bg-card);
+}
+html.dark .msg-icon {
+  background: rgba(77, 166, 255, 0.14);
+}
+
+/* —— 首页看板 TOP 徽标：暗色下保持品牌橙但压暗背景光晕 —— */
+html.dark .board-rank {
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
+}
+
+/* —— 空状态插画压暗（避免白底插画刺眼） —— */
+html.dark .el-empty__image {
+  opacity: 0.7;
+}
+
+/* —— 滚动条 —— */
+html.dark ::-webkit-scrollbar-thumb {
+  background: #2e3947;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3a4756;
+}
+
+/* —— 全局请求进度条（MainLayout scoped 硬编码的轨道/条色） —— */
+html.dark .global-progress {
+  background: rgba(77, 166, 255, 0.18);
+}
+
+/* —— 文字选区 —— */
+html.dark ::selection {
+  background: rgba(77, 166, 255, 0.3);
+  color: #e6ebf4;
+}
+
+/* ============================================================
+ * 二·补、管理看板图表卡局部锁亮（配套复核校验：echarts 画布颜色
+ * 硬编码于业务 JS【风险点①·待审定授权后处理】；此为纯 CSS 兜底：
+ * 图表卡保持亮色面板，画布灰字回落到白底可读，变量作用域覆盖使
+ * 卡内文字 Token 自动回到亮色值，实现「暗色界面中的亮色图表卡」）
+ * ============================================================ */
+html.dark .chart-section .el-card {
+  background: #f8fafd;
+  border-color: #ebeef5;
+  /* 变量作用域覆盖：卡内消费 --hs-* 文字 Token 的元素回到亮色层级 */
+  --hs-text-primary: #303133;
+  --hs-text-regular: #606266;
+  --hs-text-secondary: #909399;
+  --hs-text-placeholder: #c0c4cc;
+  --hs-border: #ebeef5;
+  --hs-border-light: #f0f2f7;
+}
+
+/* ============================================================
+ * 三、暗色动效强度复审（配套复核校验项）
+ * 暗底下阴影类 hover 若过强会产生「发光感」，统一压制半档
+ * ============================================================ */
+html.dark .product-card:hover,
+html.dark .recommend-card:hover,
+html.dark .board-card:hover,
+html.dark .order-card:hover,
+html.dark .nearby-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+html.dark .el-button--primary:not(.is-link):not(.is-text):not(.is-plain):hover {
+  box-shadow: 0 3px 10px var(--hs-primary-shadow);
+}

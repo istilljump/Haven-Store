@@ -175,12 +175,12 @@ const handleLogin = async () => {
 .logo h1 {
   font-size: 22px;
   font-weight: 700;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0;
 }
 
 .login-header p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin-top: 8px;
 }
@@ -206,7 +206,7 @@ const handleLogin = async () => {
 }
 
 .switch-to-user {
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   text-decoration: none;
   font-size: 14px;
   transition: color 0.2s ease;

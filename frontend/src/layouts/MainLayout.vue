@@ -51,6 +51,8 @@
         </div>
 
         <div class="user-menu">
+          <!-- 轮6：主题三模式切换（基础设施，入口位置为临时默认位【待审定】） -->
+          <ThemeToggle />
           <template v-if="isLoggedIn">
             <el-dropdown @command="handleCommand">
               <span class="user-info">
@@ -115,6 +117,8 @@ import { useAuthStore } from '@/store/auth'
 import { useConfigStore, useUserStore } from '@/store/index'
 import { useRoute, useRouter } from 'vue-router'
 import { Menu as MenuIcon } from '@element-plus/icons-vue'
+// 轮6：主题三模式切换按钮（主题基础设施）
+import ThemeToggle from '@/theme/ThemeToggle.vue'
 import messageApi from '@/api/message'
 import cartApi from '@/api/cart'
 
@@ -123,7 +127,7 @@ const BADGE_POLL_INTERVAL_MS = 30000
 
 export default {
   name: 'MainLayout',
-  components: { MenuIcon },
+  components: { MenuIcon, ThemeToggle },
   setup() {
     const authStore = useAuthStore()
     // 站点配置来自 config store（此前误用 user store，且缺少 import，会抛 ReferenceError 导致白屏）
@@ -300,16 +304,16 @@ export default {
   margin: 0 auto;
 }
 
-/* [UI美化-本轮] 品牌徽标：Logo 前主色圆点（纯 CSS 装饰元素） */
+/* [UI美化-本轮] 品牌徽标：Logo 前主色圆点（[轮6] 规格收拢到品牌 Token，支持热换） */
 .logo h1::before {
   content: '';
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 8px;
+  width: var(--brand-logo-dot-size, 12px);
+  height: var(--brand-logo-dot-size, 12px);
+  margin-right: var(--brand-logo-dot-gap, 8px);
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb);
-  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.4);
+  background: var(--brand-logo-dot-inner, radial-gradient(circle at 35% 30%, #79bbff, #409eff 60%, #2563eb));
+  box-shadow: var(--brand-logo-dot-shadow, 0 2px 6px rgba(64, 158, 255, 0.4));
   vertical-align: -1px;
 }
 
@@ -383,7 +387,7 @@ export default {
 
 .username {
   font-size: 14px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 /* 移动端汉堡按钮：桌面端隐藏 */
@@ -391,7 +395,7 @@ export default {
   display: none;
   font-size: 22px;
   cursor: pointer;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   /* [UI美化-本轮] 汉堡按钮 hover 色变补平滑过渡 */
   transition: color 0.2s ease;
 }
@@ -410,7 +414,7 @@ export default {
 
 .footer {
   background-color: #fff;
-  border-top: 1px solid #f0f2f7;
+  border-top: 1px solid var(--hs-border-light, #f0f2f7);
   padding: 0 20px;
 }
 
@@ -423,22 +427,22 @@ export default {
   margin: 0 auto;
 }
 
-/* [UI美化-本轮] 页脚品牌点缀：主色小圆点 */
+/* [UI美化-本轮] 页脚品牌点缀：主色小圆点（[轮6] 小尺寸反白版规格收拢到品牌 Token） */
 .footer-content p::before {
   content: '';
   display: inline-block;
   width: 6px;
   height: 6px;
-  margin-right: 8px;
+  margin-right: var(--brand-logo-dot-gap, 8px);
   border-radius: 50%;
-  background: #409eff;
-  opacity: 0.55;
+  background: var(--hs-primary, #409eff);
+  opacity: var(--brand-logo-dot-muted-opacity, 0.55);
   vertical-align: 1px;
 }
 
 .footer-content p {
   margin: 0;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 13px;
 }
 

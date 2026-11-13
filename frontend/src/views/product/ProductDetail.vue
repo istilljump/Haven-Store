@@ -1068,7 +1068,7 @@ export default {
 
 .message-dialog-tip {
   margin: 0 0 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -1084,7 +1084,7 @@ export default {
 
 /* [UI美化] 详情主卡：白卡 + 圆角 + 贴地薄影 */
 .product-detail {
-  background: white;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
   overflow: hidden;
@@ -1108,7 +1108,7 @@ export default {
 .product-images {
   border-radius: 10px;
   overflow: hidden;
-  background: #f5f7fa;
+  background: var(--hs-bg-page, #f5f7fa);
 }
 
 .carousel-image {
@@ -1131,7 +1131,7 @@ export default {
   gap: 12px;
   margin-bottom: 20px;
   padding: 12px 18px;
-  background: #fef0f0;
+  background: var(--hs-bg-price-soft, #fef0f0);
   border-radius: 10px;
 }
 
@@ -1139,13 +1139,13 @@ export default {
 .price {
   font-size: 32px;
   font-weight: bold;
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   margin-right: 0;
   font-variant-numeric: tabular-nums;
 }
 
 .original-price {
-  color: #c0c4cc;
+  color: var(--hs-text-placeholder, #c0c4cc);
   text-decoration: line-through;
 }
 
@@ -1158,14 +1158,14 @@ export default {
   gap: 8px;
   margin: 0 0 16px;
   padding: 14px 16px;
-  background: #f8fafd;
-  border: 1px solid #ebeef5;
+  background: var(--hs-bg-panel, #f8fafd);
+  border: 1px solid var(--hs-border, #ebeef5);
   border-radius: 10px;
   font-size: 13px;
 }
 
 .market-summary {
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
 }
 
 /* 行情走势迷你折线 */
@@ -1178,7 +1178,7 @@ export default {
 .trend-caption {
   width: 100%;
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 /* 卖家信用画像（可信交易轻量层） */
@@ -1191,7 +1191,7 @@ export default {
 
 .seller-credit-meta {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 /* 校园面交点推荐 */
@@ -1201,7 +1201,7 @@ export default {
   gap: 8px;
   margin: -6px 0 16px;
   font-size: 13px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
 }
 
 .title-section {
@@ -1211,14 +1211,14 @@ export default {
 /* [UI美化] 商品标题：字重加重，层级更清晰 */
 .title-section h1 {
   margin: 0 0 10px 0;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   font-size: 24px;
   font-weight: 700;
   line-height: 1.4;
 }
 
 .description {
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   line-height: 1.8;
   margin-bottom: 20px;
 }
@@ -1235,18 +1235,18 @@ export default {
 }
 
 .meta-item .label {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   min-width: 80px;
 }
 
 .meta-item .value {
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 /* [UI美化] 侧栏/卖家浅灰面板：底色压淡 + 圆角统一 10px */
 .seller-section {
   padding: 20px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   border-radius: 10px;
 }
 
@@ -1258,12 +1258,12 @@ export default {
 
 .seller-details .seller-name {
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin-bottom: 5px;
 }
 
 .seller-meta {
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   font-size: 14px;
 }
 
@@ -1286,7 +1286,7 @@ export default {
 .product-actions,
 .product-stats {
   padding: 20px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   border-radius: 10px;
 }
 
@@ -1294,7 +1294,7 @@ export default {
 .product-actions h3,
 .product-stats h3 {
   margin: 0 0 15px 0;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   font-size: 16px;
   font-weight: 600;
 }
@@ -1317,12 +1317,12 @@ export default {
   justify-content: space-between;
   margin-bottom: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f2f7;
+  border-bottom: 1px solid var(--hs-border-light, #f0f2f7);
 }
 
 /* [UI美化] 详情/评价内容区：与主卡同层，顶部以细线分区 */
 .product-detail-content {
-  background: white;
+  background: var(--hs-bg-card, #fff);
   border-top: 1px solid #f5f7fa;
   padding: 24px 24px 30px;
 }
@@ -1338,7 +1338,7 @@ export default {
 }
 
 .notice-list h4 {
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 20px 0 10px 0;
 }
 
@@ -1350,7 +1350,7 @@ export default {
 /* [UI美化] 评价列表：分隔线压淡 */
 .review-item {
   padding: 20px;
-  border-bottom: 1px solid #f0f2f7;
+  border-bottom: 1px solid var(--hs-border-light, #f0f2f7);
 }
 
 .review-header {
@@ -1366,12 +1366,12 @@ export default {
 
 .review-user .username {
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin-bottom: 5px;
 }
 
 .review-user .review-time {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
 }
 
@@ -1380,21 +1380,21 @@ export default {
 }
 
 .review-content {
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   line-height: 1.7;
 }
 
 .comment-form {
   padding: 18px;
   margin-bottom: 20px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   border-radius: 10px;
 }
 
 .comment-form-title {
   font-weight: 600;
   margin-bottom: 12px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .comment-rate {
@@ -1404,7 +1404,7 @@ export default {
 }
 
 .comment-rate .label {
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   margin-right: 8px;
 }
 

@@ -209,7 +209,7 @@ export default {
 
 <style scoped>
 .notifications-page {
-  background: #f5f7fa;
+  background: var(--hs-bg-page, #f5f7fa);
   min-height: 100%;
   padding: 20px;
 }
@@ -218,7 +218,7 @@ export default {
 .page-container {
   max-width: 860px;
   margin: 0 auto;
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   padding: 20px 24px;
   box-shadow: var(--hs-shadow-sm);
@@ -233,7 +233,7 @@ export default {
 .page-head h2 {
   margin: 0;
   font-size: 20px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .tab-badge {
@@ -257,7 +257,7 @@ export default {
 
 .msg-item:hover,
 .msg-item.checked {
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
 }
 
 .msg-item.unread .msg-title {
@@ -289,7 +289,7 @@ export default {
 
 .msg-title {
   font-size: 15px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .unread-dot {
@@ -302,7 +302,7 @@ export default {
 .msg-content {
   margin-top: 4px;
   font-size: 13px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   line-height: 1.5;
   word-break: break-word;
 }
@@ -310,7 +310,7 @@ export default {
 .msg-time {
   margin-top: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .msg-delete {

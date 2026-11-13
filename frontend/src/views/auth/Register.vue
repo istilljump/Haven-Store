@@ -156,14 +156,14 @@ export default {
 .register-title {
   margin: 0 0 6px;
   font-size: 22px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   text-align: center;
 }
 
 .register-subtitle {
   margin: 0 0 22px;
   font-size: 13px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   text-align: center;
 }
 
@@ -176,7 +176,7 @@ export default {
   margin-top: 14px;
   text-align: center;
   font-size: 13px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .register-footer a {

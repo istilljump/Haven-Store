@@ -24,6 +24,8 @@
         </div>
 
         <div class="header-right">
+          <!-- 轮6：主题三模式切换（基础设施，入口位置为临时默认位【待审定】） -->
+          <ThemeToggle />
           <el-dropdown @command="handleCommand">
             <div class="user-info">
               <el-avatar :src="userInfo.avatar || '/default-avatar.png'" />
@@ -140,6 +142,8 @@ import {
   Bell
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/index'
+// 轮6：主题三模式切换按钮（主题基础设施）
+import ThemeToggle from '@/theme/ThemeToggle.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -226,7 +230,7 @@ const handleLogout = () => {
 /* [UI美化] 顶栏：薄影替代硬边框，观感更轻盈 */
 .admin-header {
   height: 64px;
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-bottom: 1px solid transparent;
   box-shadow: 0 1px 4px rgba(16, 24, 40, 0.06);
   display: flex;
@@ -288,12 +292,12 @@ const handleLogout = () => {
 }
 
 .user-info:hover {
-  background: #f5f7fa;
+  background: var(--hs-bg-page, #f5f7fa);
 }
 
 .username {
   font-size: 14px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
 }
 
 .admin-container {
@@ -379,7 +383,7 @@ const handleLogout = () => {
 
 :deep(.el-dropdown-menu__item .el-icon) {
   font-size: 16px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 :deep(.el-dropdown-menu__item .el-icon:hover) {
@@ -392,7 +396,7 @@ const handleLogout = () => {
   font-size: 20px;
   margin-right: 10px;
   cursor: pointer;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   transition: color 0.2s ease;
 }
 

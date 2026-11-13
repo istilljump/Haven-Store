@@ -203,7 +203,7 @@ export default {
 
 <style scoped>
 .my-products-page {
-  background: #f5f7fa;
+  background: var(--hs-bg-page, #f5f7fa);
   min-height: 100%;
   padding: 20px;
 }
@@ -212,7 +212,7 @@ export default {
 .page-container {
   max-width: 1080px;
   margin: 0 auto;
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   padding: 20px 24px 28px;
   box-shadow: var(--hs-shadow-sm);
@@ -228,7 +228,7 @@ export default {
 .page-head h2 {
   margin: 0;
   font-size: 20px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   font-weight: 600;
 }
 

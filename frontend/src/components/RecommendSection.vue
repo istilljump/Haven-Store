@@ -81,12 +81,12 @@ defineProps({
 .section-head h2 {
   margin: 0;
   font-size: 20px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .recommend-subtitle {
   font-size: 13px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .recommend-grid {
@@ -97,11 +97,11 @@ defineProps({
 
 /* [UI美化] 推荐卡：与商品卡统一观感（圆角/薄影/hover 上浮） */
 .recommend-card {
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hs-border, #ebeef5);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -129,8 +129,8 @@ defineProps({
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
-  color: #c0c4cc;
+  background: var(--hs-bg-page, #f5f7fa);
+  color: var(--hs-text-placeholder, #c0c4cc);
   font-size: 13px;
 }
 
@@ -146,7 +146,7 @@ defineProps({
 .recommend-title {
   padding: 8px 10px 0;
   font-size: 14px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -161,13 +161,13 @@ defineProps({
 
 /* [UI美化] 价格色统一为项目价格红 */
 .recommend-price {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-weight: 600;
 }
 
 .recommend-tags {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 /* [UI美化-本轮] 推荐卡首屏一次性渐入（全局 hs-fade-up keyframes，stagger 延迟见下） */

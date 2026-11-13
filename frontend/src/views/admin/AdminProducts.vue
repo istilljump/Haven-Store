@@ -524,12 +524,12 @@ onMounted(() => {
 .header-title h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   margin: 0 0 8px 0;
 }
 
 .header-title p {
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   font-size: 14px;
   margin: 0;
 }
@@ -580,16 +580,16 @@ onMounted(() => {
 
 .title {
   font-weight: 500;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .category {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
 }
 
 .price {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-weight: 600;
 }
 
@@ -615,7 +615,7 @@ onMounted(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
 }
 
 .detail-grid {
@@ -632,21 +632,21 @@ onMounted(() => {
 
 .detail-item label {
   font-weight: 500;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   width: 100px;
   flex-shrink: 0;
 }
 
 .detail-item span {
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   flex: 1;
 }
 
 .description {
   padding: 12px;
-  background: #f8fafd;
+  background: var(--hs-bg-panel, #f8fafd);
   border-radius: 8px;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   line-height: 1.6;
 }
 
@@ -661,7 +661,7 @@ onMounted(() => {
 
 .confirm-content {
   padding: 16px 0;
-  color: #606266;
+  color: var(--hs-text-regular, #606266);
   text-align: center;
 }
 

@@ -518,7 +518,7 @@ export default {
 
 .market-hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--hs-text-secondary, #909399);
   padding: 0 2px;
 }
 
@@ -561,7 +561,7 @@ export default {
 
 .header h1 {
   margin: 0;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   font-size: 22px;
   font-weight: 700;
 }
@@ -570,7 +570,7 @@ export default {
 .filter-section {
   margin-bottom: 24px;
   padding: 18px 20px;
-  background: white;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
 }
@@ -623,7 +623,7 @@ export default {
 }
 
 .card-skeleton {
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -631,11 +631,11 @@ export default {
 /* 附近模式卡片：带距离标签 */
 /* [UI美化] 附近卡：与商品卡统一观感（圆角/薄影/hover 上浮） */
 .nearby-card {
-  background: #fff;
+  background: var(--hs-bg-card, #fff);
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--hs-border, #ebeef5);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
@@ -658,7 +658,7 @@ export default {
 
 .nearby-title {
   font-size: 14px;
-  color: #303133;
+  color: var(--hs-text-primary, #303133);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -672,7 +672,7 @@ export default {
 }
 
 .nearby-price {
-  color: #f56c6c;
+  color: var(--hs-price, #f56c6c);
   font-weight: 600;
 }
 
