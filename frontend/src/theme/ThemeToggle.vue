@@ -22,10 +22,19 @@
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { Monitor, Moon, Sunny } from '@element-plus/icons-vue'
-import { THEME_FEATURE_ENABLED, THEME_MODES, applyThemeMode, getThemeMode, setThemeMode } from './theme-mode'
+import {
+  applyThemeMode,
+  getThemeFeatureEnabled,
+  getThemeMode,
+  setThemeMode,
+  subscribeThemeFeature
+} from './theme-mode'
 
-/** 总开关：与 theme-mode.js 的 THEME_FEATURE_ENABLED 同源，关闭时入口整体不渲染 */
-const FEATURE_ENABLED = THEME_FEATURE_ENABLED
+/** 总开关：代码兜底开关 && 后台总开关（themeDarkEnabled），关闭时入口整体不渲染 */
+const FEATURE_ENABLED = ref(getThemeFeatureEnabled())
+subscribeThemeFeature((enabled) => {
+  FEATURE_ENABLED.value = enabled
+})
 
 const MODE_META = {
   system: { icon: Monitor, tip: '主题：跟随系统' },

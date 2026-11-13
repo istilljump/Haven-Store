@@ -262,17 +262,41 @@ const categoryChartRef = ref(null)
 let trendChart = null
 let categoryChart = null
 
+// [轮7授权] 自定暗色注入：按当前主题返回图例/轴文字/分割线/饼图描边颜色
+// （画布颜色硬编码于本文件，属已授权的图表初始化配置级改动；系列色保持品牌色不变）
+const isDarkTheme = () => document.documentElement.classList.contains('dark')
+const chartPalette = () =>
+  isDarkTheme()
+    ? { legendText: '#aeb8c7', axisLabel: '#8d97a8', axisLine: '#2a3442', splitLine: '#232c37', pieBorder: '#171e28' }
+    : { legendText: '#606266', axisLabel: '#909399', axisLine: '#dcdfe6', splitLine: '#e0e6ed', pieBorder: '#ffffff' }
+
+// 主题切换重绘用的数据缓存（避免重复请求接口）
+let lastTrendData = null
+let lastCategoryStats = null
+
 const renderTrendChart = (trend) => {
   if (!trendChartRef.value) return
   if (!trendChart) {
     trendChart = echarts.init(trendChartRef.value)
   }
+  lastTrendData = trend
+  const pal = chartPalette()
   trendChart.setOption({
     tooltip: { trigger: 'axis' },
-    legend: { data: ['新增用户', '新增商品', '新增订单'], top: 0 },
+    legend: { data: ['新增用户', '新增商品', '新增订单'], top: 0, textStyle: { color: pal.legendText } },
     grid: { left: 40, right: 20, top: 34, bottom: 28 },
-    xAxis: { type: 'category', data: trend.map((p) => p.date.slice(5)) },
-    yAxis: { type: 'value', minInterval: 1 },
+    xAxis: {
+      type: 'category',
+      data: trend.map((p) => p.date.slice(5)),
+      axisLabel: { color: pal.axisLabel },
+      axisLine: { lineStyle: { color: pal.axisLine } }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: pal.axisLabel },
+      splitLine: { lineStyle: { color: pal.splitLine } }
+    },
     series: [
       {
         name: '新增用户',
@@ -304,21 +328,29 @@ const renderCategoryChart = (stats) => {
   if (!categoryChart) {
     categoryChart = echarts.init(categoryChartRef.value)
   }
+  lastCategoryStats = stats
+  const pal = chartPalette()
   categoryChart.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} 件（{d}%）' },
-    legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle' },
+    legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle', textStyle: { color: pal.legendText } },
     series: [
       {
         type: 'pie',
         radius: ['38%', '66%'],
         center: ['42%', '50%'],
         avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        itemStyle: { borderRadius: 6, borderColor: pal.pieBorder, borderWidth: 2 },
         label: { show: false },
         data: stats.map((s) => ({ name: s.categoryName || `分类${s.categoryId}`, value: s.count }))
       }
     ]
   })
+}
+
+// [轮7授权] 主题切换时用缓存数据重绘图表（配色随主题更新，不重新请求接口）
+const handleThemeChangeForCharts = () => {
+  if (lastTrendData) renderTrendChart(lastTrendData)
+  if (lastCategoryStats) renderCategoryChart(lastCategoryStats)
 }
 
 const loadCharts = async () => {
@@ -424,15 +456,17 @@ const goToLogout = () => {
     .catch(() => {})
 }
 
-// 组件挂载时加载数据与图表；窗口尺寸变化时重绘
+// 组件挂载时加载数据与图表；窗口尺寸变化时重绘；主题切换时按新配色重绘
 onMounted(() => {
   loadDashboardData()
   loadCharts()
   window.addEventListener('resize', handleResize)
+  window.addEventListener('haven-theme-change', handleThemeChangeForCharts)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('haven-theme-change', handleThemeChangeForCharts)
   trendChart?.dispose()
   categoryChart?.dispose()
   trendChart = null

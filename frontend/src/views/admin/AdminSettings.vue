@@ -211,6 +211,13 @@
                     >（进阶能力：搜索结果按成色二次筛选，缺省关闭）</span
                   >
                 </el-form-item>
+                <h3>外观设置</h3>
+                <el-form-item label="暗色模式">
+                  <el-switch v-model="settings.trade.themeDarkEnabled" />
+                  <span class="form-tip"
+                    >（前台/后台三模式主题切换总开关：跟随系统/亮色/暗色；关闭后强制亮色并隐藏切换入口）</span
+                  >
+                </el-form-item>
               </el-form>
             </div>
           </el-tab-pane>
@@ -359,7 +366,9 @@ const defaultSettings = {
     minSampleSize: 3,
     // 增强搜索与场景推荐（推荐缺省开、成色二次筛选缺省关）
     recommendEnabled: true,
-    searchConditionFilter: false
+    searchConditionFilter: false,
+    // 暗色模式总开关（缺省开启）
+    themeDarkEnabled: true
   },
   contact: {
     email: 'admin@secondhand.com',
